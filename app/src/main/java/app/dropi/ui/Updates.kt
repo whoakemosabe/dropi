@@ -39,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -89,14 +88,14 @@ fun UpdateBanner() {
                 .padding(top = 12.dp)
                 .clip(RoundedCornerShape(18.dp))
                 .background(C.Card)
-                .background(Brush.horizontalGradient(listOf(C.Accent.copy(alpha = 0.18f), C.AccentGlow.copy(alpha = 0.06f))))
-                .border(1.dp, C.Accent.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
+                .background(auroraWash(0.16f))
+                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(18.dp))
                 .tap { act() }
                 .padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(C.Accent),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(C.Aurora)),
                     contentAlignment = Alignment.Center,
                 ) { Ic(R.drawable.lc_download, C.OnAccent, 16.dp) }
                 Spacer(Modifier.width(12.dp))
@@ -119,7 +118,7 @@ fun UpdateBanner() {
                         style = inter(13.sp, FontWeight.Bold, C.OnAccent),
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(C.Accent)
+                            .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
                             .tap { act() }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     )
@@ -174,18 +173,20 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 }
                 .clip(shape)
                 .background(C.Card)
-                .border(1.dp, C.Accent.copy(alpha = 0.45f), shape),
+                .border(1.dp, auroraEdge(0.5f), shape),
         ) {
+          Box(Modifier.fillMaxWidth()) {
+            // The same northern lights as behind every page, glowing over the title.
+            AuroraGlow(Modifier.matchParentSize())
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(C.Accent.copy(alpha = 0.26f), Color.Transparent)))
                     .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(C.Accent),
+                        Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(C.Aurora)),
                         contentAlignment = Alignment.Center,
                     ) { Ic(R.drawable.lc_zap, C.OnAccent, 16.dp) }
                     Spacer(Modifier.width(10.dp))
@@ -208,6 +209,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 )
                 if (behind > 1) Text("Installing v$version brings you fully up to date.", style = inter(12.sp, color = C.TextSecondary))
             }
+          }
 
             Column(
                 Modifier
@@ -277,8 +279,15 @@ private fun Highlight(text: String, index: Int) {
         },
         verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.padding(top = 5.dp).size(8.dp).clip(RoundedCornerShape(50)).background(C.Accent))
+        Box(Modifier.padding(top = 5.dp).size(8.dp).clip(RoundedCornerShape(50)).background(Brush.linearGradient(C.Aurora)))
         Spacer(Modifier.width(12.dp))
         Text(text, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
     }
 }
+
+/** A soft wash of the aurora (green → cyan → violet) across a card. */
+private fun auroraWash(alpha: Float): Brush =
+    Brush.horizontalGradient(C.Aurora.mapIndexed { i, c -> c.copy(alpha = if (i == 1) alpha / 2 else alpha) })
+
+/** A hairline edge in the aurora colours. */
+private fun auroraEdge(alpha: Float): Brush = Brush.horizontalGradient(C.Aurora.map { it.copy(alpha = alpha) })
