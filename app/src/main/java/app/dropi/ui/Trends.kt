@@ -186,7 +186,7 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
             )
         }
     }
-    val mint = androidx.compose.ui.text.SpanStyle(color = C.AccentText)
+    val mint = androidx.compose.ui.text.SpanStyle(color = C.Text, fontWeight = FontWeight.ExtraBold)
     val period = if (r.days == 7) "this week" else "in ${r.days} days"
     val sentence = androidx.compose.ui.text.buildAnnotatedString {
         val tir = r.bands?.inRange?.roundToInt()
@@ -207,7 +207,7 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
         if (r.lows == 0) append("No lows.")
         else withStyle(androidx.compose.ui.text.SpanStyle(color = C.Low)) { append(if (r.lows == 1) "1 low." else "${r.lows} lows.") }
     }
-    Text(sentence, style = heading(19.sp).copy(lineHeight = 26.sp), modifier = Modifier.padding(horizontal = 4.dp))
+    Text(sentence, style = heading(19.sp, C.TextSecondary).copy(lineHeight = 26.sp), modifier = Modifier.padding(horizontal = 4.dp))
     Spacer(Modifier.height(14.dp))
     Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(horizontal = 4.dp)) {
         SmallStat("Variability", r.cv?.let { "${it.roundToInt()}%" } ?: "—", "goal 36% or less", Modifier.weight(1f))

@@ -66,7 +66,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
 
     Box(Modifier.fillMaxWidth().weight(1f, fill = false)) {
         LazyColumn(
-            Modifier.fillMaxWidth().layerBackdrop(backdrop).background(C.Card),
+            Modifier.fillMaxWidth().layerBackdrop(backdrop).background(C.Sheet),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = nav.calculateBottomPadding() + 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -93,7 +93,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                 item(key = "l$day") { ReadingsCard(state, rs, C.SurfaceLight) { fmt.time(it.at) } }
             }
         }
-        GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Card)
+        GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Sheet)
         Column(
             Modifier
                 .align(Alignment.TopCenter)

@@ -219,7 +219,7 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
 @Composable
 private fun DaySentence(state: AppState, s: app.dropi.data.Summary) {
     if (s.count == 0) return
-    val mint = SpanStyle(color = C.AccentText)
+    val mint = SpanStyle(color = C.Text, fontWeight = FontWeight.ExtraBold)
     val text = buildAnnotatedString {
         append(if (s.count == 1) "1 reading today" else "${s.count} readings today")
         s.average?.let {
@@ -237,7 +237,7 @@ private fun DaySentence(state: AppState, s: app.dropi.data.Summary) {
             withStyle(SpanStyle(color = C.Low)) { append(if (s.lows == 1) "1 low." else "${s.lows} lows.") }
         }
     }
-    Text(text, style = heading(21.sp).copy(lineHeight = 28.sp), modifier = Modifier.padding(horizontal = 4.dp))
+    Text(text, style = heading(21.sp, C.TextSecondary).copy(lineHeight = 28.sp), modifier = Modifier.padding(horizontal = 4.dp))
 }
 
 @Composable

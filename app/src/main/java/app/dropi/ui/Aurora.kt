@@ -32,7 +32,7 @@ import app.dropi.data.GlucoseUnit
 @Composable
 fun AuroraGlow(modifier: Modifier) {
     val (a, b, c) = C.Aurora
-    val strength = if (C.dark) 1f else 0.45f
+    val strength = if (C.dracula) 1f else if (C.dark) 0.55f else 0.45f
     Canvas(modifier) {
         val w = size.width
         fun light(color: Color, cx: Float, cy: Float, r: Float, alpha: Float) {

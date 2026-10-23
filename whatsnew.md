@@ -4,7 +4,7 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- The update banner and What's new window now match the Aurora look: northern-lights glow, aurora icon and edges
-- The on-device AI download now shows on the home screen: how far along it is, waiting for Wi-Fi, almost ready, then ready to try
-- A notification tells you when it's ready, even if Dropi was closed
-- Fixed: after the download, Settings could stay stuck on "Checking the download"
+- Dark mode, cleaned up: true near-black with clear layers between the page, sheets and cards
+- One violet accent for buttons, tabs and links, and a softer cyan, violet and pink glow. Green now only means in range
+- Slide-up sheets sit a step above the page so the cards inside them stand out
+- Highlighted numbers are bright white instead of green

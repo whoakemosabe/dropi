@@ -163,7 +163,7 @@ fun SlideSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.(close: (
                 .onSizeChanged { heightPx = it.height.toFloat() }
                 .offset { IntOffset(0, offsetY.roundToInt()) }
                 .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(C.Card)
+                .background(C.Sheet)
                 .nestedScroll(connection)
                 .draggable(
                     rememberDraggableState { dragBy(it) },
@@ -200,14 +200,14 @@ fun ColumnScope.StickySheetBody(
             Modifier
                 .fillMaxWidth()
                 .layerBackdrop(backdrop)
-                .background(C.Card)
+                .background(C.Sheet)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )
-        GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Card)
+        GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Sheet)
         Box(
             Modifier
                 .align(Alignment.TopCenter)

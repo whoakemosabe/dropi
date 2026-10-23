@@ -20,8 +20,9 @@ import app.dropi.R
 import app.dropi.data.Status
 
 /**
- * Dropi's palette, "Aurora": a near-black northern sky with the aurora's green, cyan and violet
- * as the brand (the glow behind the page, the + button, the live trace). The range colours stay
+ * Dropi's palette, "Aurora". Dark: neutral near-black with clear steps from page to sheet to
+ * card to tile, one violet accent, and a soft cyan, violet and pink glow (no green, which only
+ * ever means "in range"). Light: the same sky by day with the full aurora. The range colours stay
  * the ones that mean something (green in range, amber high, pink-red low) and always come with
  * words. The light theme is the same sky by day. Plus Dracula: near-black, blood red and a
  * purple glow. [dark] and [dracula] are Compose state, so screens redraw when the theme changes.
@@ -34,30 +35,32 @@ object C {
 
     private fun pick(d: Long, l: Long, dr: Long = d) = Color(if (dracula) dr else if (dark) d else l)
 
-    val Bg get() = pick(0xFF060A14, 0xFFEEF3FF, 0xFF0A0406)
-    val Card get() = pick(0xFF0E121C, 0xFFFFFFFF, 0xFF170A0E)
-    val SurfaceLight get() = pick(0xFF171C2A, 0xFFE3E9FA, 0xFF261018)
-    val Border get() = pick(0xFF1F2638, 0xFFCDD6EE, 0xFF3D1621)
+    val Bg get() = pick(0xFF0B0C10, 0xFFEEF3FF, 0xFF0A0406)
+    /** Slide-up sheets: between the page and its cards, so cards inside a sheet still stand out. */
+    val Sheet get() = pick(0xFF121318, 0xFFFFFFFF, 0xFF170A0E)
+    val Card get() = pick(0xFF1A1C23, 0xFFFFFFFF, 0xFF170A0E)
+    val SurfaceLight get() = pick(0xFF262932, 0xFFE3E9FA, 0xFF261018)
+    val Border get() = pick(0xFF383C47, 0xFFCDD6EE, 0xFF3D1621)
     val GlassBorder get() = pick(0x14FFFFFF, 0x14101A40, 0x2EFF2D55)
 
     /** Brand fill (buttons, selected tiles); [OnAccent] sits on it. */
-    val Accent get() = pick(0xFF6E5BFF, 0xFF5B47F0, 0xFFA3001B)
-    val AccentGlow get() = pick(0xFF3A7BFF, 0xFF2E6BFF, 0xFF6A1B9A)
+    val Accent get() = pick(0xFF6347F0, 0xFF5B47F0, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFF7A5CF5, 0xFF2E6BFF, 0xFF6A1B9A)
     val OnAccent get() = pick(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
 
-    /** Brand colour as text or a thin icon: aurora mint (violet by day). */
-    val AccentText get() = pick(0xFF7CF5C4, 0xFF4B3BD6, 0xFFFF5C7A)
+    /** Brand colour as text or a thin icon: soft violet (deeper violet by day). */
+    val AccentText get() = pick(0xFFB3A5FF, 0xFF4B3BD6, 0xFFFF5C7A)
 
     /** The aurora itself, for the glow, the + button, the logo and the live trace. */
     val Aurora: List<Color> get() = when {
         dracula -> listOf(Color(0xFFA3001B), Color(0xFFD1123F), Color(0xFF6A1B9A))
-        dark -> listOf(Color(0xFF2FE39A), Color(0xFF45D4FF), Color(0xFF785CFF))
+        dark -> listOf(Color(0xFF45C8FF), Color(0xFF7B61FF), Color(0xFFD45CE0))
         else -> listOf(Color(0xFF12C982), Color(0xFF27B5F0), Color(0xFF6E5BFF))
     }
 
-    val Text get() = pick(0xFFEEF3FF, 0xFF0E1638, 0xFFF6E9EC)
-    val TextSecondary get() = pick(0xFFC9D3F0, 0xFF3C4670, 0xFFCDA6B0)
-    val TextMuted get() = pick(0xFF8B95B2, 0xFF5A6488, 0xFFA57E8A)
+    val Text get() = pick(0xFFF2F3F5, 0xFF0E1638, 0xFFF6E9EC)
+    val TextSecondary get() = pick(0xFFC4C7CF, 0xFF3C4670, 0xFFCDA6B0)
+    val TextMuted get() = pick(0xFF9296A1, 0xFF5A6488, 0xFFA57E8A)
 
     // Range colours, checked with the dataviz palette validator against each theme's card colour
     // (contrast, colour-blind separation); they always come with a label too.
