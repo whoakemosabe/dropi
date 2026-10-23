@@ -12,7 +12,11 @@ import androidx.core.app.NotificationManagerCompat
 import app.dropi.MainActivity
 import app.dropi.Prefs
 import app.dropi.R
+import app.dropi.data.Analytics
 import app.dropi.data.Db
+import app.dropi.data.Glucose
+import app.dropi.data.GlucoseUnit
+import app.dropi.data.Reading
 import app.dropi.data.MealTag
 import app.dropi.data.OneOff
 import app.dropi.data.Schedule
@@ -124,16 +128,16 @@ object Reminders {
     }
 
     @SuppressLint("MissingPermission")
-    private fun postRecap(context: Context, readings: List<app.dropi.data.Reading>, zone: ZoneId, p: Prefs) {
+    private fun postRecap(context: Context, readings: List<Reading>, zone: ZoneId, p: Prefs) {
         val today = Instant.now().atZone(zone).toLocalDate()
-        val r = app.dropi.data.Analytics.report(readings, 7, today, zone)
+        val r = Analytics.report(readings, 7, today, zone)
         if (r.count == 0) return
         Alerts.createChannels(context)
         if (!Alerts.canNotify(context)) return
         val unit = p.unit
         val parts = listOfNotNull(
             r.bands?.let { "In range ${Math.round(it.inRange)}%" },
-            r.mean?.let { "average ${app.dropi.data.Glucose.format(it, unit)}" },
+            r.mean?.let { "average ${Glucose.format(it, unit)}" },
             if (r.lows == 0) "no lows" else "${r.lows} low${if (r.lows == 1) "" else "s"}",
             "logged on ${r.daysLogged} of 7 days",
         )
@@ -170,20 +174,20 @@ object Reminders {
         val id = intent.getIntExtra(EXTRA_ID, 0)
         val typed = androidx.core.app.RemoteInput.getResultsFromIntent(intent)?.getCharSequence(KEY_VALUE)?.toString().orEmpty()
         val unit = p.unit
-        val mmol = app.dropi.data.Glucose.parse(typed.trim().replace(',', '.'), unit)
+        val mmol = Glucose.parse(typed.trim().replace(',', '.'), unit)
         if (mmol == null) {
             post(
                 app, id, "Couldn't save that",
-                "Type just the number on your meter, like ${if (unit == app.dropi.data.GlucoseUnit.MMOL) "6.4" else "115"}.", tag,
+                "Type just the number on your meter, like ${if (unit == GlucoseUnit.MMOL) "6.4" else "115"}.", tag,
             )
             return
         }
         val now = System.currentTimeMillis()
-        val saved = Db.get(app).save(app.dropi.data.Reading(at = now, mmol = mmol, tag = tag))
+        val saved = Db.get(app).save(Reading(at = now, mmol = mmol, tag = tag))
         p.oneOffs = Schedule.afterSave(p.oneOffs, saved, p.afterMealOn, p.afterMealMinutes, now)
         clearShown(app)
-        val status = app.dropi.data.Glucose.status(mmol, tag, p.targets)
-        val value = "${app.dropi.data.Glucose.format(mmol, unit)} ${unit.label}"
+        val status = Glucose.status(mmol, tag, p.targets)
+        val value = "${Glucose.format(mmol, unit)} ${unit.label}"
         if (status.isLow) {
             // A low saved from the notification still gets the standard steps and a re-check.
             p.oneOffs = p.oneOffs + OneOff(now + 15 * 60_000L, tag, OneOff.Kind.RECHECK, now)
