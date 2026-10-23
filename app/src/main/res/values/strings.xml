@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Dropi</string>
+    <string name="widget_name">Latest reading</string>
+    <string name="widget_desc">Your latest reading, the next check, and a quick way to log</string>
 </resources>

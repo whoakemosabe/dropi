@@ -7,11 +7,16 @@ import androidx.compose.runtime.setValue
 import app.dropi.CrashLog
 import app.dropi.Prefs
 import app.dropi.data.Db
-import app.dropi.data.GlucoseUnit
-import app.dropi.data.Reading
-import app.dropi.data.Status
 import app.dropi.data.Glucose
+import app.dropi.data.GlucoseUnit
+import app.dropi.data.MealTag
+import app.dropi.data.Reading
+import app.dropi.data.Schedule
+import app.dropi.data.Slot
+import app.dropi.data.Status
+import app.dropi.data.Tagging
 import app.dropi.data.Targets
+import app.dropi.work.Reminders
 import app.dropi.work.UpdateWatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -29,7 +34,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var ready by mutableStateOf(false)
         private set
 
-    /** The last 90 days, oldest first (enough for today, streaks and the coming trends). */
+    /** The last 90 days, oldest first (enough for today, streaks and trends). */
     var readings by mutableStateOf<List<Reading>>(emptyList())
         private set
 
@@ -40,6 +45,15 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var haptics by mutableStateOf(prefs.haptics)
         private set
 
+    var slots by mutableStateOf(prefs.slots)
+        private set
+    var remindersOn by mutableStateOf(prefs.remindersOn)
+        private set
+    var afterMealOn by mutableStateOf(prefs.afterMealOn)
+        private set
+    var afterMealMinutes by mutableStateOf(prefs.afterMealMinutes)
+        private set
+
     /** The log sheet: null when closed; a reading with id 0 is a new one. */
     var editing by mutableStateOf<Reading?>(null)
 
@@ -47,6 +61,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var alertFor by mutableStateOf<Reading?>(null)
 
     var settingsOpen by mutableStateOf(false)
+    var scheduleOpen by mutableStateOf(false)
 
     var lastCrash by mutableStateOf<String?>(null)
         private set
@@ -71,36 +86,69 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             reload()
             try { UpdateWatch.check(context, background = false) } catch (e: Exception) { }
         }
+        Reminders.rescheduleAsync(context)
     }
 
     fun status(r: Reading): Status = Glucose.status(r.mmol, r.tag, targets)
 
-    fun startNew() {
-        editing = Reading(at = System.currentTimeMillis(), mmol = 0.0, tag = app.dropi.data.Tagging.suggest(System.currentTimeMillis(), readings, zone))
+    /** Opens the log sheet for a new reading, with [tag] or one picked from the time of day. */
+    fun startNew(tag: MealTag? = null) {
+        val now = System.currentTimeMillis()
+        editing = Reading(at = now, mmol = 0.0, tag = tag ?: Tagging.suggest(now, readings, zone))
     }
 
     fun save(r: Reading) {
         scope.launch {
             val saved = try { db.save(r) } catch (e: Exception) { null } ?: return@launch
-            editing = null
             reload()
-            val s = status(saved)
-            // Fresh lows and very highs get the guidance card; edits of old ones don't.
-            if (r.id == 0L && (s.isLow || s == Status.VERY_HIGH)) alertFor = saved
+            if (r.id == 0L) {
+                // A new reading answers the reminders set before it, and a before-meal one sets
+                // the after-meal reminder.
+                prefs.oneOffs = Schedule.afterSave(prefs.oneOffs, saved, prefs.afterMealOn, prefs.afterMealMinutes, System.currentTimeMillis())
+                Reminders.clearShown(context)
+                val s = status(saved)
+                // Fresh lows and very highs get the guidance card (not ones logged hours late).
+                val recent = System.currentTimeMillis() - saved.at < 60 * 60_000L
+                if (recent && (s.isLow || s == Status.VERY_HIGH)) alertFor = saved
+            }
+            Reminders.rescheduleAsync(context)
         }
     }
 
     fun delete(r: Reading) {
         scope.launch {
             try { db.delete(r.id) } catch (e: Exception) { }
-            editing = null
             reload()
+            Reminders.rescheduleAsync(context)
         }
     }
 
-    fun changeUnit(u: GlucoseUnit) { unit = u; prefs.unit = u }
-    fun changeTheme(t: String) { theme = t; prefs.theme = t }
+    /** "Remind me to re-check" on the low card; returns the time it will fire. */
+    fun remindRecheck(r: Reading): Long = Reminders.remindRecheck(context, r.tag)
+
+    fun changeUnit(u: GlucoseUnit) { unit = u; prefs.unit = u; Reminders.rescheduleAsync(context) }
+    fun changeTheme(t: String) { theme = t; prefs.theme = t; Reminders.rescheduleAsync(context) }
     fun changeHaptics(on: Boolean) { haptics = on; prefs.haptics = on; Haptics.enabled = on }
+
+    fun changeSlots(list: List<Slot>) {
+        val sorted = list.sortedBy { it.minute }
+        slots = sorted
+        prefs.slots = sorted
+        Reminders.rescheduleAsync(context)
+    }
+
+    fun changeReminders(on: Boolean) {
+        remindersOn = on
+        prefs.remindersOn = on
+        Reminders.rescheduleAsync(context)
+    }
+
+    fun changeAfterMeal(on: Boolean, minutes: Int = afterMealMinutes) {
+        afterMealOn = on
+        afterMealMinutes = minutes
+        prefs.afterMealOn = on
+        prefs.afterMealMinutes = minutes
+    }
 
     fun dismissCrash() {
         CrashLog.clear(context)

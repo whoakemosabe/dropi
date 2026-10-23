@@ -1,6 +1,5 @@
 package app.dropi.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -42,31 +42,28 @@ import app.dropi.work.Updater
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsPage(state: AppState) {
-    BackHandler { state.settingsOpen = false }
+fun SettingsSheet(state: AppState) {
+    if (!state.settingsOpen) return
+    SlideSheet(onDismiss = { state.settingsOpen = false }) { close -> SettingsContent(state, close) }
+}
+
+@Composable
+private fun SettingsContent(state: AppState, close: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
-    val bars = WindowInsets.systemBars.asPaddingValues()
     val unit = state.unit
     fun v(mmol: Double) = Glucose.format(mmol, unit)
 
     Column(
         Modifier
-            .fillMaxSize()
-            .background(C.Bg)
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = bars.calculateTopPadding() + 8.dp, bottom = bars.calculateBottomPadding() + 24.dp),
+            .navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(44.dp).clip(CircleShape).background(C.SurfaceLight).tap { state.settingsOpen = false },
-                contentAlignment = Alignment.Center,
-            ) { Ic(R.drawable.lc_chevron_left, C.TextSecondary, 22.dp, contentDescription = "Back") }
-            Spacer(Modifier.width(12.dp))
-            Text("Settings", style = inter(24.sp, FontWeight.ExtraBold))
-        }
+        SheetTitle("Settings", close)
 
         Section("Units") {
             SlidingSegments(listOf("mmol/L", "mg/dL"), if (unit == GlucoseUnit.MMOL) 0 else 1, Modifier.fillMaxWidth()) {
@@ -90,6 +87,19 @@ fun SettingsPage(state: AppState) {
                     },
                     colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
                 )
+            }
+        }
+
+        Section("Check times") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${state.slots.count { it.enabled }} checks a day", style = inter(15.sp, FontWeight.SemiBold))
+                    Text(if (state.remindersOn) "Reminders on" else "Reminders off", style = inter(13.sp, color = C.TextSecondary))
+                }
+                Chip("Edit", icon = R.drawable.lc_clock) {
+                    state.settingsOpen = false
+                    state.scheduleOpen = true
+                }
             }
         }
 

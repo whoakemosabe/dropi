@@ -17,6 +17,8 @@ import app.dropi.ui.AppState
 import app.dropi.ui.C
 import app.dropi.ui.DropiRoot
 import app.dropi.ui.DropiTheme
+import app.dropi.ui.Launch
+import app.dropi.data.MealTag
 import app.dropi.work.Alerts
 import app.dropi.work.Scheduler
 import app.dropi.work.UpdateWatch
@@ -82,7 +84,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * This screen is the launcher entry, so other apps can open it: the only thing followed is
-     * our own boolean "open updates" flag from the update notification.
+     * our own "open updates" flag and a log-sheet tag from our reminders and widget.
      */
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
@@ -90,6 +92,12 @@ class MainActivity : ComponentActivity() {
             intent.removeExtra(Alerts.EXTRA_OPEN_UPDATES)
             UpdateWatch.load(this)
             UpdateWatch.whatsNewOpen.value = true
+        }
+        // A reminder or the widget's +: open the log sheet. Only a known tag name (or "new") is
+        // followed; anything else another app might send is dropped.
+        intent.getStringExtra(Alerts.EXTRA_LOG_TAG)?.let { t ->
+            intent.removeExtra(Alerts.EXTRA_LOG_TAG)
+            if (t == "new" || MealTag.entries.any { it.name == t }) Launch.logTag.value = t
         }
     }
 }

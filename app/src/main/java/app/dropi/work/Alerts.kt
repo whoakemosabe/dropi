@@ -15,14 +15,23 @@ import androidx.core.content.ContextCompat
 import app.dropi.MainActivity
 import app.dropi.R
 
-/** Notification channels and posts. Reading reminders join this in the next phase. */
+/** Notification channels and the update notification. Check reminders are in Reminders. */
 object Alerts {
     const val CH_UPDATES = "updates"
+    const val CH_REMINDERS = "reminders"
     const val EXTRA_OPEN_UPDATES = "open_updates"
+
+    /** Opens the log sheet: a MealTag name, or "new" to pick the moment from the time. */
+    const val EXTRA_LOG_TAG = "log_tag"
     private const val ID_UPDATE = 4
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        nm.createNotificationChannel(
+            NotificationChannel(CH_REMINDERS, "Check reminders", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Your planned check times, after-meal checks and low re-checks"
+            }
+        )
         nm.createNotificationChannel(
             NotificationChannel(CH_UPDATES, "App updates", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "When a new version of Dropi is ready"

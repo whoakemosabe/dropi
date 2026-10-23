@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +12,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import app.dropi.R
+import app.dropi.data.MealTag
 import app.dropi.work.UpdateUi
 import app.dropi.work.UpdateWatch
 
@@ -37,7 +38,7 @@ fun DropiRoot(state: AppState) {
 
         // The log button floats over the list, above the navigation bar.
         AnimatedVisibility(
-            visible = state.editing == null && !state.settingsOpen,
+            visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -53,17 +54,24 @@ fun DropiRoot(state: AppState) {
             ) { state.startNew() }
         }
 
-        AnimatedVisibility(
-            visible = state.settingsOpen,
-            enter = slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(200)),
-            exit = slideOutHorizontally(tween(220)) { it / 3 } + fadeOut(tween(180)),
-        ) { SettingsPage(state) }
-
+        SettingsSheet(state)
+        ScheduleSheet(state)
         LogSheetHost(state)
 
         // After saving a low or very high reading: what to do now.
         state.alertFor?.let { r ->
-            GuidanceDialog(r, state.status(r), state.unit) { state.alertFor = null }
+            GuidanceDialog(r, state.status(r), state.unit, onRecheck = { state.remindRecheck(r) }) { state.alertFor = null }
+        }
+
+        // A reminder notification or the widget's + asked for the log sheet.
+        val want = Launch.logTag.value
+        LaunchedEffect(want) {
+            if (want != null) {
+                Launch.logTag.value = null
+                state.settingsOpen = false
+                state.scheduleOpen = false
+                state.startNew(if (want == "new") null else MealTag.fromKey(want))
+            }
         }
 
         // The "What's new" window: from the banner, Settings or the update notification.
@@ -76,4 +84,10 @@ fun DropiRoot(state: AppState) {
             WhatsNewDialog(version, notes, behind) { UpdateWatch.whatsNewOpen.value = false }
         }
     }
+}
+
+/** Requests from outside the app (a reminder, the widget) waiting for the screen. */
+object Launch {
+    /** A MealTag name, or "new" to let the time of day pick the moment. */
+    val logTag = mutableStateOf<String?>(null)
 }

@@ -7,6 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +48,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.data.Check
+import app.dropi.data.CheckState
 import app.dropi.data.Glucose
+import app.dropi.data.Schedule
 import app.dropi.data.Reading
 import app.dropi.data.Stats
 import app.dropi.data.Status
@@ -89,6 +94,7 @@ fun TodayPage(state: AppState) {
             }
         }
         item(key = "hero") { Hero(state, latest, fmt, now, streak) }
+        item(key = "checks") { ChecksCard(state, now, fmt) }
         item(key = "stats") { StatRow(state, summary) }
         item(key = "today-label") {
             Text("TODAY", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
@@ -197,6 +203,88 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
                 Text("$streak-day logging streak", style = inter(12.sp, FontWeight.SemiBold, C.High))
             }
         }
+    }
+}
+
+/** Today's planned checks as chips (done, due, coming up, missed) and what's next. */
+@Composable
+private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
+    val checks = Schedule.today(state.slots, state.readings, now, state.zone)
+    val next = Schedule.next(state.slots, state.readings, now, state.zone)
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("TODAY'S CHECKS", style = SectionLabel, modifier = Modifier.weight(1f))
+            Text(
+                "Edit",
+                style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
+                modifier = Modifier.clip(RoundedCornerShape(50)).tap { state.scheduleOpen = true }.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+        if (checks.isEmpty()) {
+            Text("No check times yet. Plan a few and Dropi can remind you.", style = inter(14.sp, color = C.TextSecondary))
+            Chip("Plan check times", icon = R.drawable.lc_clock, selected = true) { state.scheduleOpen = true }
+            return@Column
+        }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            checks.forEach { c ->
+                CheckChip(c, fmt.time(c.at), state.unit) {
+                    val r = c.reading
+                    if (r != null) state.editing = r else state.startNew(c.slot.tag)
+                }
+            }
+        }
+        if (next != null) {
+            val mins = (next.at - now) / 60_000
+            val whenText = when {
+                next.state == CheckState.DUE -> "due now"
+                mins < 60 -> "in $mins min"
+                mins < 24 * 60 -> "in ${mins / 60} h ${if (mins % 60 >= 10) "${mins % 60} min" else ""}".trim()
+                else -> "tomorrow"
+            }
+            Text(
+                "Next: ${next.slot.name} at ${fmt.time(next.at)} · $whenText",
+                style = inter(13.sp, FontWeight.Medium, if (next.state == CheckState.DUE) C.AccentText else C.TextSecondary),
+            )
+        }
+        if (!state.remindersOn) {
+            Text(
+                "Reminders are off. Tap Edit to turn them on.",
+                style = inter(12.sp, color = C.TextMuted),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CheckChip(c: Check, time: String, unit: app.dropi.data.GlucoseUnit, onClick: () -> Unit) {
+    val (icon, tint) = when (c.state) {
+        CheckState.DONE -> R.drawable.lc_check to C.InRange
+        CheckState.DUE -> R.drawable.lc_droplet to C.AccentText
+        CheckState.UPCOMING -> R.drawable.lc_clock to C.TextMuted
+        CheckState.MISSED -> R.drawable.lc_x to C.TextMuted
+    }
+    val due = c.state == CheckState.DUE
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (due) C.Accent.copy(alpha = 0.16f) else C.SurfaceLight)
+            .border(1.dp, if (due) C.Accent.copy(alpha = 0.5f) else C.GlassBorder, RoundedCornerShape(16.dp))
+            .tap(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Ic(icon, tint, 14.dp)
+            Spacer(Modifier.width(6.dp))
+            Text(time, style = inter(14.sp, FontWeight.Bold, if (c.state == CheckState.MISSED) C.TextMuted else C.Text))
+        }
+        Text(
+            c.reading?.let { Glucose.format(it.mmol, unit) + " · " + c.slot.name } ?: c.slot.name,
+            style = inter(11.sp, FontWeight.Medium, C.TextMuted),
+            maxLines = 1,
+        )
     }
 }
 

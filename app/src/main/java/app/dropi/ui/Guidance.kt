@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +36,9 @@ import app.dropi.data.Status
  * are the 15-15 rule used by the ADA and NHS; everything defers to the person's own care plan.
  */
 @Composable
-fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onClose: () -> Unit) {
+fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (() -> Long)?, onClose: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var recheckAt by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Long?>(null) }
     val low = status.isLow
     val c = C.status(status)
     val value = "${Glucose.format(r.mmol, unit)} ${unit.label}"
@@ -87,7 +91,23 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onClose: () ->
                 "General guidance only. Follow the plan you agreed with your care team.",
                 style = inter(12.sp, color = C.TextMuted),
             )
-            PrimaryButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+            if (low && onRecheck != null) {
+                val at = recheckAt
+                if (at == null) {
+                    PrimaryButton("Remind me to re-check in 15 min", Modifier.fillMaxWidth(), icon = R.drawable.lc_clock) {
+                        recheckAt = onRecheck()
+                    }
+                    GhostButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+                } else {
+                    Text(
+                        "I'll remind you at ${Fmt(context, java.time.ZoneId.systemDefault()).time(at)}.",
+                        style = inter(13.sp, FontWeight.SemiBold, C.InRange),
+                    )
+                    PrimaryButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+                }
+            } else {
+                PrimaryButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+            }
         }
     }
 }

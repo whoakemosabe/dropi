@@ -1,0 +1,5 @@
+<resources>
+    <!-- The reading widget: 2 x 2 cells by default, resizable. -->
+    <dimen name="widget_min_width">110dp</dimen>
+    <dimen name="widget_min_height">110dp</dimen>
+</resources>

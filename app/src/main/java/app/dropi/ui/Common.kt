@@ -205,3 +205,17 @@ fun SlidingSegments(
         }
     }
 }
+
+/** A sheet's title row with a round × that slides it closed. */
+@Composable
+fun SheetTitle(title: String, close: () -> Unit, trailing: @Composable () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = inter(20.sp, FontWeight.ExtraBold), modifier = Modifier.weight(1f))
+        trailing()
+        Spacer(Modifier.width(8.dp))
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
+            contentAlignment = Alignment.Center,
+        ) { Ic(app.dropi.R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
+    }
+}

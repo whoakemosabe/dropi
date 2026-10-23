@@ -4,7 +4,10 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- Welcome to Dropi: log a reading in three taps
-- Today at a glance: your latest number, today's average and time in range
-- Readings are tagged for you (fasting, before or after a meal, bedtime)
-- Low readings show the 15-15 guidance straight away
+- Plan your daily check times and get a reminder for each, with Log and Snooze
+- After a before-meal reading, Dropi nudges you for the after-meal check
+- Forgot to log? Pick any day and time in the last week, or fix the time on an old reading
+- Today shows your checks: done, due, coming up or missed
+- Low reading? Get a reminder to re-check in 15 minutes
+- New home screen widget: your latest number, the next check and a quick +
+- Sheets now swipe down to close

@@ -1,6 +1,5 @@
 package app.dropi.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -39,6 +38,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,41 +69,16 @@ import app.dropi.data.Reading
  * optional note, and a keypad. New readings and edits share it; an edit can also be deleted.
  */
 @Composable
-fun BoxScope.LogSheetHost(state: AppState) {
-    val editing = state.editing
-    // Keep the last reading on screen while the sheet slides away.
-    var last by remember { mutableStateOf(editing) }
-    if (editing != null) last = editing
-
-    AnimatedVisibility(
-        visible = editing != null,
-        enter = fadeIn(tween(200)),
-        exit = fadeOut(tween(200)),
-        modifier = Modifier.matchParentSize(),
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .clickable(remember { MutableInteractionSource() }, indication = null) { state.editing = null }
-        )
+fun LogSheetHost(state: AppState) {
+    val editing = state.editing ?: return
+    // A fresh form for each reading opened.
+    key(editing.id, editing.at) {
+        SlideSheet(onDismiss = { state.editing = null }) { close -> LogSheet(state, editing, close) }
     }
-    AnimatedVisibility(
-        visible = editing != null,
-        enter = slideInVertically(spring(dampingRatio = 0.86f, stiffness = 420f)) { it },
-        exit = slideOutVertically(tween(220)) { it },
-        modifier = Modifier.align(Alignment.BottomCenter),
-    ) {
-        last?.let { r ->
-            // A fresh form for each reading opened.
-            androidx.compose.runtime.key(r.id, r.at) { LogSheet(state, r) }
-        }
-    }
-    if (editing != null) BackHandler { state.editing = null }
 }
 
 @Composable
-private fun LogSheet(state: AppState, initial: Reading) {
+private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val fmt = remember { Fmt(context, state.zone) }
@@ -112,8 +87,11 @@ private fun LogSheet(state: AppState, initial: Reading) {
     var text by remember { mutableStateOf(if (isNew) "" else Glucose.format(initial.mmol, unit)) }
     var tag by remember { mutableStateOf(initial.tag) }
     var note by remember { mutableStateOf(initial.note) }
-    var offsetMin by remember { mutableStateOf(0) }
-    val baseAt = remember { mutableLongStateOf(initial.at) }
+    // When it was taken: now, a quick "15 min ago", or any day and time in the last week.
+    var offsetMin by remember { mutableStateOf<Int?>(if (isNew) 0 else null) }
+    var at by remember { mutableLongStateOf(initial.at) }
+    var picking by remember { mutableStateOf(false) }
+    val openedAt = remember { initial.at }
     var confirmDelete by remember { mutableStateOf(false) }
 
     val mmol = Glucose.parse(text, unit)
@@ -130,25 +108,15 @@ private fun LogSheet(state: AppState, initial: Reading) {
         }
     }
 
+    // Scrolls inside the sheet; at the top, a downward swipe pulls the sheet closed.
     Column(
         Modifier
             .fillMaxWidth()
-            .widthIn(max = 560.dp)
-            .statusBarsPadding()
-            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .background(C.Card)
-            // Swallow taps so they don't reach the scrim behind.
-            .clickable(remember { MutableInteractionSource() }, indication = null) { }
-            // The keyboard (for the note) lifts the sheet; padding goes before the scroll.
-            .imePadding()
-            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
             .padding(horizontal = 18.dp),
     ) {
-        Box(Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(width = 40.dp, height = 4.dp).clip(CircleShape).background(C.Border))
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(if (isNew) "New reading" else "Edit reading", style = inter(18.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
             if (!isNew) {
                 Row(
@@ -156,7 +124,7 @@ private fun LogSheet(state: AppState, initial: Reading) {
                         .clip(RoundedCornerShape(50))
                         .background(if (confirmDelete) C.Low.copy(alpha = 0.16f) else Color.Transparent)
                         .tap {
-                            if (confirmDelete) state.delete(initial) else confirmDelete = true
+                            if (confirmDelete) { state.delete(initial); close() } else confirmDelete = true
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -169,7 +137,7 @@ private fun LogSheet(state: AppState, initial: Reading) {
                 }
             }
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { state.editing = null },
+                Modifier.size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
                 contentAlignment = Alignment.Center,
             ) { Ic(R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
         }
@@ -208,28 +176,37 @@ private fun LogSheet(state: AppState, initial: Reading) {
             }
         }
 
-        // When: now, or a little earlier for a reading taken before opening the app.
-        val at = baseAt.longValue - offsetMin * 60_000L
-        if (isNew) {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Ic(R.drawable.lc_clock, C.TextMuted, 16.dp)
-                listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago", 120 to "2 h ago").forEach { (m, label) ->
+        // When: now, a little earlier, or a forgotten one from hours or days ago.
+        fun moveTo(t: Long) {
+            at = t
+            // A new reading's moment follows its time (an 07:00 one is fasting, a 22:00 one bedtime).
+            if (isNew) tag = app.dropi.data.Tagging.suggest(t, state.readings, state.zone)
+        }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Ic(R.drawable.lc_clock, C.TextMuted, 16.dp)
+            if (isNew) {
+                listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago").forEach { (m, label) ->
                     Chip(label, selected = offsetMin == m) {
                         offsetMin = m
-                        // Moving the time can change the likely moment (e.g. back into fasting).
-                        tag = app.dropi.data.Tagging.suggest(baseAt.longValue - m * 60_000L, state.readings, state.zone)
+                        moveTo(openedAt - m * 60_000L)
                     }
                 }
             }
-        } else {
-            Row(Modifier.padding(top = 10.dp, start = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Ic(R.drawable.lc_clock, C.TextMuted, 16.dp)
-                Spacer(Modifier.width(8.dp))
-                Text("Taken ${fmt.dayTime(initial.at)}", style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+            Chip(
+                if (offsetMin == null) fmt.dayTime(at) else "Pick a time…",
+                icon = R.drawable.lc_pencil,
+                selected = offsetMin == null,
+            ) { picking = true }
+        }
+        if (picking) {
+            WhenPicker(at, state.zone, onDismiss = { picking = false }) { t ->
+                picking = false
+                offsetMin = null
+                moveTo(t)
             }
         }
 
@@ -276,7 +253,8 @@ private fun LogSheet(state: AppState, initial: Reading) {
         ) {
             val v = mmol ?: return@PrimaryButton
             Haptics.confirm(view)
-            state.save(initial.copy(at = if (isNew) at else initial.at, mmol = v, tag = tag, note = note.trim()))
+            state.save(initial.copy(at = at, mmol = v, tag = tag, note = note.trim()))
+            close()
         }
     }
 }
