@@ -12,7 +12,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
-import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -79,12 +79,12 @@ private class Pal(context: Context) {
     val white = ColorProvider(Color.White)
 
     fun status(s: Status): ColorProvider = when (s) {
-        Status.URGENT_LOW -> cp(0xFFFF5A6A, 0xFFC4162A)
-        Status.LOW -> cp(0xFFFF8A94, 0xFFD0263A)
-        Status.BELOW_TARGET -> cp(0xFF5CC8FF, 0xFF0B6FA8)
-        Status.IN_RANGE -> cp(0xFF3DDC97, 0xFF0A7A4B)
-        Status.HIGH -> cp(0xFFFFC24B, 0xFF8F5B00)
-        Status.VERY_HIGH -> cp(0xFFFF9248, 0xFFB34700)
+        Status.URGENT_LOW -> cp(0xFFD6336C, 0xFFA3134A)
+        Status.LOW -> cp(0xFFFF85A8, 0xFFE04A78)
+        Status.BELOW_TARGET -> cp(0xFF7FA7D9, 0xFF3D6A9E)
+        Status.IN_RANGE -> cp(0xFF22C3C9, 0xFF00939A)
+        Status.HIGH -> cp(0xFFF4C542, 0xFFB08000)
+        Status.VERY_HIGH -> cp(0xFFE8622C, 0xFFC23A0A)
     }
 }
 

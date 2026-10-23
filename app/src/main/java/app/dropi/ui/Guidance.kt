@@ -75,14 +75,14 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                 ) { Ic(if (low) R.drawable.lc_circle_alert else R.drawable.lc_heart_pulse, c, 20.dp) }
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text(status.label.uppercase(), style = inter(11.sp, FontWeight.Bold, c, 0.12f))
+                    Text(status.label.uppercase(), style = inter(11.sp, FontWeight.Bold, C.TextSecondary, 0.12f))
                     Text(value, style = inter(24.sp, FontWeight.ExtraBold, C.Text))
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 steps.forEachIndexed { i, s ->
                     Row {
-                        Text("${i + 1}", style = inter(13.sp, FontWeight.Bold, c), modifier = Modifier.width(20.dp))
+                        Text("${i + 1}", style = inter(13.sp, FontWeight.Bold, C.TextMuted), modifier = Modifier.width(20.dp))
                         Text(s, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
                     }
                 }
@@ -101,7 +101,7 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                 } else {
                     Text(
                         "I'll remind you at ${Fmt(context, java.time.ZoneId.systemDefault()).time(at)}.",
-                        style = inter(13.sp, FontWeight.SemiBold, C.InRange),
+                        style = inter(13.sp, FontWeight.SemiBold, C.Text),
                     )
                     PrimaryButton("Got it", Modifier.fillMaxWidth()) { onClose() }
                 }

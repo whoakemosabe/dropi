@@ -288,17 +288,21 @@ private fun CheckChip(c: Check, time: String, unit: app.dropi.data.GlucoseUnit, 
     }
 }
 
+/** The range a reading is in: its colour as a dot, the words in text colour (readable in both themes). */
 @Composable
 fun StatusPill(status: Status) {
     val c = C.status(status)
-    Text(
-        status.label,
-        style = inter(12.sp, FontWeight.Bold, c),
-        modifier = Modifier
+    Row(
+        Modifier
             .clip(RoundedCornerShape(50))
-            .background(c.copy(alpha = 0.14f))
+            .background(c.copy(alpha = 0.16f))
             .padding(horizontal = 12.dp, vertical = 5.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(c))
+        Spacer(Modifier.width(6.dp))
+        Text(status.label, style = inter(12.sp, FontWeight.Bold, C.Text))
+    }
 }
 
 /**
@@ -357,9 +361,8 @@ private fun StatRow(state: AppState, s: app.dropi.data.Summary) {
         StatTile(
             "In range", s.inRangePct?.let { "$it%" } ?: "—", if (state.unit == app.dropi.data.GlucoseUnit.MGDL) "70–180" else "3.9–10.0",
             Modifier.weight(1f),
-            valueColor = s.inRangePct?.let { if (it >= 70) C.InRange else if (it >= 50) C.High else C.Low },
         )
-        StatTile("Readings", "${s.count}", if (s.lows > 0) "${s.lows} low" else "today", Modifier.weight(1f), subColor = if (s.lows > 0) C.Low else null)
+        StatTile("Readings", "${s.count}", if (s.lows > 0) "${s.lows} low" else "today", Modifier.weight(1f))
     }
 }
 
@@ -408,7 +411,7 @@ private fun ReadingRow(state: AppState, r: Reading, time: String) {
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(Glucose.format(r.mmol, state.unit), style = inter(20.sp, FontWeight.ExtraBold, c))
+            Text(Glucose.format(r.mmol, state.unit), style = inter(20.sp, FontWeight.ExtraBold, C.Text))
             Text(status.label, style = inter(11.sp, FontWeight.Medium, C.TextMuted))
         }
     }

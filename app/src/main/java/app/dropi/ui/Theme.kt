@@ -20,7 +20,7 @@ import app.dropi.data.Status
 
 /**
  * Dropi's palette: calm ink and paper neutrals with a periwinkle brand colour, so it suits
- * anyone. Range colours carry the meaning (red low, green in range, amber high) and every text
+ * anyone. Range colours carry the meaning (pink-red low, teal in range, amber high) and every text
  * colour clears 4.5:1 on cards in both themes. [dark] is Compose state, so screens redraw.
  */
 object C {
@@ -45,12 +45,14 @@ object C {
     val TextSecondary get() = pick(0xFFA6ACBD, 0xFF474D5E)
     val TextMuted get() = pick(0xFF8A90A3, 0xFF5E6477)
 
-    val UrgentLow get() = pick(0xFFFF5A6A, 0xFFC4162A)
-    val Low get() = pick(0xFFFF8A94, 0xFFD0263A)
-    val BelowTarget get() = pick(0xFF5CC8FF, 0xFF0B6FA8)
-    val InRange get() = pick(0xFF3DDC97, 0xFF0A7A4B)
-    val High get() = pick(0xFFFFC24B, 0xFF8F5B00)
-    val VeryHigh get() = pick(0xFFFF9248, 0xFFB34700)
+    // Range colours, checked with the dataviz palette validator against both card colours: they
+    // stay apart for colour-blind readers too, and always come with a label.
+    val UrgentLow get() = pick(0xFFD6336C, 0xFFA3134A)
+    val Low get() = pick(0xFFFF85A8, 0xFFE04A78)
+    val BelowTarget get() = pick(0xFF7FA7D9, 0xFF3D6A9E)
+    val InRange get() = pick(0xFF22C3C9, 0xFF00939A)
+    val High get() = pick(0xFFF4C542, 0xFFB08000)
+    val VeryHigh get() = pick(0xFFE8622C, 0xFFC23A0A)
 
     fun status(s: Status): Color = when (s) {
         Status.URGENT_LOW -> UrgentLow
