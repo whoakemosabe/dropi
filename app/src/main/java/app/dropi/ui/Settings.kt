@@ -214,20 +214,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        SheetSection("On-device AI") {
-            androidx.compose.runtime.LaunchedEffect(Unit) { app.dropi.work.Nano.refresh() }
-            Text(
-                when (app.dropi.work.Nano.state) {
-                    app.dropi.work.Nano.State.READY -> "Gemini Nano is ready. Meal photos and typed questions work on this phone, with nothing uploaded."
-                    app.dropi.work.Nano.State.NEEDS_DOWNLOAD, app.dropi.work.Nano.State.DOWNLOADING ->
-                        "Gemini Nano is available. It downloads once, the first time you use a meal photo or ask a question."
-                    app.dropi.work.Nano.State.CHECKING -> "Checking…"
-                    app.dropi.work.Nano.State.UNAVAILABLE ->
-                        "This phone doesn't have Gemini Nano, so meal photos and typed questions are hidden. Everything else works."
-                },
-                style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
-            )
-        }
+        SheetSection("On-device AI") { OnDeviceAiSection() }
 
         SheetSection("About") {
             Text(

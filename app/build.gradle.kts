@@ -89,6 +89,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
     // Gemini Nano on the phone (meal photos, Ask Dropi); does nothing on phones without AICore.
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
+    // Phones without Nano: Gemma 4 E2B run by LiteRT-LM. The model itself (2.6 GB) is downloaded
+    // in Settings, not shipped in the APK.
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.0")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 

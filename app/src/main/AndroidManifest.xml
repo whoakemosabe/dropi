@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The network is only for checking GitHub for updates; readings never leave the phone. -->
+    <!-- The network is only for checking GitHub for updates and, if asked for in Settings, the
+         one-time on-device AI model download from Hugging Face. Readings never leave the phone. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -81,6 +82,14 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!-- LiteRT-LM runs Gemma on the GPU through OpenCL where the phone has it (CPU otherwise). -->
+        <uses-native-library
+            android:name="libOpenCL.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libvndksupport.so"
+            android:required="false" />
 
         <!-- The text-recognition model for Scan meter comes with Google Play services at install. -->
         <meta-data

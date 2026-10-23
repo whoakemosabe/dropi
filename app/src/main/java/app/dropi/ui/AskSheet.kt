@@ -38,7 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
 import app.dropi.data.Ask
-import app.dropi.work.Nano
+import androidx.compose.ui.platform.LocalContext
+import app.dropi.work.Ai
+import app.dropi.work.Gemma
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -78,9 +80,9 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
     val scope = rememberCoroutineScope()
     val turns = remember { mutableStateListOf<Turn>() }
     var text by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) { Nano.refresh() }
-    val nano = Nano.state
-    val canType = nano == Nano.State.READY || nano == Nano.State.NEEDS_DOWNLOAD || nano == Nano.State.DOWNLOADING
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { Ai.refresh(context) }
+    val canType = Ai.usable
     var busy by remember { mutableStateOf(false) }
 
     fun askTyped(q: String) {
@@ -91,7 +93,7 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         busy = true
         scope.launch {
             val facts = withContext(Dispatchers.Default) { Ask.facts(state.askCtx()) }
-            val reply = Nano.ask(Ask.prompt(q, facts))
+            val reply = Ai.ask(context, Ask.prompt(q, facts))
             turn.a = when {
                 reply == null -> "Couldn't answer that just now. Try one of the questions above."
                 doseLike.containsMatchIn(reply) -> "I can't help with doses. Your care team can."
@@ -130,7 +132,7 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                 Text(t.q, style = heading(17.sp))
                 val a = t.a
                 Text(
-                    a ?: if (nano == Nano.State.DOWNLOADING) "Getting Gemini Nano ready on your phone. The first time takes a few minutes…" else "Thinking…",
+                    a ?: Ai.warmUp ?: "Thinking…",
                     style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
                 )
             }
@@ -171,11 +173,13 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         }
 
         SheetHint(
-            when (nano) {
-                Nano.State.UNAVAILABLE ->
-                    "Typing your own question needs Gemini Nano, which this phone doesn't have. The questions above work on any phone."
-                Nano.State.CHECKING -> "Answers come from your own log, worked out on this phone."
-                else -> "Answers come from your own log, worked out on this phone by Gemini Nano. Nothing is uploaded."
+            when {
+                Ai.usable -> "Answers come from your own log, worked out on this phone by ${Ai.name}. Nothing is uploaded."
+                Ai.checking -> "Answers come from your own log, worked out on this phone."
+                Gemma.state is Gemma.State.Unsupported ->
+                    "Typing your own question needs an on-device AI model this phone can't run. The questions above work on any phone."
+                else ->
+                    "To type your own questions, get the on-device AI in Settings → On-device AI (2.6 GB, once, on Wi-Fi). The questions above work now."
             } + " Dropi doesn't give medical or dose advice."
         )
     }

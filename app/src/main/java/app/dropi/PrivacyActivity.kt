@@ -53,7 +53,8 @@ class PrivacyActivity : ComponentActivity() {
                             "your log, trends and reports are complete.",
                         "Writing: readings you log in Dropi are saved to Health Connect so your other health apps can use them.",
                         "Everything stays on your phone. Dropi has no account and no servers, and never sends your " +
-                            "readings anywhere. The only time it goes online is to check GitHub for app updates.",
+                            "readings anywhere. It only goes online to check GitHub for app updates and, if you ask for it, to download " +
+                            "the on-device AI model once.",
                         "Reports you share (PDF or CSV) go only where you send them.",
                         "Turn sync off any time in Dropi's Settings, or remove its access in Health Connect.",
                     ).forEach { Text(it, style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 22.sp)) }

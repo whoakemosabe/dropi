@@ -12,3 +12,8 @@
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+# LiteRT-LM: its native code looks up these classes and members by name (callbacks, configs,
+# input data), and it reads its own JSON with Gson.
+-keep class com.google.ai.edge.litertlm.** { *; }
+-dontwarn com.google.ai.edge.litertlm.**

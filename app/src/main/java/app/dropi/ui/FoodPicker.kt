@@ -42,13 +42,13 @@ import androidx.compose.ui.unit.sp
 import app.dropi.R
 import app.dropi.data.Foods
 import app.dropi.data.PlateGuess
-import app.dropi.work.Nano
+import app.dropi.work.Ai
 import app.dropi.work.Scan
 import kotlinx.coroutines.launch
 
 /**
  * What you ate: the foods on this reading as tags, a box to add one, the ones you log most as
- * one-tap suggestions (wrapping, never scrolling sideways), and, on phones with Gemini Nano, a
+ * one-tap suggestions (wrapping, never scrolling sideways), and, with on-device AI (Gemini Nano or Gemma), a
  * photo of the plate that fills in a guess for you to check.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -64,23 +64,23 @@ fun FoodPicker(
     var text by remember { mutableStateOf("") }
     var note by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { if (Nano.state == Nano.State.CHECKING) Nano.refresh() }
-    val photoOk = Nano.state != Nano.State.UNAVAILABLE && Nano.state != Nano.State.CHECKING
+    LaunchedEffect(Unit) { if (Ai.checking) Ai.refresh(context) }
+    val photoOk = Ai.usable
 
     var shotUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = shotUri
         if (!ok || u == null) return@rememberLauncherForActivityResult
         working = true
-        note = if (Nano.state == Nano.State.READY) "Looking at your plate…" else "Getting Gemini Nano ready (one-time download)…"
+        note = Ai.warmUp ?: "Looking at your plate…"
         scope.launch {
-            val g = Nano.plate(context, u)
+            val g = Ai.plate(context, u)
             Scan.forgetPlate(context)
             working = false
             note = if (g == null) "Couldn't make out the meal. Add the foods yourself."
             else {
                 onGuess(g)
-                "Gemini Nano's guess" + (g.carbs?.let { ": about $it g carbs" } ?: "") + ". Check it against the label or your usual portions."
+                "${Ai.name}'s guess" + (g.carbs?.let { ": about $it g carbs" } ?: "") + ". Check it against the label or your usual portions."
             }
         }
     }

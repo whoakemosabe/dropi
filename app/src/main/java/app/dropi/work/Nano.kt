@@ -107,7 +107,7 @@ object Nano {
     }
 
     /** The photo, upright and no bigger than [max] px on its long side (the model needs no more). */
-    private fun loadScaled(context: Context, uri: Uri, max: Int): Bitmap? = try {
+    internal fun loadScaled(context: Context, uri: Uri, max: Int): Bitmap? = try {
         val cr = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
