@@ -63,10 +63,16 @@ data class Check(val slot: Slot, val at: Long, val state: CheckState, val readin
 object Schedule {
     private const val MIN = 60_000L
 
-    /** A reading answers a check when it's close in time: same moment within 1 h before to 1.5 h after, or anything within 30 min. */
-    private const val SAME_TAG_BEFORE = 60 * MIN
-    private const val SAME_TAG_AFTER = 90 * MIN
+    /**
+     * A reading answers a check when it's near it: up to 2 h before or 2½ h after. Its moment
+     * only rules it out when it says the opposite (an after-meal reading for a before-meal check,
+     * or the other way round) and it's more than 30 min away; otherwise a different moment just
+     * makes it a weaker match, so a bedtime check logged at 21:20 still counts.
+     */
+    private const val WINDOW_BEFORE = 120 * MIN
+    private const val WINDOW_AFTER = 150 * MIN
     private const val ANY_TAG = 30 * MIN
+    private const val OTHER_TAG = 45 * MIN
 
     /** A check stays "due" for 90 minutes, then counts as missed. */
     const val DUE_FOR = 90 * MIN
@@ -78,23 +84,52 @@ object Schedule {
         Slot("bedtime", 22 * 60, MealTag.BEDTIME),
     )
 
-    fun matches(slotAt: Long, slotTag: MealTag, r: Reading): Boolean {
+    private fun opposite(a: MealTag, b: MealTag): Boolean {
+        val before = setOf(MealTag.BEFORE_MEAL, MealTag.FASTING)
+        return (a == MealTag.AFTER_MEAL && b in before) || (b == MealTag.AFTER_MEAL && a in before)
+    }
+
+    /** How well [r] answers a check at [slotAt]: lower is better, null when it doesn't. */
+    fun score(slotAt: Long, slotTag: MealTag, r: Reading): Long? {
         val d = r.at - slotAt
-        if (kotlin.math.abs(d) <= ANY_TAG) return true
-        return r.tag == slotTag && d >= -SAME_TAG_BEFORE && d <= SAME_TAG_AFTER
+        if (d < -WINDOW_BEFORE || d > WINDOW_AFTER) return null
+        val far = kotlin.math.abs(d)
+        return when {
+            r.tag == slotTag -> far
+            opposite(r.tag, slotTag) -> if (far <= ANY_TAG) far + 2 * OTHER_TAG else null
+            else -> far + OTHER_TAG
+        }
+    }
+
+    fun matches(slotAt: Long, slotTag: MealTag, r: Reading): Boolean = score(slotAt, slotTag, r) != null
+
+    /**
+     * Which reading answers which of the day's checks: the best pairs first (closest in time, same
+     * moment), each reading and each check used once. So a reading goes to the check it was
+     * meant for even when another check is nearby.
+     */
+    private fun pair(timed: List<Pair<Slot, Long>>, readings: List<Reading>): Map<Int, Reading> {
+        val options = ArrayList<Triple<Long, Int, Reading>>()
+        timed.forEachIndexed { i, (s, at) ->
+            for (r in readings) score(at, s.tag, r)?.let { options += Triple(it, i, r) }
+        }
+        val out = HashMap<Int, Reading>()
+        val used = HashSet<Reading>()
+        for ((_, i, r) in options.sortedBy { it.first }) {
+            if (i in out || r in used) continue
+            out[i] = r
+            used += r
+        }
+        return out
     }
 
     /** Today's enabled checks in time order, each marked done, due, upcoming or missed. */
     fun today(slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId): List<Check> {
         val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-        val used = HashSet<Long>()
-        return slots.filter { it.enabled }.sortedBy { it.minute }.map { s ->
-            val at = s.at(day, zone)
-            // Each reading answers one check at most, the closest one first in time.
-            val r = readings
-                .filter { it.id !in used && matches(at, s.tag, it) }
-                .minByOrNull { kotlin.math.abs(it.at - at) }
-            if (r != null) used += r.id
+        val timed = slots.filter { it.enabled }.sortedBy { it.minute }.map { it to it.at(day, zone) }
+        val answered = pair(timed, readings)
+        return timed.mapIndexed { i, (s, at) ->
+            val r = answered[i]
             val state = when {
                 r != null -> CheckState.DONE
                 now < at -> CheckState.UPCOMING
@@ -156,14 +191,26 @@ object Schedule {
 
     /** Slots whose time is now (allowing a late alarm), not yet answered by a reading. */
     fun dueSlots(slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId): List<Pair<Slot, Long>> {
-        val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-        return slots.filter { it.enabled }.mapNotNull { s ->
-            val at = s.at(day, zone)
-            val late = now - at
-            if (late < -MIN || late > 30 * MIN) return@mapNotNull null
-            // Already checked a little early: no need to nag.
-            if (readings.any { matches(at, s.tag, it) && it.at <= now }) null else s to at
-        }
+        // Already checked a little early: no need to nag. Same pairing as Today shows.
+        val checks = today(slots, readings.filter { it.at <= now }, now, zone)
+        return checks.filter { c ->
+            val late = now - c.at
+            c.reading == null && late >= -MIN && late <= 30 * MIN
+        }.map { it.slot to it.at }
+    }
+
+    /**
+     * The moment for a new reading at [at]: the nearest open check around then (so logging at
+     * 12:20 for the 12:00 check is "Before lunch" without picking it), or null when none is near.
+     */
+    fun momentFor(at: Long, slots: List<Slot>, readings: List<Reading>, zone: ZoneId): MealTag? {
+        val day = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
+        val timed = slots.filter { it.enabled }.sortedBy { it.minute }.map { it to it.at(day, zone) }
+        val answered = pair(timed, readings.filter { kotlin.math.abs(it.at - at) > MIN })
+        return timed.withIndex()
+            .filter { (i, p) -> i !in answered && at - p.second in -WINDOW_BEFORE..WINDOW_AFTER }
+            .minByOrNull { (_, p) -> kotlin.math.abs(at - p.second) }
+            ?.value?.first?.tag
     }
 
     /**

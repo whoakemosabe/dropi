@@ -29,6 +29,29 @@ class ScheduleTest {
     }
 
     @Test
+    fun readingsFindTheirCheck() {
+        // Bedtime logged early, tagged by the clock as before a meal: still the bedtime check.
+        val c = Schedule.today(slots, listOf(r(at(21, 20), MealTag.BEFORE_MEAL)), at(22, 30), zone)
+        assertEquals(CheckState.DONE, c[3].state)
+        // An after-meal reading an hour after the before-lunch time isn't that check.
+        val d = Schedule.today(slots, listOf(r(at(13, 0), MealTag.AFTER_MEAL)), at(13, 5), zone)
+        assertEquals(CheckState.DUE, d[1].state)
+        // Lunch logged late (13:50, before-meal) still answers lunch, not dinner.
+        val e = Schedule.today(slots, listOf(r(at(13, 50), MealTag.BEFORE_MEAL)), at(14), zone)
+        assertEquals(CheckState.DONE, e[1].state)
+        assertEquals(CheckState.UPCOMING, e[2].state)
+    }
+
+    @Test
+    fun newReadingTakesTheOpenChecksMoment() {
+        assertEquals(MealTag.BEFORE_MEAL, Schedule.momentFor(at(12, 20), slots, emptyList(), zone))
+        assertEquals(MealTag.BEDTIME, Schedule.momentFor(at(21, 15), slots, emptyList(), zone))
+        // Lunch already done: 12:30 has no open check near it.
+        assertNull(Schedule.momentFor(at(12, 30), slots, listOf(r(at(12, 0), MealTag.BEFORE_MEAL)), zone))
+        assertNull(Schedule.momentFor(at(15, 0), slots, emptyList(), zone))
+    }
+
+    @Test
     fun oneReadingAnswersOneCheck() {
         // Two checks 30 min apart, one reading between them: only the closer one is done.
         val two = listOf(Slot("a", 12 * 60, MealTag.BEFORE_MEAL), Slot("b", 12 * 60 + 30, MealTag.BEFORE_MEAL))

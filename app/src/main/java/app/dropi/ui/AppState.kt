@@ -236,7 +236,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             }
             mealNote = "Added to your ${java.time.Instant.ofEpochMilli(target.at).atZone(zone).toLocalTime().let { "%02d:%02d".format(it.hour, it.minute) }} reading"
         } else {
-            editing = Reading(at = now, mmol = 0.0, tag = Tagging.suggest(now, readings, zone).let { if (it == MealTag.AFTER_MEAL) MealTag.BEFORE_MEAL else it },
+            editing = Reading(at = now, mmol = 0.0, tag = suggestTag(now).let { if (it == MealTag.AFTER_MEAL) MealTag.BEFORE_MEAL else it },
                 carbs = meal.carbs, foods = meal.foods, meal = meal)
         }
     }
@@ -259,10 +259,20 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
 
     fun status(r: Reading): Status = Glucose.status(r.mmol, r.tag, targets)
 
+    /**
+     * The moment for a reading at [at]: an after-meal one when a before-meal reading was 30 min
+     * to 3 h earlier, else the open check it's nearest to, else one from the time of day.
+     */
+    fun suggestTag(at: Long): MealTag {
+        val byTime = Tagging.suggest(at, readings, zone)
+        if (byTime == MealTag.AFTER_MEAL) return byTime
+        return Schedule.momentFor(at, slots, readings, zone) ?: byTime
+    }
+
     /** Opens the log sheet for a new reading, with [tag] or one picked from the time of day. */
     fun startNew(tag: MealTag? = null) {
         val now = System.currentTimeMillis()
-        editing = Reading(at = now, mmol = 0.0, tag = tag ?: Tagging.suggest(now, readings, zone))
+        editing = Reading(at = now, mmol = 0.0, tag = tag ?: suggestTag(now))
     }
 
     fun save(r: Reading) {

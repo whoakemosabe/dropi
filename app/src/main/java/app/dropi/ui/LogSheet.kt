@@ -242,7 +242,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         fun moveTo(t: Long) {
             at = t
             // A new reading's moment follows its time (an 07:00 one is fasting, a 22:00 one bedtime).
-            if (isNew) tag = app.dropi.data.Tagging.suggest(t, state.readings, state.zone)
+            if (isNew) tag = state.suggestTag(t)
         }
 
         // Moment, time and note as three pills in one row, each opening a menu, so the keypad
