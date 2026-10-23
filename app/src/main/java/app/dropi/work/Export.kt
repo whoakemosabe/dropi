@@ -37,7 +37,7 @@ object Export {
 
     /** Readings as CSV (both units, so any clinic can read it). */
     fun csv(readings: List<Reading>, zone: ZoneId): String {
-        val sb = StringBuilder("date,time,mmol_per_l,mg_per_dl,moment,note\n")
+        val sb = StringBuilder("date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,note\n")
         readings.sortedBy { it.at }.forEach { r ->
             val t = Instant.ofEpochMilli(r.at).atZone(zone)
             sb.append(t.toLocalDate()).append(',')
@@ -45,6 +45,11 @@ object Export {
                 .append(Glucose.format(r.mmol, GlucoseUnit.MMOL)).append(',')
                 .append(Glucose.format(r.mmol, GlucoseUnit.MGDL)).append(',')
                 .append(r.tag.label).append(',')
+                .append(r.carbs?.toString() ?: "").append(',')
+                .append(r.insulin?.let { Glucose.formatNumber(it) } ?: "").append(',')
+                .append(r.insulinKind?.label ?: "").append(',')
+                .append(if (r.meds) "yes" else "").append(',')
+                .append(r.exercise?.toString() ?: "").append(',')
                 .append(quote(r.note)).append('\n')
         }
         return sb.toString()
@@ -255,11 +260,12 @@ object Export {
             }
 
             section("All readings")
-            val widths = listOf(110f, 50f, 60f, 90f, 189f)
-            row(listOf("Day", "Time", unit.label, "Moment", "Note"), widths, 8.5f, bold = true, color = muted)
+            val widths = listOf(92f, 40f, 52f, 80f, 235f)
+            row(listOf("Day", "Time", unit.label, "Moment", "Details and note"), widths, 8.5f, bold = true, color = muted)
             r.readings.reversed().forEach { rd ->
                 val t = Instant.ofEpochMilli(rd.at).atZone(zone)
-                row(listOf(shortDay.format(t) + " " + t.year, time.format(t), v(rd.mmol), rd.tag.label, rd.note), widths, 9f)
+                val extra = listOf(rd.detailsText(), rd.note).filter { it.isNotBlank() }.joinToString(" · ")
+                row(listOf(shortDay.format(t) + " " + t.year, time.format(t), v(rd.mmol), rd.tag.label, extra), widths, 9f)
             }
             page?.let { finish(it) }
             page = null

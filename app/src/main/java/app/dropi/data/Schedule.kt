@@ -114,9 +114,35 @@ object Schedule {
         return Check(first, first.at(tomorrow, zone), CheckState.UPCOMING, null)
     }
 
+    /** The weekly recap goes out on Sunday at 19:00. */
+    const val RECAP_HOUR = 19
+
+    /** The next Sunday 19:00 after [now]. */
+    fun nextRecap(now: Long, zone: ZoneId): Long {
+        val t = Instant.ofEpochMilli(now).atZone(zone)
+        var d = t.toLocalDate()
+        while (true) {
+            if (d.dayOfWeek == java.time.DayOfWeek.SUNDAY) {
+                val at = d.atStartOfDay(zone).plusHours(RECAP_HOUR.toLong()).toInstant().toEpochMilli()
+                if (at > now) return at
+            }
+            d = d.plusDays(1)
+        }
+    }
+
+    /** The Monday of the week to recap, when [now] is Sunday evening (19:00 to midnight); else null. */
+    fun recapWeek(now: Long, zone: ZoneId): LocalDate? {
+        val t = Instant.ofEpochMilli(now).atZone(zone)
+        if (t.dayOfWeek != java.time.DayOfWeek.SUNDAY || t.hour < RECAP_HOUR) return null
+        return t.toLocalDate().minusDays(6)
+    }
+
     /** When the next reminder should fire after [now]: the next slot time (if reminders are on) or a one-off. */
-    fun nextAlarm(slots: List<Slot>, oneOffs: List<OneOff>, remindersOn: Boolean, now: Long, zone: ZoneId): Long? {
+    fun nextAlarm(
+        slots: List<Slot>, oneOffs: List<OneOff>, remindersOn: Boolean, now: Long, zone: ZoneId, recapOn: Boolean = false,
+    ): Long? {
         val times = ArrayList<Long>()
+        if (recapOn) times += nextRecap(now, zone)
         if (remindersOn) {
             val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
             slots.filter { it.enabled }.forEach { s ->

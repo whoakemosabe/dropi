@@ -31,7 +31,19 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     private val db = Db.get(context)
 
     val zone: ZoneId get() = ZoneId.systemDefault()
-    val targets = Targets()
+    /** The person's target bands (ADA defaults until changed in Settings). */
+    var targets by mutableStateOf(prefs.targets)
+        private set
+
+    var labA1c by mutableStateOf(prefs.labA1c)
+        private set
+
+    var recapOn by mutableStateOf(prefs.recapOn)
+        private set
+
+    /** Everything ever logged, loaded when History opens. */
+    var history by mutableStateOf<List<Reading>>(emptyList())
+        private set
 
     var ready by mutableStateOf(false)
         private set
@@ -74,6 +86,8 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var settingsOpen by mutableStateOf(false)
     var scheduleOpen by mutableStateOf(false)
     var exportOpen by mutableStateOf(false)
+    var historyOpen by mutableStateOf(false)
+    var backupOpen by mutableStateOf(false)
 
     var lastCrash by mutableStateOf<String?>(null)
         private set
@@ -90,6 +104,16 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     private suspend fun reload() {
         val since = LocalDate.now(zone).minusDays(90).atStartOfDay(zone).toInstant().toEpochMilli()
         readings = try { db.since(since) } catch (e: Exception) { emptyList() }
+        if (historyOpen) loadHistory()
+    }
+
+    suspend fun loadHistory() {
+        history = try { db.all() } catch (e: Exception) { emptyList() }
+    }
+
+    fun openHistory() {
+        historyOpen = true
+        scope.launch { loadHistory() }
     }
 
     /** Coming back to the app: the day may have changed and an update may be out. */
@@ -200,6 +224,59 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         prefs.healthSync = on
         healthNote = null
         if (on) scope.launch { syncHealth() }
+    }
+
+    fun changeTargets(t: Targets) {
+        val safe = t.safe()
+        targets = safe
+        prefs.targets = safe
+        Reminders.rescheduleAsync(context)
+    }
+
+    fun changeRecap(on: Boolean) {
+        recapOn = on
+        prefs.recapOn = on
+        Reminders.rescheduleAsync(context)
+    }
+
+    fun addLabA1c(r: app.dropi.data.LabA1c) {
+        val list = (labA1c.filter { it.date != r.date } + r).sortedBy { it.date }
+        labA1c = list
+        prefs.labA1c = list
+    }
+
+    fun removeLabA1c(r: app.dropi.data.LabA1c) {
+        val list = labA1c.filter { it != r }
+        labA1c = list
+        prefs.labA1c = list
+    }
+
+    /** An encrypted backup of everything, as bytes for the file the person picked. */
+    suspend fun backupBytes(password: CharArray): ByteArray = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+        val c = app.dropi.data.Backup.Contents(db.all(), prefs.slots, prefs.targets, prefs.labA1c, System.currentTimeMillis())
+        app.dropi.data.Backup.seal(app.dropi.data.Backup.toJson(c), password)
+    }
+
+    /**
+     * Restores a backup: readings are merged (nothing already here is doubled or lost), and the
+     * backup's check times, targets and lab results replace the current ones. Returns how many
+     * readings came back.
+     */
+    suspend fun restore(bytes: ByteArray, password: CharArray): Int {
+        val c = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            app.dropi.data.Backup.fromJson(app.dropi.data.Backup.open(bytes, password))
+        }
+        val added = db.merge(c.readings)
+        c.slots?.let { changeSlots(it) }
+        c.targets?.let { changeTargets(it) }
+        if (c.labA1c.isNotEmpty()) {
+            val merged = (labA1c + c.labA1c).distinctBy { it.date }.sortedBy { it.date }
+            labA1c = merged
+            prefs.labA1c = merged
+        }
+        reload()
+        Reminders.rescheduleAsync(context)
+        return added
     }
 
     fun dismissCrash() {

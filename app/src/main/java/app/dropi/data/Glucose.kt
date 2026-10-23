@@ -38,6 +38,9 @@ object Glucose {
         GlucoseUnit.MGDL -> toMgdl(mmol).roundToInt().toString()
     }
 
+    /** "4" or "4.5": a plain number with at most one decimal, for doses in exports. */
+    fun formatNumber(v: Double): String = if (v % 1.0 == 0.0) v.toLong().toString() else String.format(Locale.ROOT, "%.1f", v)
+
     /** A typed value in [unit] → mmol/L, or null if it isn't a number a meter could show. */
     fun parse(text: String, unit: GlucoseUnit): Double? {
         val v = text.trim().toDoubleOrNull() ?: return null
@@ -100,6 +103,18 @@ data class Targets(
     val generalLow: Double = Glucose.LOW,
     val generalHigh: Double = Glucose.TIR_HIGH,
 ) {
+    /** Keeps the bands sensible whatever was saved: low edge under the high one, inside 3.9–13.9. */
+    fun safe(): Targets {
+        val bl = beforeLow.coerceIn(Glucose.LOW, 7.0)
+        val bh = beforeHigh.coerceIn(bl + 0.5, 11.0)
+        val ah = afterHigh.coerceIn(6.0, Glucose.VERY_HIGH)
+        return copy(beforeLow = r1(bl), beforeHigh = r1(bh), afterHigh = r1(ah))
+    }
+
+    private fun r1(v: Double) = Math.round(v * 10) / 10.0
+
+    val isDefault get() = this == Targets()
+
     fun forTag(tag: MealTag): Pair<Double, Double> = when (tag) {
         MealTag.FASTING, MealTag.BEFORE_MEAL -> beforeLow to beforeHigh
         MealTag.AFTER_MEAL -> generalLow to afterHigh

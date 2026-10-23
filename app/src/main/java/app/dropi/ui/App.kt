@@ -100,7 +100,8 @@ fun DropiRoot(state: AppState) {
 
         // The tab bar floats over the page, above the navigation bar, with the big + in the middle.
         AnimatedVisibility(
-            visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen && !state.exportOpen,
+            visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen && !state.exportOpen &&
+                !state.historyOpen && !state.backupOpen,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -147,6 +148,8 @@ fun DropiRoot(state: AppState) {
         SettingsSheet(state)
         ScheduleSheet(state)
         ExportSheet(state)
+        BackupSheet(state)
+        HistorySheet(state)
         LogSheetHost(state)
 
         // After saving a low or very high reading: what to do now.
@@ -162,7 +165,17 @@ fun DropiRoot(state: AppState) {
                 state.settingsOpen = false
                 state.scheduleOpen = false
                 state.exportOpen = false
+                state.backupOpen = false
                 state.startNew(if (want == "new") null else MealTag.fromKey(want))
+            }
+        }
+
+        val wantTrends = Launch.openTrends.value
+        LaunchedEffect(wantTrends) {
+            if (wantTrends) {
+                Launch.openTrends.value = false
+                state.trendsDays = 7
+                state.tab = Tab.TRENDS
             }
         }
 
@@ -282,4 +295,7 @@ private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modif
 object Launch {
     /** A MealTag name, or "new" to let the time of day pick the moment. */
     val logTag = mutableStateOf<String?>(null)
+
+    /** The weekly recap asked for Trends (7 days). */
+    val openTrends = mutableStateOf(false)
 }

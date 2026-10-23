@@ -58,6 +58,7 @@ import app.dropi.data.Reading
 import app.dropi.data.Report
 import app.dropi.data.Status
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
@@ -101,6 +102,7 @@ fun TrendsPage(state: AppState) {
             return@LazyColumn
         }
         item(key = "headline") { Headline(report, unit) }
+        item(key = "lab") { LabA1cCard(state, report) }
         report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
         item(key = "chart") { DailyChart(state, report, fmt) }
         if (insights.isNotEmpty()) {
@@ -124,6 +126,26 @@ fun TrendsPage(state: AppState) {
         }
         if (report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
         item(key = "table") { DailyTable(report, unit) }
+        item(key = "pdf") {
+            // The doctor's report for exactly the days on screen.
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            var busy by remember { mutableStateOf(false) }
+            PrimaryButton(
+                "Share a PDF of these ${report.days} days",
+                Modifier.fillMaxWidth(),
+                icon = R.drawable.lc_share,
+                enabled = !busy,
+            ) {
+                busy = true
+                scope.launch {
+                    try {
+                        val f = app.dropi.work.Export.writePdf(context, state.readings, report.days, today, state.zone, state.unit, state.targets)
+                        app.dropi.work.Export.share(context, f, "application/pdf", "Blood glucose report")
+                    } catch (e: Exception) { }
+                    busy = false
+                }
+            }
+        }
         item(key = "note") {
             Text(
                 "Based on your logged readings, not a sensor: time in range here is the share of readings. " +

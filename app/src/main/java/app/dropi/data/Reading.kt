@@ -18,6 +18,17 @@ enum class MealTag(val label: String, val short: String) {
     }
 }
 
+/** What kind of insulin was taken; logged as given, never suggested. */
+enum class InsulinKind(val label: String) {
+    RAPID("Rapid"),
+    LONG("Long"),
+    MIXED("Mixed");
+
+    companion object {
+        fun fromKey(k: String?) = entries.firstOrNull { it.name == k }
+    }
+}
+
 /** One blood glucose reading. [mmol] is exact (mg/dL entries are converted, not rounded). */
 data class Reading(
     val id: Long = 0,
@@ -27,8 +38,25 @@ data class Reading(
     val note: String = "",
     /** "" when typed in Dropi; "hc:<record id>" when it came in from Health Connect. */
     val source: String = "",
+    /** Optional details: carbs eaten (g), insulin taken (units), tablets taken, exercise (minutes). */
+    val carbs: Int? = null,
+    val insulin: Double? = null,
+    val insulinKind: InsulinKind? = null,
+    val meds: Boolean = false,
+    val exercise: Int? = null,
 ) {
     val imported get() = source.isNotEmpty()
+    val hasDetails get() = carbs != null || insulin != null || meds || exercise != null
+
+    /** "45 g carbs · 4 u rapid · tablets · 30 min exercise", or "" with none. */
+    fun detailsText(): String = listOfNotNull(
+        carbs?.let { "$it g carbs" },
+        insulin?.let { u -> "${trim(u)} u" + (insulinKind?.let { " ${it.label.lowercase()}" } ?: "") },
+        if (meds) "tablets" else null,
+        exercise?.let { "$it min exercise" },
+    ).joinToString(" · ")
+
+    private fun trim(d: Double) = if (d % 1.0 == 0.0) d.toInt().toString() else java.lang.String.format(java.util.Locale.ROOT, "%.1f", d)
 
     fun date(zone: ZoneId): LocalDate = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
 }

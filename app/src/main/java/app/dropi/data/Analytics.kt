@@ -60,6 +60,20 @@ object Analytics {
     fun gmiPercent(meanMmol: Double) = 3.31 + 0.02392 * Glucose.toMgdl(meanMmol)
     fun gmiMmolMol(meanMmol: Double) = 12.71 + 4.70587 * meanMmol
 
+    const val BIG_MEAL = 60
+
+    /** (carbs, after-meal mmol) for each after-meal reading whose meal has carbs logged. */
+    fun carbPairs(readings: List<Reading>): List<Pair<Int, Double>> {
+        val sorted = readings.sortedBy { it.at }
+        return sorted.filter { it.tag == MealTag.AFTER_MEAL }.mapNotNull { after ->
+            val own = after.carbs
+            val carbs = own ?: sorted.lastOrNull {
+                it.tag == MealTag.BEFORE_MEAL && it.at < after.at && after.at - it.at <= 3 * 3_600_000L && it.carbs != null
+            }?.carbs
+            carbs?.let { it to after.mmol }
+        }
+    }
+
     fun sd(values: List<Double>): Double? {
         if (values.size < 2) return null
         val m = values.average()
@@ -159,6 +173,21 @@ object Analytics {
         val highest = r.byTag.filter { it.count >= 3 }.maxByOrNull { it.average }
         if (highest != null && highest.tag != MealTag.FASTING && highest.average > targets.forTag(highest.tag).second) {
             out += Insight(InsightKind.INFO, "Your highest readings tend to be ${highest.tag.label.lowercase()} (average ${v(highest.average)}).")
+        }
+
+        // Carbs and after-meal readings: the carbs logged on a before-meal reading (or on the
+        // after-meal one itself), compared for bigger and smaller meals.
+        val pairs = carbPairs(r.readings)
+        val big = pairs.filter { it.first >= BIG_MEAL }.map { it.second }
+        val small = pairs.filter { it.first < BIG_MEAL }.map { it.second }
+        if (big.size >= 3 && small.size >= 3) {
+            val d = big.average() - small.average()
+            if (d >= 1.0) {
+                out += Insight(
+                    InsightKind.INFO,
+                    "After meals of $BIG_MEAL g carbs or more you average ${v(big.average())}, against ${v(small.average())} after smaller ones.",
+                )
+            }
         }
 
         if (r.days >= 7 && r.daysLogged * 10 >= r.days * 8) {

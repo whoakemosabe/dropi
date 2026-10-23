@@ -19,6 +19,10 @@ import app.dropi.R
 object Alerts {
     const val CH_UPDATES = "updates"
     const val CH_REMINDERS = "reminders"
+    const val CH_RECAP = "recap"
+
+    /** Opens a tab: "trends" (the weekly recap). */
+    const val EXTRA_OPEN_TAB = "open_tab"
     const val EXTRA_OPEN_UPDATES = "open_updates"
 
     /** Opens the log sheet: a MealTag name, or "new" to pick the moment from the time. */
@@ -30,6 +34,11 @@ object Alerts {
         nm.createNotificationChannel(
             NotificationChannel(CH_REMINDERS, "Check reminders", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Your planned check times, after-meal checks and low re-checks"
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_RECAP, "Weekly recap", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Sunday evening: your week's time in range, lows and logging"
             }
         )
         nm.createNotificationChannel(

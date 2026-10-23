@@ -93,6 +93,7 @@ private class Data(
     val latest: Reading?,
     val next: Check?,
     val unit: GlucoseUnit,
+    val targets: app.dropi.data.Targets,
     val clock: DateTimeFormatter,
     val zone: ZoneId,
 ) {
@@ -109,6 +110,7 @@ private class Data(
                 latest = readings.lastOrNull(),
                 next = Schedule.next(p.slots, readings, now, zone),
                 unit = p.unit,
+                targets = p.targets,
                 clock = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH),
                 zone = zone,
             )
@@ -142,7 +144,7 @@ private fun Content(context: Context, d: Data, p: Pal) {
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         .putExtra(Alerts.EXTRA_LOG_TAG, "new")
     val r = d.latest
-    val status = r?.let { Glucose.status(it.mmol, it.tag) }
+    val status = r?.let { Glucose.status(it.mmol, it.tag, d.targets) }
 
     Box(
         GlanceModifier

@@ -34,6 +34,8 @@ import java.util.Locale
 object Reminders {
     const val ACTION_FIRE = "app.dropi.REMINDER_FIRE"
     const val ACTION_SNOOZE = "app.dropi.REMINDER_SNOOZE"
+    const val ACTION_QUICK_LOG = "app.dropi.REMINDER_QUICK_LOG"
+    const val KEY_VALUE = "value"
     const val EXTRA_TAG = "tag"
     const val EXTRA_ID = "notification_id"
     private const val SNOOZE_MIN = 10
@@ -51,7 +53,7 @@ object Reminders {
         val app = context.applicationContext
         val p = Prefs(app)
         val now = System.currentTimeMillis()
-        val at = Schedule.nextAlarm(p.slots, p.oneOffs, p.remindersOn, now, ZoneId.systemDefault())
+        val at = Schedule.nextAlarm(p.slots, p.oneOffs, p.remindersOn, now, ZoneId.systemDefault(), recapOn = p.recapOn)
         val am = app.getSystemService(AlarmManager::class.java) ?: return
         val pi = firePending(app)
         if (at == null) {
@@ -108,6 +110,102 @@ object Reminders {
         }
         if (due.isNotEmpty()) p.oneOffs = later
 
+        // Sunday evening: the week in one notification (once per week).
+        Schedule.recapWeek(now, zone)?.let { monday ->
+            if (p.recapOn && p.recapSentFor != monday.toString()) {
+                p.recapSentFor = monday.toString()
+                val week = try { Db.get(app).since(now - 8 * 86_400_000L) } catch (e: Exception) { emptyList() }
+                postRecap(app, week, zone, p)
+            }
+        }
+
+        reschedule(app)
+        try { Widgets.updateAll(app) } catch (e: Exception) { }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun postRecap(context: Context, readings: List<app.dropi.data.Reading>, zone: ZoneId, p: Prefs) {
+        val today = Instant.now().atZone(zone).toLocalDate()
+        val r = app.dropi.data.Analytics.report(readings, 7, today, zone)
+        if (r.count == 0) return
+        Alerts.createChannels(context)
+        if (!Alerts.canNotify(context)) return
+        val unit = p.unit
+        val parts = listOfNotNull(
+            r.bands?.let { "In range ${Math.round(it.inRange)}%" },
+            r.mean?.let { "average ${app.dropi.data.Glucose.format(it, unit)}" },
+            if (r.lows == 0) "no lows" else "${r.lows} low${if (r.lows == 1) "" else "s"}",
+            "logged on ${r.daysLogged} of 7 days",
+        )
+        val open = PendingIntent.getActivity(
+            context, 3,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(Alerts.EXTRA_OPEN_TAB, "trends"),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val text = parts.joinToString(" · ").replaceFirstChar { it.uppercase() } + "."
+        val n = NotificationCompat.Builder(context, Alerts.CH_RECAP)
+            .setSmallIcon(R.drawable.ic_stat_drop)
+            .setColor(0xFF4F5BEA.toInt())
+            .setContentTitle("Your week in Dropi")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .build()
+        NotificationManagerCompat.from(context).notify(3, n)
+    }
+
+    /**
+     * "Type reading" on a reminder: the number typed in the notification is saved without opening
+     * the app. Anything that isn't a meter number gets a gentle retry instead.
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun quickLog(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val p = Prefs(app)
+        val tag = MealTag.fromKey(intent.getStringExtra(EXTRA_TAG))
+        val id = intent.getIntExtra(EXTRA_ID, 0)
+        val typed = androidx.core.app.RemoteInput.getResultsFromIntent(intent)?.getCharSequence(KEY_VALUE)?.toString().orEmpty()
+        val unit = p.unit
+        val mmol = app.dropi.data.Glucose.parse(typed.trim().replace(',', '.'), unit)
+        if (mmol == null) {
+            post(
+                app, id, "Couldn't save that",
+                "Type just the number on your meter, like ${if (unit == app.dropi.data.GlucoseUnit.MMOL) "6.4" else "115"}.", tag,
+            )
+            return
+        }
+        val now = System.currentTimeMillis()
+        val saved = Db.get(app).save(app.dropi.data.Reading(at = now, mmol = mmol, tag = tag))
+        p.oneOffs = Schedule.afterSave(p.oneOffs, saved, p.afterMealOn, p.afterMealMinutes, now)
+        clearShown(app)
+        val status = app.dropi.data.Glucose.status(mmol, tag, p.targets)
+        val value = "${app.dropi.data.Glucose.format(mmol, unit)} ${unit.label}"
+        if (status.isLow) {
+            // A low saved from the notification still gets the standard steps and a re-check.
+            p.oneOffs = p.oneOffs + OneOff(now + 15 * 60_000L, tag, OneOff.Kind.RECHECK, now)
+            post(
+                app, 2999, "Low: $value",
+                "Take 15 g of fast-acting sugar now (4 glucose tablets or about 150 ml of juice). I'll remind you to re-check in 15 minutes. Follow your care plan.",
+                tag, urgent = true,
+            )
+        } else if (Alerts.canNotify(app)) {
+            val n = NotificationCompat.Builder(app, Alerts.CH_REMINDERS)
+                .setSmallIcon(R.drawable.ic_stat_drop)
+                .setColor(0xFF4F5BEA.toInt())
+                .setContentTitle("Saved $value")
+                .setContentText("${tag.label} · ${status.label}")
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
+                .setTimeoutAfter(6_000)
+                .setAutoCancel(true)
+                .build()
+            NotificationManagerCompat.from(app).notify(2998, n)
+        }
+        if (p.healthSync) try { HealthSync.push(app, listOf(saved)) } catch (e: Exception) { }
         reschedule(app)
         try { Widgets.updateAll(app) } catch (e: Exception) { }
     }
@@ -148,6 +246,24 @@ object Reminders {
         return DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH).format(Instant.ofEpochMilli(at).atZone(zone))
     }
 
+    /** "Type reading": a reply box right in the notification (the PendingIntent has to be mutable for it). */
+    private fun typeAction(context: Context, id: Int, tag: MealTag): NotificationCompat.Action {
+        val unit = Prefs(context).unit
+        val input = androidx.core.app.RemoteInput.Builder(KEY_VALUE).setLabel("Reading in ${unit.label}").build()
+        val pi = PendingIntent.getBroadcast(
+            context, id + 5000,
+            Intent(context, ReminderReceiver::class.java)
+                .setAction(ACTION_QUICK_LOG)
+                .putExtra(EXTRA_TAG, tag.name)
+                .putExtra(EXTRA_ID, id),
+            (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0) or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return NotificationCompat.Action.Builder(R.drawable.lc_pencil, "Type reading", pi)
+            .addRemoteInput(input)
+            .setAllowGeneratedReplies(false)
+            .build()
+    }
+
     @SuppressLint("MissingPermission")
     private fun post(context: Context, id: Int, title: String, text: String, tag: MealTag, urgent: Boolean = false) {
         Alerts.createChannels(context)
@@ -175,6 +291,7 @@ object Reminders {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .addAction(R.drawable.lc_plus, "Log reading", open)
+            .addAction(typeAction(context, id, tag))
             .addAction(R.drawable.lc_clock, "Snooze $SNOOZE_MIN min", snooze)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -200,6 +317,7 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 when (intent.action) {
                     Reminders.ACTION_FIRE -> Reminders.fire(app)
+                    Reminders.ACTION_QUICK_LOG -> Reminders.quickLog(app, intent)
                     Reminders.ACTION_SNOOZE -> Reminders.snooze(
                         app,
                         MealTag.fromKey(intent.getStringExtra(Reminders.EXTRA_TAG)),

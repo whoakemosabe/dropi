@@ -76,6 +76,10 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
         canNotify = Alerts.canNotify(context)
         state.changeReminders(granted)
     }
+    // Notification permission alone (for the recap), without switching check reminders on.
+    val askOnly = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        canNotify = Alerts.canNotify(context)
+    }
     fun turnOnReminders() {
         val needsAsk = Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -131,6 +135,11 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
                     options.indexOf(state.afterMealMinutes).coerceAtLeast(0),
                     Modifier.fillMaxWidth(),
                 ) { state.changeAfterMeal(true, options[it]) }
+            }
+            ToggleRow("Weekly recap", "Sunday at 19:00: your week's time in range, lows and logging", state.recapOn) { on ->
+                Haptics.toggle(view, on)
+                state.changeRecap(on)
+                if (on && Build.VERSION.SDK_INT >= 33 && !canNotify) askOnly.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 

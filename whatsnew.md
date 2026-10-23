@@ -4,8 +4,12 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- New reading fits on one screen: moment, time and note are now tidy dropdown pills
-- Frosted header on Today and Trends: the page blurs as it scrolls underneath
-- Settings, check times and sharing keep their titles pinned with the same blur
-- Deleted a reading by mistake? Tap Undo
-- Buttons and tiles dip under your finger, and the Dracula drips now run once
+- Set your own targets in Settings: colours, insights and reports follow them
+- All readings: every reading you've ever logged, by day, with a filter
+- Details on a reading: carbs, insulin, tablets and exercise (tap Details)
+- New insight: how bigger meals affect your after-meal readings
+- Back up to a password-locked file and restore it on any phone
+- Lab A1C results next to your estimate in Trends (% or mmol/mol)
+- Type your reading straight into a reminder, no need to open the app
+- A Sunday recap of your week, and a week card on Today
+- One-tap PDF for the days you're looking at in Trends

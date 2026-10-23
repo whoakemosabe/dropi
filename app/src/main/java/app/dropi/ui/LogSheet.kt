@@ -114,7 +114,9 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     var picking by remember { mutableStateOf(false) }
     val openedAt = remember { initial.at }
     var confirmDelete by remember { mutableStateOf(false) }
-    var noteOpen by remember { mutableStateOf(false) }
+    var detailsOpen by remember { mutableStateOf(false) }
+    // Optional details, edited in their own window.
+    var details by remember { mutableStateOf(Details(initial.carbs, initial.insulin, initial.insulinKind, initial.meds, initial.exercise)) }
 
     // Scan the meter: the camera app takes a photo, the number is read on the phone.
     val scope = rememberCoroutineScope()
@@ -290,7 +292,8 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                 }
             }
             Box(Modifier.weight(0.9f)) {
-                Pill(note.ifBlank { "Note" }, R.drawable.lc_pencil, "Note") { noteOpen = !noteOpen }
+                val summary = details.summary().ifBlank { note }
+                Pill(summary.ifBlank { "Details" }, R.drawable.lc_plus, "Details and note") { detailsOpen = true }
             }
         }
         if (picking) {
@@ -301,40 +304,18 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             }
         }
 
-        // The note opens in place of nothing else: it pushes the keypad down only while typing.
-        if (noteOpen) {
-            val focus = remember { FocusRequester() }
-            LaunchedEffect(Unit) { focus.requestFocus() }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(C.SurfaceLight)
-                    .padding(start = 14.dp, end = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.weight(1f).padding(vertical = 14.dp)) {
-                    if (note.isEmpty()) Text("What you ate, how you feel…", style = inter(14.sp, color = C.TextMuted))
-                    BasicTextField(
-                        value = note,
-                        onValueChange = { note = it.take(200) },
-                        singleLine = true,
-                        textStyle = inter(14.sp, color = C.Text),
-                        cursorBrush = SolidColor(C.AccentText),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { noteOpen = false }),
-                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
-                    )
-                }
-                Chip("Done") { noteOpen = false }
+        if (detailsOpen) {
+            DetailsDialog(details, note, onDismiss = { detailsOpen = false }) { d, n ->
+                details = d
+                note = n
+                detailsOpen = false
             }
         }
 
         // Keys size themselves to the screen so the whole sheet fits (taller on big phones).
         val screenH = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
         val keyH = ((screenH * 0.9f - 420.dp) / 4).coerceIn(46.dp, 62.dp)
-        if (!noteOpen) Keypad(
+        Keypad(
             decimal = unit == GlucoseUnit.MMOL,
             keyHeight = keyH,
             modifier = Modifier.padding(top = 14.dp),
@@ -357,7 +338,14 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         ) {
             val v = mmol ?: return@PrimaryButton
             Haptics.confirm(view)
-            state.save(initial.copy(at = at, mmol = v, tag = tag, note = note.trim()))
+            state.save(
+                initial.copy(
+                    at = at, mmol = v, tag = tag, note = note.trim(),
+                    carbs = details.carbs, insulin = details.insulin,
+                    insulinKind = if (details.insulin != null) details.kind else null,
+                    meds = details.meds, exercise = details.exercise,
+                )
+            )
             close()
         }
     }

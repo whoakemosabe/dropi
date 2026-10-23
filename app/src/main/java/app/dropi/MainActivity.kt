@@ -105,6 +105,11 @@ class MainActivity : ComponentActivity() {
             UpdateWatch.load(this)
             UpdateWatch.whatsNewOpen.value = true
         }
+        // The weekly recap opens Trends.
+        if (intent.getStringExtra(Alerts.EXTRA_OPEN_TAB) == "trends") {
+            intent.removeExtra(Alerts.EXTRA_OPEN_TAB)
+            Launch.openTrends.value = true
+        }
         // A reminder or the widget's +: open the log sheet. Only a known tag name (or "new") is
         // followed; anything else another app might send is dropped.
         intent.getStringExtra(Alerts.EXTRA_LOG_TAG)?.let { t ->

@@ -7,6 +7,9 @@ import app.dropi.data.GlucoseUnit
 import app.dropi.data.OneOff
 import app.dropi.data.Schedule
 import app.dropi.data.Slot
+import app.dropi.data.A1c
+import app.dropi.data.LabA1c
+import app.dropi.data.Targets
 
 /** Settings and small bits of state. Readings live in the database, not here. */
 class Prefs(context: Context) {
@@ -25,6 +28,29 @@ class Prefs(context: Context) {
     var haptics: Boolean
         get() = p.getBoolean("haptics", true)
         set(v) = p.edit { putBoolean("haptics", v) }
+
+    // ---- Targets (set with the care team; ADA defaults) ----
+
+    var targets: Targets
+        get() {
+            val d = Targets()
+            return Targets(
+                beforeLow = p.getFloat("t_before_low", d.beforeLow.toFloat()).toDouble(),
+                beforeHigh = p.getFloat("t_before_high", d.beforeHigh.toFloat()).toDouble(),
+                afterHigh = p.getFloat("t_after_high", d.afterHigh.toFloat()).toDouble(),
+            ).safe()
+        }
+        set(v) = p.edit {
+            val t = v.safe()
+            putFloat("t_before_low", t.beforeLow.toFloat())
+            putFloat("t_before_high", t.beforeHigh.toFloat())
+            putFloat("t_after_high", t.afterHigh.toFloat())
+        }
+
+    /** Lab A1C results, oldest first. */
+    var labA1c: List<LabA1c>
+        get() = A1c.fromJson(p.getString("lab_a1c", null))
+        set(v) = p.edit { putString("lab_a1c", A1c.toJson(v.sortedBy { it.date }.takeLast(60))) }
 
     // ---- Planned checks and reminders ----
 
@@ -51,6 +77,16 @@ class Prefs(context: Context) {
     var oneOffs: List<OneOff>
         get() = Schedule.oneOffsFromJson(p.getString("one_offs", null))
         set(v) = p.edit { putString("one_offs", Schedule.oneOffsToJson(v.sortedBy { it.at }.takeLast(20))) }
+
+    /** A Sunday-evening summary of the week. */
+    var recapOn: Boolean
+        get() = p.getBoolean("recap_on", true)
+        set(v) = p.edit { putBoolean("recap_on", v) }
+
+    /** The week (its Monday, "2026-10-19") the last recap was posted for. */
+    var recapSentFor: String
+        get() = p.getString("recap_sent_for", "") ?: ""
+        set(v) = p.edit { putString("recap_sent_for", v) }
 
     /** Slot reminders already posted ("slotId@2026-10-23"), so each fires once a day. */
     var notifiedSlots: Set<String>

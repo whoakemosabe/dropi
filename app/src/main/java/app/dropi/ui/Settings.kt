@@ -125,14 +125,44 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        Section("Targets") {
-            TargetLine("Fasting and before meals", "${v(state.targets.beforeLow)}–${v(state.targets.beforeHigh)}")
-            TargetLine("1–2 h after a meal", "under ${v(state.targets.afterHigh)}")
-            TargetLine("Time in range", "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}")
+        Section("Your targets") {
+            val t = state.targets
+            val step = 0.1
+            TargetStepper("Fasting and before meals: from", v(t.beforeLow),
+                { state.changeTargets(t.copy(beforeLow = t.beforeLow - step)) },
+                { state.changeTargets(t.copy(beforeLow = t.beforeLow + step)) })
+            TargetStepper("Fasting and before meals: up to", v(t.beforeHigh),
+                { state.changeTargets(t.copy(beforeHigh = t.beforeHigh - step)) },
+                { state.changeTargets(t.copy(beforeHigh = t.beforeHigh + step)) })
+            TargetStepper("1–2 h after a meal: under", v(t.afterHigh),
+                { state.changeTargets(t.copy(afterHigh = t.afterHigh - step)) },
+                { state.changeTargets(t.copy(afterHigh = t.afterHigh + step)) })
+            Hint(
+                if (t.isDefault) "American Diabetes Association targets for adults, in ${unit.label}. Set the ones your care team gave you."
+                else "Your own targets, in ${unit.label}. Colours, insights and reports follow them."
+            )
+            if (!t.isDefault) Chip("Reset to ADA targets") { state.changeTargets(app.dropi.data.Targets()) }
+        }
+
+        Section("Fixed thresholds") {
+            TargetLine("Time in range", "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", C.InRange)
             TargetLine("Low", "under ${v(Glucose.LOW)}", C.Low)
             TargetLine("Urgent low", "under ${v(Glucose.URGENT_LOW)}", C.UrgentLow)
             TargetLine("Very high", "over ${v(Glucose.VERY_HIGH)}", C.VeryHigh)
-            Hint("American Diabetes Association targets for adults, in ${unit.label}. Your care team may set different ones.")
+            Hint("International consensus values, the same for everyone so time in range compares with any clinic's.")
+        }
+
+        Section("Backup") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Back up or restore", style = inter(15.sp, FontWeight.SemiBold))
+                    Text("A password-locked file you keep in Drive or Files", style = inter(13.sp, color = C.TextSecondary))
+                }
+                Chip("Open", icon = R.drawable.lc_download) {
+                    state.settingsOpen = false
+                    state.backupOpen = true
+                }
+            }
         }
 
         Section("Updates") {
@@ -248,10 +278,23 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun TargetLine(label: String, value: String, color: Color = C.Text) {
+private fun TargetLine(label: String, value: String, color: Color) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(10.dp))
+        Text(label, style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
+        Text(value, style = inter(14.sp, FontWeight.Bold, C.Text))
+    }
+}
+
+/** A target with − and + (0.1 mmol/L a step, shown in the person's unit). */
+@Composable
+private fun TargetStepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
-        Text(value, style = inter(14.sp, FontWeight.Bold, color))
+        Chip("−") { onMinus() }
+        Text(value, style = inter(16.sp, FontWeight.Bold, C.Text), modifier = Modifier.padding(horizontal = 8.dp))
+        Chip("+") { onPlus() }
     }
 }
 

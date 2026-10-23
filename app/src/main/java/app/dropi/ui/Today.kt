@@ -98,6 +98,11 @@ fun TodayPage(state: AppState) {
             }
         }
         item(key = "hero") { Hero(state, latest, fmt, now, streak) }
+        // Sundays and Mondays: last week at a glance (the same as the Sunday recap).
+        val dow = today.dayOfWeek
+        if ((dow == java.time.DayOfWeek.SUNDAY || dow == java.time.DayOfWeek.MONDAY) && all.size >= 3) {
+            item(key = "week") { WeekCard(state, today) }
+        }
         item(key = "checks") { ChecksCard(state, now, fmt) }
         item(key = "stats") { StatRow(state, summary) }
         item(key = "today-label") {
@@ -120,6 +125,11 @@ fun TodayPage(state: AppState) {
                 Text("EARLIER", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
             items(earlier, key = { "r${it.id}" }) { r -> ReadingRow(state, r, fmt.dayTime(r.at, now)) }
+        }
+        if (all.isNotEmpty()) {
+            item(key = "history") {
+                GhostButton("See all readings", Modifier.fillMaxWidth(), color = C.AccentText) { state.openHistory() }
+            }
         }
         item(key = "footer") {
             Text(
@@ -188,6 +198,39 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
                 Text("$streak-day logging streak", style = inter(12.sp, FontWeight.SemiBold, C.High))
             }
         }
+    }
+}
+
+@Composable
+private fun WeekCard(state: AppState, today: java.time.LocalDate) {
+    val r = androidx.compose.runtime.remember(state.readings, today) { app.dropi.data.Analytics.report(state.readings, 7, today, state.zone) }
+    if (r.count == 0) return
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .card()
+            .tap {
+                state.trendsDays = 7
+                state.tab = Tab.TRENDS
+            }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text("YOUR WEEK", style = SectionLabel)
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            WeekStat(r.bands?.let { "${Math.round(it.inRange)}%" } ?: "—", "in range")
+            WeekStat(if (r.lows == 0) "0" else "${r.lows}", if (r.lows == 1) "low" else "lows")
+            WeekStat("${r.daysLogged}/7", "days logged")
+        }
+        Text("See this week in Trends", style = inter(12.sp, FontWeight.SemiBold, C.AccentText))
+    }
+}
+
+@Composable
+private fun WeekStat(value: String, label: String) {
+    Column {
+        Text(value, style = inter(22.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""))
+        Text(label, style = inter(11.sp, color = C.TextMuted))
     }
 }
 
@@ -376,7 +419,7 @@ private fun StatTile(
 }
 
 @Composable
-private fun ReadingRow(state: AppState, r: Reading, time: String) {
+fun ReadingRow(state: AppState, r: Reading, time: String) {
     val status = state.status(r)
     val c = C.status(status)
     Row(
@@ -396,9 +439,9 @@ private fun ReadingRow(state: AppState, r: Reading, time: String) {
                 Text(r.tag.label, style = inter(14.sp, FontWeight.SemiBold, C.Text))
             }
             Text(
-                if (r.note.isNotBlank()) "$time · ${r.note}" else time,
+                listOf(time, r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · "),
                 style = inter(12.sp, color = C.TextMuted),
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
