@@ -93,9 +93,14 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     var boxW by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val density = androidx.compose.ui.platform.LocalDensity.current
 
+    // Keeps the view inside the data: never wider than all of it, never past now or before the
+    // first reading. Written so the limits can't cross (zooming out past the data once crashed).
     fun clamp() {
-        span = span.coerceIn(6 * HOUR, maxOf(DAY, now + HOUR - earliest + DAY))
-        end = end.coerceIn(earliest + span, now + HOUR)
+        val latest = now + HOUR
+        val maxSpan = maxOf(6 * HOUR, latest - earliest)
+        span = span.coerceIn(6 * HOUR, maxSpan)
+        val lo = earliest + span
+        end = if (lo >= latest) latest else end.coerceIn(lo, latest)
     }
     val start = end - span
     val visible = readings.filter { it.at in start..end }
