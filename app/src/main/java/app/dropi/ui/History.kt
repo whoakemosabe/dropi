@@ -66,7 +66,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
     Box(Modifier.fillMaxWidth().weight(1f, fill = false)) {
         LazyColumn(
             Modifier.fillMaxWidth().layerBackdrop(backdrop).background(C.Card),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = headerDp + 4.dp, bottom = nav.calculateBottomPadding() + 24.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = nav.calculateBottomPadding() + 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (shown.isEmpty()) {

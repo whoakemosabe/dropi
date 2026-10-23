@@ -81,7 +81,7 @@ fun TrendsPage(state: AppState) {
 
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + 4.dp, bottom = bars.calculateBottomPadding() + 112.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "period") {

@@ -203,7 +203,7 @@ fun ColumnScope.StickySheetBody(
                 .background(C.Card)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = headerDp + 4.dp, bottom = 24.dp),
+                .padding(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )

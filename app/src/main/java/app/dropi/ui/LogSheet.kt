@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -67,6 +69,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -248,9 +252,12 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         // and Save always fit on screen without scrolling.
         var momentOpen by remember { mutableStateOf(false) }
         var whenOpen by remember { mutableStateOf(false) }
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.weight(1.15f)) {
-                Pill(tag.label, tag.icon(), "Moment") { momentOpen = true }
+        Row(
+            Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                Pill(tag.label, tag.icon(), "Moment", Modifier.fillMaxHeight()) { momentOpen = true }
                 DropdownMenu(
                     expanded = momentOpen,
                     onDismissRequest = { momentOpen = false },
@@ -264,13 +271,13 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     }
                 }
             }
-            Box(Modifier.weight(1.15f)) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
                 val whenLabel = when (offsetMin) {
                     null -> fmt.dayTime(at)
                     0 -> "Now"
                     else -> if (offsetMin!! < 60) "$offsetMin min ago" else "${offsetMin!! / 60} h ago"
                 }
-                Pill(whenLabel, R.drawable.lc_clock, "Time taken") { whenOpen = true }
+                Pill(whenLabel, R.drawable.lc_clock, "Time", Modifier.fillMaxHeight()) { whenOpen = true }
                 DropdownMenu(
                     expanded = whenOpen,
                     onDismissRequest = { whenOpen = false },
@@ -291,9 +298,15 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     }
                 }
             }
-            Box(Modifier.weight(0.9f)) {
-                val summary = details.summary().ifBlank { note }
-                Pill(summary.ifBlank { "Details" }, R.drawable.lc_plus, "Details and note") { detailsOpen = true }
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                val summary = details.summary()
+                val shown = when {
+                    summary.isNotBlank() && note.isNotBlank() -> "$summary · note"
+                    summary.isNotBlank() -> summary
+                    note.isNotBlank() -> "Note added"
+                    else -> "Add carbs, insulin…"
+                }
+                Pill(shown, R.drawable.lc_plus, "Details", Modifier.fillMaxHeight()) { detailsOpen = true }
             }
         }
         if (picking) {
@@ -314,7 +327,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 
         // Keys size themselves to the screen so the whole sheet fits (taller on big phones).
         val screenH = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
-        val keyH = ((screenH * 0.9f - 420.dp) / 4).coerceIn(46.dp, 62.dp)
+        val keyH = ((screenH * 0.9f - 456.dp) / 4).coerceIn(44.dp, 60.dp)
         Keypad(
             decimal = unit == GlucoseUnit.MMOL,
             keyHeight = keyH,
@@ -387,33 +400,39 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
     }
 }
 
-/** A compact pill that opens a menu: icon, the current value (one line), and a ▾ cue. */
+/**
+ * A tile that opens a menu: what it sets on top (MOMENT, TIME, DETAILS) and the current value
+ * in full underneath, wrapping to a second line rather than cutting off.
+ */
 @Composable
-private fun Pill(text: String, icon: Int, label: String, onClick: () -> Unit) {
+private fun Pill(text: String, icon: Int, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val press = rememberPress()
-    Row(
-        Modifier
+    Column(
+        modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 60.dp)
             .pressed(press)
             .clip(RoundedCornerShape(14.dp))
             .background(C.SurfaceLight)
             .border(1.dp, C.GlassBorder, RoundedCornerShape(14.dp))
-            .semantics { contentDescription = "$label: $text" }
+            .semantics { contentDescription = "$label: $text. Tap to change." }
             .tap(press, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Ic(icon, C.TextMuted, 15.dp)
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text,
-            style = inter(13.sp, FontWeight.SemiBold, C.Text),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Ic(R.drawable.lc_chevron_down, C.TextMuted, 14.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Ic(icon, C.TextMuted, 12.dp)
+            Spacer(Modifier.width(4.dp))
+            Text(
+                label.uppercase(),
+                style = inter(10.sp, FontWeight.SemiBold, C.TextMuted, 0.08f),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.weight(1f),
+            )
+            Ic(R.drawable.lc_chevron_down, C.TextMuted, 12.dp)
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(text, style = inter(14.sp, FontWeight.SemiBold, C.Text).copy(lineHeight = 17.sp))
     }
 }
 

@@ -146,3 +146,20 @@ fun GlassHeader(
     }
 }
 
+
+/**
+ * The header's frosted glass on any shape (the tab bar's wings): the same blur, saturation and
+ * tint, so the two read as one material. Older phones get the solid tinted fallback.
+ */
+fun Modifier.frosted(backdrop: LayerBackdrop, shape: androidx.compose.ui.graphics.Shape, base: Color = C.Bg): Modifier =
+    if (!glassFull) this.background(base.copy(alpha = 0.94f), shape)
+    else this.drawPlainBackdrop(
+        backdrop = backdrop,
+        shape = { shape },
+        effects = {
+            colorControls(saturation = 1.2f)
+            blur(18.dp.toPx())
+        },
+        onDrawBackdrop = { drawPage -> drawPage() },
+        onDrawSurface = { drawRect(base.copy(alpha = if (C.dark) 0.5f else 0.62f)) },
+    )

@@ -43,7 +43,18 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,7 +98,7 @@ fun DropiRoot(state: AppState) {
 
         // Sticky header: logo, title and Settings over a frosted band (the fade reaches a little
         // past the header so there's no hard edge).
-        GlassHeader(pageBackdrop, headerDp + 20.dp, Modifier.align(Alignment.TopCenter))
+        GlassHeader(pageBackdrop, headerDp + HEADER_FADE, Modifier.align(Alignment.TopCenter), fade = HEADER_FADE)
         Box(
             Modifier
                 .align(Alignment.TopCenter)
@@ -105,7 +116,7 @@ fun DropiRoot(state: AppState) {
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomCenter),
-        ) { TabBar(state) }
+        ) { TabBar(state, pageBackdrop) }
 
         // "Reading deleted · Undo", above the tab bar for a few seconds after a delete.
         val deleted = state.lastDeleted
@@ -193,6 +204,9 @@ fun DropiRoot(state: AppState) {
 
 enum class Tab { TODAY, TRENDS }
 
+/** How far the header's frost fades out below it; pages start below that, so at rest nothing is blurred. */
+val HEADER_FADE = 20.dp
+
 /** The sticky header: the drop logo, the page title and date, and Settings. */
 @Composable
 private fun TopBar(state: AppState) {
@@ -238,56 +252,131 @@ private fun TopBar(state: AppState) {
     }
 }
 
+/**
+ * The bottom bar: two frosted wings (the same blur and tint as the header) curving in around a
+ * big floating + with a halo. Nothing joins them, so the page shows through the gaps.
+ */
 @Composable
-private fun TabBar(state: AppState) {
+private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
     val view = LocalView.current
-    Row(
+    Box(
         Modifier
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 14.dp)
+            .padding(bottom = 10.dp)
             .widthIn(max = 420.dp)
             .fillMaxWidth()
-            .shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black, spotColor = Color.Black)
-            .clip(RoundedCornerShape(32.dp))
-            .background(C.Card)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(32.dp))
-            .padding(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .height(104.dp),
     ) {
-        TabItem("Today", R.drawable.lc_droplet, state.tab == Tab.TODAY, Modifier.weight(1f)) {
-            if (state.tab != Tab.TODAY) Haptics.segment(view)
-            state.tab = Tab.TODAY
+        Row(
+            Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Wing(
+                "Today", R.drawable.lc_droplet, state.tab == Tab.TODAY, left = true, backdrop = backdrop,
+                modifier = Modifier.weight(1f),
+            ) {
+                if (state.tab != Tab.TODAY) Haptics.segment(view)
+                state.tab = Tab.TODAY
+            }
+            // Room for the orb between the wings' curved inner edges.
+            Spacer(Modifier.width(ORB_GAP))
+            Wing(
+                "Trends", R.drawable.lc_chart, state.tab == Tab.TRENDS, left = false, backdrop = backdrop,
+                modifier = Modifier.weight(1f),
+            ) {
+                if (state.tab != Tab.TRENDS) Haptics.segment(view)
+                state.tab = Tab.TRENDS
+            }
         }
+        // The halo, then the + itself.
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .size(96.dp)
+                .border(1.5.dp, C.AccentText.copy(alpha = 0.45f), CircleShape)
+        )
         val plus = rememberPress()
         Box(
             Modifier
+                .align(Alignment.Center)
                 .pressed(plus)
-                .size(56.dp)
+                .size(80.dp)
+                .shadow(18.dp, CircleShape, ambientColor = C.Accent, spotColor = C.Accent)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(C.Accent, C.AccentGlow)))
                 .tap(plus) { state.startNew() },
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_plus, Color.White, 26.dp, contentDescription = "Log reading") }
-        TabItem("Trends", R.drawable.lc_chart, state.tab == Tab.TRENDS, Modifier.weight(1f)) {
-            if (state.tab != Tab.TRENDS) Haptics.segment(view)
-            state.tab = Tab.TRENDS
+        ) { Ic(R.drawable.lc_plus, Color.White, 32.dp, contentDescription = "Log reading") }
+    }
+}
+
+/** Space between the two wings: the orb's width less how far the wings' curves reach in. */
+private val ORB_GAP = 72.dp
+
+/**
+ * One wing: round on the outside, and on the inside a concave curve that follows the orb (a
+ * circle of 48 dp about the orb's centre), so the pair hugs the + with an even 8 dp gap.
+ */
+private class WingShape(private val left: Boolean) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val r = with(density) { 48.dp.toPx() }
+        val h = size.height
+        val w = size.width
+        val reach = kotlin.math.sqrt(r * r - (h / 2) * (h / 2)) // how far the curve's tips sit from the orb centre
+        val p = Path()
+        if (left) {
+            val cx = w + reach
+            p.moveTo(h / 2, 0f)
+            p.lineTo(w, 0f)
+            p.arcTo(Rect(cx - r, h / 2 - r, cx + r, h / 2 + r), 180f + Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(),
+                -2f * Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(), false)
+            p.lineTo(h / 2, h)
+            p.arcTo(Rect(0f, 0f, h, h), 90f, 180f, false)
+        } else {
+            val cx = -reach
+            p.moveTo(0f, 0f)
+            p.lineTo(w - h / 2, 0f)
+            p.arcTo(Rect(w - h, 0f, w, h), -90f, 180f, false)
+            p.lineTo(0f, h)
+            p.arcTo(Rect(cx - r, h / 2 - r, cx + r, h / 2 + r), Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(),
+                -2f * Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(), false)
         }
+        p.close()
+        return Outline.Generic(p)
     }
 }
 
 @Composable
-private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val tint = if (selected) C.AccentText else C.TextMuted
-    Column(
+private fun Wing(
+    label: String,
+    icon: Int,
+    selected: Boolean,
+    left: Boolean,
+    backdrop: LayerBackdrop,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val shape = remember(left) { WingShape(left) }
+    val tint = if (selected) C.AccentText else C.TextSecondary
+    val press = rememberPress()
+    Row(
         modifier
-            .clip(RoundedCornerShape(26.dp))
-            .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .semantics { this.selected = selected }
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .height(64.dp)
+            .pressed(press)
+            .frosted(backdrop, shape)
+            .background(if (selected) C.Accent.copy(alpha = 0.16f) else Color.Transparent, shape)
+            .border(1.5.dp, if (selected) C.AccentText.copy(alpha = 0.8f) else C.Text.copy(alpha = 0.22f), shape)
+            .clip(shape)
+            .semantics { this.selected = selected; role = Role.Tab }
+            .tap(press, onClick = onClick)
+            // Keep the label clear of the curved inner edge.
+            .padding(start = if (left) 0.dp else 22.dp, end = if (left) 22.dp else 0.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Ic(icon, tint, 22.dp)
-        Text(label, style = inter(11.sp, FontWeight.SemiBold, tint))
+        Ic(icon, tint, 20.dp)
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = inter(15.sp, if (selected) FontWeight.Bold else FontWeight.SemiBold, tint), maxLines = 1, softWrap = false)
     }
 }
 

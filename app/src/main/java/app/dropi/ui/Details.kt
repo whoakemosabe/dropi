@@ -51,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.dropi.R
@@ -187,8 +188,8 @@ private fun Stepper(label: String, value: String?, icon: Int, onMinus: () -> Uni
 @Composable
 private fun RoundButton(symbol: String, description: String, enabled: Boolean, action: () -> Unit) {
     val view = LocalView.current
-    val scope = rememberCoroutineScope()
     var down by remember { mutableStateOf(false) }
+    val enabledNow = rememberUpdatedState(enabled)
     val scale by animateFloatAsState(if (down) 0.94f else 1f, tween(100), label = "step")
     val latest = rememberUpdatedState(action)
     Box(
@@ -202,23 +203,32 @@ private fun RoundButton(symbol: String, description: String, enabled: Boolean, a
                 role = Role.Button
                 if (enabled) onClick { latest.value(); true }
             }
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
+            .pointerInput(Unit) {
+                // Keyed on nothing: the gesture keeps running when the button disables itself
+                // (stepping down to "Not logged"), and the repeat stops with it.
                 detectTapGestures(onPress = {
+                    if (!enabledNow.value) return@detectTapGestures
                     down = true
-                    Haptics.tap(view)
-                    latest.value()
-                    val repeat = scope.launch {
-                        delay(420)
-                        while (true) {
+                    try {
+                        coroutineScope {
+                            Haptics.tap(view)
                             latest.value()
-                            Haptics.segment(view)
-                            delay(90)
+                            val repeat = launch {
+                                delay(450)
+                                var n = 0
+                                while (enabledNow.value && n < 120) {
+                                    latest.value()
+                                    if (n % 3 == 0) Haptics.segment(view)
+                                    n++
+                                    delay(110)
+                                }
+                            }
+                            tryAwaitRelease()
+                            repeat.cancel()
                         }
+                    } finally {
+                        down = false
                     }
-                    tryAwaitRelease()
-                    repeat.cancel()
-                    down = false
                 })
             },
         contentAlignment = Alignment.Center,
