@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -88,6 +89,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     var showTargets by remember { mutableStateOf(false) }
     var showMeals by remember { mutableStateOf(true) }
     var showSensor by remember { mutableStateOf(true) }
+    // The chart's width, so the key knows whether days are drawn as bars (same rule as the chart).
+    var boxW by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
 
     fun clamp() {
         span = span.coerceIn(6 * HOUR, maxOf(DAY, now + HOUR - earliest + DAY))
@@ -134,6 +138,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
             Modifier
                 .fillMaxWidth()
                 .height(plotH + 22.dp)
+                .onSizeChanged { boxW = it.width }
                 .semantics {
                     contentDescription = "Readings from ${rangeText(start, end, zone, fmt)}: ${visible.size} readings" +
                         (visible.maxByOrNull { it.mmol }?.let { ", highest ${Glucose.format(it.mmol, unit)}" } ?: "") +
@@ -321,6 +326,32 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
             if (sensor.isNotEmpty()) Chip("Sensor", icon = R.drawable.lc_activity, selected = showSensor) { showSensor = !showSensor }
         }
 
+        // The key: only what's on the chart right now.
+        val zoomedOut = with(density) { (boxW - 30.dp.toPx()) * DAY / span < 40.dp.toPx() }
+        val inView = sensor.any { it.at in start..end }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                .background(C.SurfaceLight.copy(alpha = 0.5f))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            KeyRow(KeyMark.BAND, C.InRange, "Shaded: in range, 3.9–10.0")
+            if (zoomedOut) KeyRow(KeyMark.BAR, C.TextSecondary, "Bar: one day, lowest to highest; dot is the average")
+            else KeyRow(KeyMark.DOT, C.InRange, "Dot: a reading, coloured by range (tap one)")
+            if (showTargets) {
+                val t = state.targets
+                KeyRow(KeyMark.BAND, C.AccentText, "Light band: your before-meal target, ${Glucose.format(t.beforeLow, unit)}–${Glucose.format(t.beforeHigh, unit)}")
+                KeyRow(KeyMark.FLAT_DASH, C.AccentText, "Flat dashes: your after-meal limit, ${Glucose.format(t.afterHigh, unit)}")
+            }
+            if (showMeals && !zoomedOut) {
+                KeyRow(KeyMark.SQUARE, C.AccentText, "Square: a meal")
+                KeyRow(KeyMark.SLOPE_DASH, C.AccentText, "Sloped dashes: from before the meal up to its peak")
+            }
+            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], "Line: sensor values")
+        }
+
         val s = selected
         if (s != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -454,5 +485,33 @@ private fun Legend(color: androidx.compose.ui.graphics.Color, text: String, line
         Box(Modifier.width(14.dp).height(if (line) 3.dp else 10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)).background(color))
         Spacer(Modifier.width(6.dp))
         Text(text, style = inter(11.sp, color = C.TextMuted))
+    }
+}
+
+private enum class KeyMark { BAND, DOT, BAR, SQUARE, LINE, FLAT_DASH, SLOPE_DASH }
+
+/** One line of the chart's key: a small drawn sample, then what it means. */
+@Composable
+private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, text: String) {
+    val ring = C.Card
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics(mergeDescendants = true) {}) {
+        Canvas(Modifier.width(26.dp).height(16.dp)) {
+            val w = size.width; val h = size.height
+            val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))
+            when (mark) {
+                KeyMark.BAND -> drawRoundRect(color.copy(alpha = 0.22f), Offset(0f, h * 0.15f), Size(w, h * 0.7f), CornerRadius(3.dp.toPx()))
+                KeyMark.DOT -> { drawCircle(ring, 6.dp.toPx(), Offset(w / 2, h / 2)); drawCircle(color, 4.dp.toPx(), Offset(w / 2, h / 2)) }
+                KeyMark.BAR -> {
+                    drawRoundRect(color.copy(alpha = 0.35f), Offset(w / 2 - 3.dp.toPx(), 0f), Size(6.dp.toPx(), h), CornerRadius(3.dp.toPx()))
+                    drawCircle(C.InRange, 3.5.dp.toPx(), Offset(w / 2, h / 2))
+                }
+                KeyMark.SQUARE -> drawRoundRect(color, Offset(w / 2 - 5.dp.toPx(), h / 2 - 5.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), CornerRadius(3.dp.toPx()))
+                KeyMark.LINE -> drawLine(color, Offset(0f, h * 0.7f), Offset(w, h * 0.3f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+                KeyMark.FLAT_DASH -> drawLine(color, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+                KeyMark.SLOPE_DASH -> drawLine(color, Offset(0f, h * 0.9f), Offset(w, h * 0.1f), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(text, style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 16.sp))
     }
 }
