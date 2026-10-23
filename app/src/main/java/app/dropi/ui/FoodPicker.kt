@@ -65,7 +65,8 @@ fun FoodPicker(
     var note by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { if (Ai.checking) Ai.refresh(context) }
-    val photoOk = Ai.usable
+    // The photo button is always there; without a model ready, it explains or offers the download.
+    var needAi by remember { mutableStateOf(false) }
 
     var shotUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
@@ -91,18 +92,29 @@ fun FoodPicker(
         text = ""
     }
 
+    if (needAi) {
+        AiNeededDialog("Meal photos", "Take a photo", onDismiss = { needAi = false }) {
+            needAi = false
+            val u = Scan.photoUri(context, "plate.jpg")
+            shotUri = u
+            try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Ic(R.drawable.lc_utensils, C.TextMuted, 18.dp)
             Spacer(Modifier.width(10.dp))
             Text("What you ate", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
-            if (photoOk) {
-                Chip(if (working) "Looking…" else "Photo", icon = R.drawable.lc_camera, selected = false) {
-                    if (working) return@Chip
-                    val u = Scan.photoUri(context, "plate.jpg")
-                    shotUri = u
-                    try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
+            Chip(if (working) "Looking…" else "Photo", icon = R.drawable.lc_camera, selected = false) {
+                if (working) return@Chip
+                if (!Ai.usable) {
+                    needAi = true
+                    return@Chip
                 }
+                val u = Scan.photoUri(context, "plate.jpg")
+                shotUri = u
+                try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
             }
         }
         if (foods.isNotEmpty()) {

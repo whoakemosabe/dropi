@@ -82,11 +82,16 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
     LaunchedEffect(Unit) { Ai.refresh(context) }
-    val canType = Ai.usable
     var busy by remember { mutableStateOf(false) }
+    // The box is always there; without a model ready, sending explains or offers the download.
+    var needAi by remember { mutableStateOf(false) }
 
     fun askTyped(q: String) {
         if (q.isBlank() || busy) return
+        if (!Ai.usable) {
+            needAi = true
+            return
+        }
         val turn = Turn(q.trim(), null)
         turns += turn
         text = ""
@@ -138,7 +143,13 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        if (canType) {
+        if (needAi) {
+            AiNeededDialog("Asking in your own words", "Ask it", onDismiss = { needAi = false }) {
+                needAi = false
+                askTyped(text)
+            }
+        }
+        run {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -179,7 +190,7 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                 Gemma.state is Gemma.State.Unsupported ->
                     "Typing your own question needs an on-device AI model this phone can't run. The questions above work on any phone."
                 else ->
-                    "To type your own questions, get the on-device AI in Settings → On-device AI (2.6 GB, once, on Wi-Fi). The questions above work now."
+                    "Typing your own questions needs the on-device model; send one and Dropi offers the download. The questions above work now."
             } + " Dropi doesn't give medical or dose advice."
         )
     }
