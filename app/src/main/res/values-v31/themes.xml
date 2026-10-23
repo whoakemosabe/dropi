@@ -1,0 +1,20 @@
+<resources>
+    <style name="Theme.Dropi" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenBackground">@color/bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+
+    <!-- Picked by MainActivity with setSplashScreenTheme (Android 13+), so someone using the
+         Light theme, or System on a light phone, no longer gets a dark launch screen. -->
+    <style name="Theme.Dropi.Light" parent="Theme.Dropi">
+        <item name="android:windowBackground">@color/bg_light</item>
+        <item name="android:windowSplashScreenBackground">@color/bg_light</item>
+    </style>
+    <style name="Theme.Dropi.System" parent="Theme.Dropi">
+        <item name="android:windowBackground">@color/bg_system</item>
+        <item name="android:windowSplashScreenBackground">@color/bg_system</item>
+    </style>
+</resources>

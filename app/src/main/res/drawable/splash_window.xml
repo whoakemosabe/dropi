@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launch screen before Android 12: the app background with the drop tile in the middle. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/bg" />
+    <item
+        android:width="144dp"
+        android:height="144dp"
+        android:drawable="@drawable/splash_icon"
+        android:gravity="center" />
+</layer-list>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app icon's drop for the launch screen. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF4F5BEA"
+        android:pathData="M37,29h34a8,8 0 0 1 8,8v34a8,8 0 0 1 -8,8h-34a8,8 0 0 1 -8,-8v-34a8,8 0 0 1 8,-8z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,38C54,38 45,48 45,55A9,9 0 0,0 63,55C63,48 54,38 54,38Z" />
+</vector>

@@ -1,0 +1,13 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+*.apk
+
+# Signing keys never go in the repo (CI reads them from secrets)
+signing/
+*.p12
+*.jks
+*.keystore

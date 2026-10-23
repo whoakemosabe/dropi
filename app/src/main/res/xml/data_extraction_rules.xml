@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: your readings and settings move to a new phone (Google's backup is encrypted
+     with your screen lock). The last crash report and downloaded updates don't. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="dropi.xml" />
+        <include domain="database" path="dropi.db" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="dropi.xml" />
+        <include domain="database" path="dropi.db" />
+    </device-transfer>
+</data-extraction-rules>
