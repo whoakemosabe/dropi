@@ -38,6 +38,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -163,44 +165,52 @@ fun TrendsPage(state: AppState) {
 
 @Composable
 private fun Headline(r: Report, unit: GlucoseUnit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(Modifier.weight(1.2f).card().padding(16.dp)) {
-            Text("Average", style = SectionLabel)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(40.sp, C.Text))
-                Spacer(Modifier.width(4.dp))
-                Text(unit.label, style = inter(12.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
+    // The period's average on a slab of Dropi's own water colours, with the estimated A1C beside it.
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(SlabShape)
+            .background(Brush.linearGradient(listOf(C.AccentGlow, C.Accent))),
+    ) {
+        Wave(Color.White.copy(alpha = 0.18f), Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(26.dp))
+        Row(Modifier.padding(start = 22.dp, end = 20.dp, top = 16.dp, bottom = 30.dp), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text("Average", style = inter(14.sp, FontWeight.SemiBold, C.OnAccent.copy(alpha = 0.85f)))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(76.sp, C.OnAccent).copy(lineHeight = 80.sp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(unit.label, style = inter(13.sp, FontWeight.SemiBold, C.OnAccent.copy(alpha = 0.85f)), modifier = Modifier.padding(bottom = 14.dp))
+                }
+                Text("${plural(r.count, "reading")} on ${plural(r.daysLogged, "day")}", style = inter(13.sp, FontWeight.Medium, C.OnAccent.copy(alpha = 0.85f)))
             }
-            Text("${plural(r.count, "reading")} on ${plural(r.daysLogged, "day")}", style = inter(12.sp, color = C.TextMuted))
-        }
-        Column(Modifier.weight(1f).card().padding(16.dp)) {
-            Text("EST. A1C", style = SectionLabel)
-            Spacer(Modifier.height(6.dp))
-            val g = r.gmiPercent
-            if (g != null) {
-                Text(String.format(Locale.ROOT, "%.1f%%", g), style = numeral(28.sp, C.Text))
-                Text("${r.gmiMmolMol?.roundToInt()} mmol/mol", style = inter(12.sp, FontWeight.Medium, C.TextSecondary))
-            } else {
-                Text("—", style = numeral(28.sp, C.TextMuted))
-                Text("Needs a week of readings", style = inter(12.sp, color = C.TextMuted))
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 2.dp)) {
+                Text("Estimated A1C", style = inter(12.sp, FontWeight.SemiBold, C.OnAccent.copy(alpha = 0.85f)))
+                val g = r.gmiPercent
+                if (g != null) {
+                    Text(String.format(Locale.ROOT, "%.1f%%", g), style = numeral(32.sp, C.OnAccent))
+                    Text("${r.gmiMmolMol?.roundToInt()} mmol/mol", style = inter(12.sp, FontWeight.Medium, C.OnAccent.copy(alpha = 0.85f)))
+                } else {
+                    Text("—", style = numeral(32.sp, C.OnAccent))
+                    Text("after a week", style = inter(12.sp, FontWeight.Medium, C.OnAccent.copy(alpha = 0.85f)))
+                }
             }
         }
     }
-    Spacer(Modifier.height(10.dp))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Spacer(Modifier.height(14.dp))
+    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(horizontal = 4.dp)) {
         SmallStat("Variability", r.cv?.let { "${it.roundToInt()}%" } ?: "—", "goal 36% or less", Modifier.weight(1f))
-        SmallStat("Lowest", r.readings.minOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f))
-        SmallStat("Highest", r.readings.maxOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f))
+        Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
+        SmallStat("Lowest", r.readings.minOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 14.dp))
+        Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
+        SmallStat("Highest", r.readings.maxOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 14.dp))
     }
 }
 
 @Composable
 private fun SmallStat(label: String, value: String, sub: String, modifier: Modifier) {
-    Column(modifier.card(RoundedCornerShape(18.dp)).padding(14.dp)) {
-        Text(label, style = SectionLabel, maxLines = 1)
-        Spacer(Modifier.height(4.dp))
-        Text(value, style = numeral(20.sp, C.Text), maxLines = 1)
+    Column(modifier) {
+        Text(value, style = numeral(28.sp, C.Text), maxLines = 1)
+        Text(label, style = inter(12.sp, FontWeight.SemiBold, C.TextSecondary), maxLines = 1)
         Text(sub, style = inter(11.sp, color = C.TextMuted), maxLines = 1)
     }
 }

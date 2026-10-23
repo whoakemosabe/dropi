@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -19,12 +20,11 @@ import app.dropi.R
 import app.dropi.data.Status
 
 /**
- * Dropi's palette: ink and paper neutrals, and the brand itself is just ink (paper-white on the
- * dark theme), so colour belongs to the numbers: the range colours are the only hues on screen.
- * Plus Dracula: near-black, blood red and a purple glow. Range colours carry the meaning
- * (pink-red low, teal in range, amber high; violet in range under Dracula, so it never blurs
- * into the reds) and every text colour clears 4.5:1 on cards. [dark] and [dracula] are Compose
- * state, so screens redraw when the theme changes.
+ * Dropi's palette, "Night Swim": deep navy water with electric blue and cyan, so the app has a
+ * colour of its own without fighting the range colours (green in range, amber high, pink-red
+ * low). The light theme is the same water by day: ice blue and white. Plus Dracula: near-black,
+ * blood red and a purple glow. [dark] and [dracula] are Compose state, so screens redraw when
+ * the theme changes.
  */
 object C {
     var dark by mutableStateOf(true)
@@ -34,32 +34,35 @@ object C {
 
     private fun pick(d: Long, l: Long, dr: Long = d) = Color(if (dracula) dr else if (dark) d else l)
 
-    val Bg get() = pick(0xFF0D0F14, 0xFFF3F4F8, 0xFF0A0406)
-    val Card get() = pick(0xFF161922, 0xFFFFFFFF, 0xFF170A0E)
-    val SurfaceLight get() = pick(0xFF1F2330, 0xFFE8EAF1, 0xFF261018)
-    val Border get() = pick(0xFF2A2F3D, 0xFFD8DBE5, 0xFF3D1621)
-    val GlassBorder get() = pick(0x14FFFFFF, 0x1411131A, 0x2EFF2D55)
+    val Bg get() = pick(0xFF0A1130, 0xFFEEF3FF, 0xFF0A0406)
+    val Card get() = pick(0xFF131C45, 0xFFFFFFFF, 0xFF170A0E)
+    val SurfaceLight get() = pick(0xFF1A2456, 0xFFE1E9FF, 0xFF261018)
+    val Border get() = pick(0xFF26306A, 0xFFCBD6F2, 0xFF3D1621)
+    val GlassBorder get() = pick(0x1F8FB4FF, 0x1A2E6BFF, 0x2EFF2D55)
 
     /** Brand fill (buttons, the + button, selected tiles); [OnAccent] sits on it. */
-    val Accent get() = pick(0xFFE9ECF2, 0xFF15171D, 0xFFA3001B)
-    val AccentGlow get() = pick(0xFFFFFFFF, 0xFF30343E, 0xFF6A1B9A)
-    val OnAccent get() = pick(0xFF0D0F14, 0xFFFFFFFF, 0xFFFFFFFF)
+    val Accent get() = pick(0xFF2E6BFF, 0xFF2E6BFF, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFF45D4FF, 0xFF27B5F0, 0xFF6A1B9A)
+    val OnAccent get() = pick(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
 
     /** Brand colour as text or a thin icon. */
-    val AccentText get() = pick(0xFFF3F4F8, 0xFF11131A, 0xFFFF5C7A)
+    val AccentText get() = pick(0xFF6FE0FF, 0xFF1F52D6, 0xFFFF5C7A)
 
-    val Text get() = pick(0xFFF3F4F8, 0xFF11131A, 0xFFF6E9EC)
-    val TextSecondary get() = pick(0xFFA6ACBD, 0xFF474D5E, 0xFFCDA6B0)
-    val TextMuted get() = pick(0xFF8A90A3, 0xFF5E6477, 0xFFA57E8A)
+    val Text get() = pick(0xFFEAF0FF, 0xFF0E1638, 0xFFF6E9EC)
+    val TextSecondary get() = pick(0xFFB4C0E6, 0xFF3C4670, 0xFFCDA6B0)
+    val TextMuted get() = pick(0xFF8E9BC7, 0xFF5A6488, 0xFFA57E8A)
 
-    // Range colours, checked with the dataviz palette validator against each theme's card colour:
-    // they stay apart for colour-blind readers too, and always come with a label.
-    val UrgentLow get() = pick(0xFFD6336C, 0xFFA3134A, 0xFFD6336C)
-    val Low get() = pick(0xFFFF85A8, 0xFFE04A78, 0xFFFF8FB0)
-    val BelowTarget get() = pick(0xFF7FA7D9, 0xFF3D6A9E, 0xFF7FA7D9)
-    val InRange get() = pick(0xFF22C3C9, 0xFF00939A, 0xFF9F8CFF)
-    val High get() = pick(0xFFF4C542, 0xFFB08000, 0xFFF2C94C)
-    val VeryHigh get() = pick(0xFFE8622C, 0xFFC23A0A, 0xFFE8622C)
+    // Range colours, checked with the dataviz palette validator against each theme's card colour
+    // (contrast, colour-blind separation); they always come with a label too.
+    val UrgentLow get() = pick(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
+    val Low get() = pick(0xFFFF7F9C, 0xFFE5486E, 0xFFFF8FB0)
+    val BelowTarget get() = pick(0xFF7EA4F2, 0xFF3D6AC2, 0xFF7FA7D9)
+    val InRange get() = pick(0xFF22D18A, 0xFF0E9F63, 0xFF9F8CFF)
+    val High get() = pick(0xFFF2B632, 0xFFA67C00, 0xFFF2C94C)
+    val VeryHigh get() = pick(0xFFF06A2A, 0xFFD9480F, 0xFFE8622C)
+
+    /** Text that reads on a solid range colour (the hero slab). */
+    fun onStatus(c: Color): Color = if (c.luminance() > 0.33f) Color(0xFF071A2B) else Color.White
 
     fun status(s: Status): Color = when (s) {
         Status.URGENT_LOW -> UrgentLow

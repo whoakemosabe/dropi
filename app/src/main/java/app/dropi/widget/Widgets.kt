@@ -71,21 +71,21 @@ private class Pal(context: Context) {
         else -> androidx.glance.color.ColorProvider(day = Color(light), night = Color(dark))
     }
 
-    val bg = cp(0xF2161922, 0xF5FFFFFF, 0xF2170A0E)
-    val text = cp(0xFFF3F4F8, 0xFF11131A, 0xFFF6E9EC)
-    val text2 = cp(0xFFA6ACBD, 0xFF474D5E, 0xFFCDA6B0)
-    val muted = cp(0xFF8A90A3, 0xFF5E6477, 0xFFA57E8A)
-    val accent = cp(0xFF9AA5FF, 0xFF3B47C9, 0xFFFF5C7A)
-    val brand = cp(0xFF4F5BEA, 0xFF4F5BEA, 0xFFA3001B)
+    val bg = cp(0xF2131C45, 0xF5FFFFFF, 0xF2170A0E)
+    val text = cp(0xFFEAF0FF, 0xFF0E1638, 0xFFF6E9EC)
+    val text2 = cp(0xFFB4C0E6, 0xFF3C4670, 0xFFCDA6B0)
+    val muted = cp(0xFF8E9BC7, 0xFF5A6488, 0xFFA57E8A)
+    val accent = cp(0xFF6FE0FF, 0xFF1F52D6, 0xFFFF5C7A)
+    val brand = cp(0xFF2E6BFF, 0xFF2E6BFF, 0xFFA3001B)
     val white = ColorProvider(Color.White)
 
     fun status(s: Status): ColorProvider = when (s) {
-        Status.URGENT_LOW -> cp(0xFFD6336C, 0xFFA3134A)
-        Status.LOW -> cp(0xFFFF85A8, 0xFFE04A78, 0xFFFF8FB0)
-        Status.BELOW_TARGET -> cp(0xFF7FA7D9, 0xFF3D6A9E)
-        Status.IN_RANGE -> cp(0xFF22C3C9, 0xFF00939A, 0xFF9F8CFF)
-        Status.HIGH -> cp(0xFFF4C542, 0xFFB08000, 0xFFF2C94C)
-        Status.VERY_HIGH -> cp(0xFFE8622C, 0xFFC23A0A)
+        Status.URGENT_LOW -> cp(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
+        Status.LOW -> cp(0xFFFF7F9C, 0xFFE5486E, 0xFFFF8FB0)
+        Status.BELOW_TARGET -> cp(0xFF7EA4F2, 0xFF3D6AC2, 0xFF7FA7D9)
+        Status.IN_RANGE -> cp(0xFF22D18A, 0xFF0E9F63, 0xFF9F8CFF)
+        Status.HIGH -> cp(0xFFF2B632, 0xFFA67C00, 0xFFF2C94C)
+        Status.VERY_HIGH -> cp(0xFFF06A2A, 0xFFD9480F, 0xFFE8622C)
     }
 }
 

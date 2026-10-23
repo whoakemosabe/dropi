@@ -28,6 +28,17 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -59,10 +70,8 @@ import app.dropi.data.Reading
 import app.dropi.data.Stats
 import app.dropi.data.Status
 import java.time.Instant
-import kotlin.math.cos
-import kotlin.math.sin
 
-/** The home screen: the latest reading on a range gauge, today's numbers, and the log. */
+/** The home screen: the latest reading on its range-coloured slab, today's numbers, checks on a day line, and the log on a rail. */
 @Composable
 fun TodayPage(state: AppState) {
     val context = LocalContext.current
@@ -128,13 +137,14 @@ fun TodayPage(state: AppState) {
                 )
             }
         } else {
-            items(todays.reversed(), key = { "r${it.id}" }) { r -> ReadingRow(state, r, fmt.time(r.at)) }
+            val list = todays.reversed()
+            itemsIndexed(list, key = { _, r -> "r${r.id}" }) { i, r -> ReadingRow(state, r, fmt.time(r.at), first = i == 0, last = i == list.lastIndex) }
         }
         if (earlier.isNotEmpty()) {
             item(key = "earlier-label") {
                 Text("Earlier", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
-            items(earlier, key = { "r${it.id}" }) { r -> ReadingRow(state, r, fmt.dayTime(r.at, now)) }
+            itemsIndexed(earlier, key = { _, r -> "r${r.id}" }) { i, r -> ReadingRow(state, r, fmt.dayTime(r.at, now), first = i == 0, last = i == earlier.lastIndex) }
         }
         if (all.isNotEmpty()) {
             item(key = "history") {
@@ -151,63 +161,105 @@ fun TodayPage(state: AppState) {
     }
 }
 
-/** The latest reading in the middle of a gauge coloured by range: low, in range, high, very high. */
+/**
+ * The latest reading on a slab of its own range colour: green water when in range, amber when
+ * high, pink-red when low. The number is set huge on it, with a wave along the bottom edge.
+ */
 @Composable
 private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak: Int) {
-    Column(
-        Modifier.fillMaxWidth().card().padding(vertical = 22.dp, horizontal = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val status = latest?.let { state.status(it) }
+    val base = status?.let { C.status(it) }
+    val ink = base?.let { C.onStatus(it) } ?: C.OnAccent
+    val brush = if (base != null) {
+        Brush.linearGradient(listOf(lerp(base, Color.White, 0.35f), base, lerp(base, Color.Black, 0.12f)))
+    } else {
+        Brush.linearGradient(listOf(C.AccentGlow, C.Accent))
+    }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(SlabShape)
+            .background(brush)
+            .semantics(mergeDescendants = true) {}
     ) {
-        val status = latest?.let { state.status(it) }
-        val color = status?.let { C.status(it) } ?: C.TextMuted
-        Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
-            Gauge(latest?.mmol, color, Modifier.fillMaxSize())
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (latest == null) {
-                    Ic(R.drawable.lc_droplet, C.AccentText, 40.dp)
-                    Spacer(Modifier.height(8.dp))
-                    Text("No readings yet", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
-                } else {
-                    // A gentle pop each time a new number lands.
-                    val pop = remember { Animatable(1f) }
-                    LaunchedEffect(latest.id) {
-                        pop.snapTo(0.86f)
-                        pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 420f))
+        Wave(Color.White.copy(alpha = 0.2f), Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(28.dp))
+        Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 18.dp, bottom = 30.dp)) {
+            if (latest == null) {
+                Ic(R.drawable.lc_droplet, ink, 28.dp)
+                Spacer(Modifier.height(10.dp))
+                Text("No readings yet", style = heading(28.sp, ink))
+                Text("Tap + to log your first one.", style = inter(15.sp, FontWeight.Medium, ink.copy(alpha = 0.85f)))
+                return@Column
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Ic(latest.tag.icon(), ink.copy(alpha = 0.8f), 15.dp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "${latest.tag.label} · ${fmt.ago(latest.at, now)}",
+                    style = inter(14.sp, FontWeight.SemiBold, ink.copy(alpha = 0.8f)),
+                    modifier = Modifier.weight(1f),
+                )
+                if (streak >= 2) {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50)).background(ink.copy(alpha = 0.12f)).padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Ic(R.drawable.lc_flame, ink, 13.dp)
+                        Spacer(Modifier.width(4.dp))
+                        Text("$streak days", style = inter(12.sp, FontWeight.Bold, ink))
                     }
-                    Text(
-                        Glucose.format(latest.mmol, state.unit),
-                        style = numeral(62.sp, C.Text),
-                        modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
-                    )
-                    Text(state.unit.label, style = inter(13.sp, FontWeight.SemiBold, C.TextMuted))
-                    Spacer(Modifier.height(8.dp))
-                    StatusPill(status!!)
+                }
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                // A gentle pop each time a new number lands.
+                val pop = remember { Animatable(1f) }
+                LaunchedEffect(latest.id) {
+                    pop.snapTo(0.9f)
+                    pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 420f))
+                }
+                Text(
+                    Glucose.format(latest.mmol, state.unit),
+                    style = numeral(if (state.unit == app.dropi.data.GlucoseUnit.MGDL) 104.sp else 116.sp, ink).copy(lineHeight = 112.sp),
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = pop.value
+                        scaleY = pop.value
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.7f)
+                    },
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.padding(bottom = 20.dp)) {
+                    Text(state.unit.label, style = inter(15.sp, FontWeight.SemiBold, ink.copy(alpha = 0.85f)))
+                    Text(status!!.label, style = inter(15.sp, FontWeight.Bold, ink))
                 }
             }
         }
-        if (latest != null) {
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Ic(latest.tag.icon(), C.TextMuted, 14.dp)
-                Spacer(Modifier.width(6.dp))
-                Text("${latest.tag.label} · ${fmt.ago(latest.at, now)}", style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+    }
+}
+
+/** The hero's shape: round, with one squarer corner where the wave runs out. */
+val SlabShape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp, bottomEnd = 30.dp, bottomStart = 30.dp)
+
+/** A soft wave, like the edge of water. */
+@Composable
+fun Wave(color: Color, modifier: Modifier) {
+    Canvas(modifier) {
+        val h = size.height
+        val w = size.width
+        val step = w / 6
+        val p = Path().apply {
+            moveTo(0f, h * 0.5f)
+            var x = 0f
+            var up = true
+            while (x < w) {
+                quadraticTo(x + step / 2, if (up) 0f else h, x + step, h * 0.5f)
+                x += step
+                up = !up
             }
+            lineTo(w, h)
+            lineTo(0f, h)
+            close()
         }
-        if (streak >= 2) {
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(C.High.copy(alpha = 0.12f))
-                    .border(1.dp, C.High.copy(alpha = 0.35f), RoundedCornerShape(50))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Ic(R.drawable.lc_flame, C.High, 14.dp)
-                Spacer(Modifier.width(6.dp))
-                Text("$streak-day logging streak", style = inter(12.sp, FontWeight.SemiBold, C.High))
-            }
-        }
+        drawPath(p, color)
     }
 }
 
@@ -244,14 +296,17 @@ private fun WeekStat(value: String, label: String) {
     }
 }
 
-/** Today's planned checks as chips (done, due, coming up, missed) and what's next. */
+/**
+ * Today's planned checks on a line through the day: done ones filled in their range colour,
+ * the due one lit, the rest dashed. Labels that would collide take turns above and below.
+ */
 @Composable
 private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
     val checks = Schedule.today(state.slots, state.readings, now, state.zone)
     val next = Schedule.next(state.slots, state.readings, now, state.zone)
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Today's checks", style = SectionLabel, modifier = Modifier.weight(1f))
+            Text("Today's checks", style = SectionLabel, modifier = Modifier.weight(1f).padding(start = 4.dp))
             Text(
                 "Edit",
                 style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
@@ -263,24 +318,11 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
             )
         }
         if (checks.isEmpty()) {
-            Text("No check times yet. Plan a few and Dropi can remind you.", style = inter(14.sp, color = C.TextSecondary))
+            Text("No check times yet. Plan a few and Dropi can remind you.", style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.padding(horizontal = 4.dp))
             Chip("Plan check times", icon = R.drawable.lc_clock, selected = true) { state.scheduleOpen = true }
             return@Column
         }
-        // Every check on screen at once, two to a row.
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            checks.chunked(2).forEach { pair ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pair.forEach { c ->
-                        CheckChip(c, fmt.time(c.at), state.unit, Modifier.weight(1f)) {
-                            val r = c.reading
-                            if (r != null) state.editing = r else state.startNew(c.slot.tag)
-                        }
-                    }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-        }
+        DayLine(checks, now, state, fmt)
         if (next != null) {
             val mins = (next.at - now) / 60_000
             val whenText = when {
@@ -290,46 +332,98 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
                 else -> "tomorrow"
             }
             Text(
-                "Next: ${next.slot.name} at ${fmt.time(next.at)} · $whenText",
+                "Next: ${next.slot.name} at ${fmt.time(next.at)}, $whenText",
                 style = inter(13.sp, FontWeight.Medium, if (next.state == CheckState.DUE) C.AccentText else C.TextSecondary),
+                modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
         if (!state.remindersOn) {
-            Text(
-                "Reminders are off. Tap Edit to turn them on.",
-                style = inter(12.sp, color = C.TextMuted),
-            )
+            Text("Reminders are off. Tap Edit to turn them on.", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(horizontal = 4.dp))
         }
     }
 }
 
 @Composable
-private fun CheckChip(c: Check, time: String, unit: app.dropi.data.GlucoseUnit, modifier: Modifier, onClick: () -> Unit) {
-    val (icon, tint) = when (c.state) {
-        CheckState.DONE -> R.drawable.lc_check to C.InRange
-        CheckState.DUE -> R.drawable.lc_droplet to C.AccentText
-        CheckState.UPCOMING -> R.drawable.lc_clock to C.TextMuted
-        CheckState.MISSED -> R.drawable.lc_x to C.TextMuted
+private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
+    val zone = state.zone
+    fun hourOf(at: Long): Float {
+        val t = Instant.ofEpochMilli(at).atZone(zone)
+        return t.hour + t.minute / 60f
     }
-    val due = c.state == CheckState.DUE
-    Column(
-        modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (due) C.Accent.copy(alpha = 0.16f) else C.SurfaceLight)
-            .border(1.dp, if (due) C.Accent.copy(alpha = 0.5f) else C.GlassBorder, RoundedCornerShape(16.dp))
-            .tap(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Ic(icon, tint, 14.dp)
-            Spacer(Modifier.width(6.dp))
-            Text(time, style = inter(14.sp, FontWeight.Bold, if (c.state == CheckState.MISSED) C.TextMuted else C.Text))
+    val hours = checks.map { hourOf(it.at) }
+    val from = minOf(6f, (hours.minOrNull() ?: 6f) - 1f).coerceAtLeast(0f)
+    val to = maxOf(23f, (hours.maxOrNull() ?: 23f) + 1f).coerceAtMost(24f)
+    val nowH = hourOf(now)
+    val line = C.Border
+    val accent = C.AccentText
+    BoxWithConstraints(Modifier.fillMaxWidth().height(92.dp)) {
+        val pad = 24.dp
+        val span = maxWidth - pad * 2
+        fun xOf(h: Float) = pad + span * ((h - from) / (to - from)).coerceIn(0f, 1f)
+        val lineY = 40.dp
+        // The day's line, brighter up to now.
+        Canvas(Modifier.fillMaxSize()) {
+            val y = lineY.toPx()
+            drawLine(line, Offset(pad.toPx(), y), Offset(size.width - pad.toPx(), y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            val nx = xOf(nowH).toPx()
+            drawLine(accent.copy(alpha = 0.5f), Offset(pad.toPx(), y), Offset(nx, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
         }
-        Text(
-            c.reading?.let { Glucose.format(it.mmol, unit) + " · " + c.slot.name } ?: c.slot.name,
-            style = inter(11.sp, FontWeight.Medium, C.TextMuted),
-            maxLines = 1,
-        )
+        // Labels below the line, unless the one before is too close: then above.
+        var lastBelow = -1000.dp
+        checks.forEachIndexed { i, c ->
+            val x = xOf(hours[i])
+            val below = x - lastBelow >= 54.dp
+            if (below) lastBelow = x
+            val done = c.reading
+            val color = done?.let { C.status(state.status(it)) }
+            val due = c.state == CheckState.DUE
+            Box(
+                Modifier
+                    .offset(x = x - 22.dp, y = lineY - 22.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .tap { if (done != null) state.editing = done else state.startNew(c.slot.tag) }
+                    .semantics {
+                        contentDescription = "${c.slot.name} at ${fmt.time(c.at)}: " + when {
+                            done != null -> "${Glucose.format(done.mmol, state.unit)}, done"
+                            due -> "due now"
+                            c.state == CheckState.MISSED -> "missed"
+                            else -> "coming up"
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    color != null -> Box(Modifier.size(18.dp).clip(CircleShape).background(color))
+                    due -> Box(Modifier.size(20.dp).clip(CircleShape).background(C.Accent).border(3.dp, C.AccentGlow.copy(alpha = 0.5f), CircleShape))
+                    c.state == CheckState.MISSED -> Box(Modifier.size(12.dp).clip(CircleShape).background(C.TextMuted.copy(alpha = 0.5f)))
+                    else -> Canvas(Modifier.size(18.dp)) {
+                        drawCircle(
+                            accent, radius = size.minDimension / 2 - 1.dp.toPx(),
+                            style = Stroke(2.dp.toPx(), pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))),
+                        )
+                    }
+                }
+            }
+            Column(
+                Modifier.offset(x = x - 28.dp, y = if (below) lineY + 16.dp else 0.dp).width(56.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val value = when {
+                    done != null -> Glucose.format(done.mmol, state.unit)
+                    due -> "due"
+                    c.state == CheckState.MISSED -> "missed"
+                    else -> "later"
+                }
+                if (below) {
+                    Text(fmt.time(c.at), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                    Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
+                } else {
+                    Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
+                    Text(fmt.time(c.at), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                }
+            }
+        }
     }
 }
 
@@ -350,113 +444,81 @@ fun StatusPill(status: Status) {
     }
 }
 
-/**
- * A 270° gauge from 2 to 20 mmol/L with the range bands drawn faintly, and a bright marker at
- * the value that glides to each new reading.
- */
-@Composable
-private fun Gauge(mmol: Double?, color: Color, modifier: Modifier) {
-    val lo = 2.0
-    val hi = 20.0
-    fun frac(v: Double) = ((v - lo) / (hi - lo)).coerceIn(0.0, 1.0).toFloat()
-    val target = mmol?.let { frac(it) }
-    val pos by animateFloatAsState(target ?: 0f, spring(dampingRatio = 0.7f, stiffness = 120f), label = "gauge")
-    val appear by animateFloatAsState(if (target != null) 1f else 0f, tween(400), label = "marker")
-    val bands = listOf(
-        Triple(lo, Glucose.LOW, C.Low),
-        Triple(Glucose.LOW, Glucose.TIR_HIGH, C.InRange),
-        Triple(Glucose.TIR_HIGH, Glucose.VERY_HIGH, C.High),
-        Triple(Glucose.VERY_HIGH, hi, C.VeryHigh),
-    )
-    val track = C.SurfaceLight
-    Canvas(modifier) {
-        val stroke = 14.dp.toPx()
-        val inset = stroke / 2 + 8.dp.toPx()
-        val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-        val topLeft = Offset(inset, inset)
-        val start = 135f
-        val sweep = 270f
-        drawArc(track, start, sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-        // Range bands, with a hair of space between them.
-        val gap = 1.5f
-        bands.forEach { (a, b, c) ->
-            val s = start + sweep * frac(a)
-            val e = start + sweep * frac(b)
-            drawArc(c.copy(alpha = 0.32f), s + gap, (e - s - gap * 2).coerceAtLeast(0f), false, topLeft, arcSize, style = Stroke(stroke))
-        }
-        // The filled part up to the reading, in its colour.
-        if (appear > 0f) {
-            drawArc(
-                color.copy(alpha = 0.9f * appear), start, sweep * pos, false, topLeft, arcSize,
-                style = Stroke(stroke, cap = StrokeCap.Round),
-            )
-            val angle = Math.toRadians((start + sweep * pos).toDouble())
-            val r = arcSize.width / 2
-            val c = Offset(size.width / 2 + (r * cos(angle)).toFloat(), size.height / 2 + (r * sin(angle)).toFloat())
-            drawCircle(color.copy(alpha = 0.25f * appear), radius = stroke * 1.15f, center = c)
-            drawCircle(Color.White.copy(alpha = appear), radius = stroke * 0.42f, center = c)
-        }
-    }
-}
-
+/** Today's numbers in a line of three, divided by hairlines rather than boxed in cards. */
 @Composable
 private fun StatRow(state: AppState, s: app.dropi.data.Summary) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        StatTile("Average", s.average?.let { Glucose.format(it, state.unit) } ?: "—", state.unit.label, Modifier.weight(1f))
-        StatTile(
-            "In range", s.inRangePct?.let { "$it%" } ?: "—", if (state.unit == app.dropi.data.GlucoseUnit.MGDL) "70–180" else "3.9–10.0",
-            Modifier.weight(1f),
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 4.dp, vertical = 4.dp)) {
+        Stat(s.average?.let { Glucose.format(it, state.unit) } ?: "—", "average today", Modifier.weight(1f))
+        Hairline()
+        Stat(s.inRangePct?.let { "$it%" } ?: "—", "in range", Modifier.weight(1f).padding(start = 14.dp))
+        Hairline()
+        Stat(
+            "${s.count}", if (s.lows > 0) "${s.lows} low" else if (s.count == 1) "reading" else "readings",
+            Modifier.weight(1f).padding(start = 14.dp), subColor = if (s.lows > 0) C.Low else null,
         )
-        StatTile("Readings", "${s.count}", if (s.lows > 0) "${s.lows} low" else "today", Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun StatTile(
-    label: String,
-    value: String,
-    sub: String,
-    modifier: Modifier,
-    valueColor: Color? = null,
-    subColor: Color? = null,
+private fun Hairline() {
+    Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
+}
+
+@Composable
+private fun Stat(value: String, label: String, modifier: Modifier, subColor: Color? = null) {
+    Column(modifier) {
+        Text(value, style = numeral(30.sp), maxLines = 1)
+        Text(label, style = inter(12.sp, FontWeight.Medium, subColor ?: C.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * A reading on the day's rail: time on the left, a dot in its range colour on the line, then
+ * the moment and details, and the number. [first] and [last] end the line at the dot.
+ */
+@Composable
+fun ReadingRow(
+    state: AppState, r: Reading, time: String, first: Boolean = false, last: Boolean = false,
+    /** Half the list's spacing, so the rail meets the next row's. */
+    halfGap: androidx.compose.ui.unit.Dp = 6.dp,
 ) {
-    Column(modifier.card(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 14.dp)) {
-        Text(label, style = SectionLabel, maxLines = 1)
-        Spacer(Modifier.height(6.dp))
-        Text(value, style = numeral(22.sp, valueColor ?: C.Text), maxLines = 1)
-        Text(sub, style = inter(11.sp, FontWeight.Medium, subColor ?: C.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-@Composable
-fun ReadingRow(state: AppState, r: Reading, time: String) {
     val status = state.status(r)
     val c = C.status(status)
+    val rail = C.Border
+    val bg = C.Bg
     Row(
         Modifier
             .fillMaxWidth()
-            .card(RoundedCornerShape(18.dp))
             .tap { state.editing = r }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .semantics(mergeDescendants = true) {}
+            .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(width = 4.dp, height = 36.dp).clip(RoundedCornerShape(50)).background(c))
-        Spacer(Modifier.width(12.dp))
+        Text(time, style = inter(13.sp, FontWeight.Medium, C.TextMuted), modifier = Modifier.width(52.dp), maxLines = 2)
+        Box(
+            Modifier
+                .width(22.dp)
+                .height(40.dp)
+                .drawBehind {
+                    // The rail runs on through the row's padding and the list's gap to the next row.
+                    val x = size.width / 2
+                    val gap = (8.dp + halfGap).toPx()
+                    val top = if (first) size.height / 2 else -gap
+                    val bottom = if (last) size.height / 2 else size.height + gap
+                    drawLine(rail, Offset(x, top), Offset(x, bottom), strokeWidth = 2.dp.toPx())
+                    drawCircle(bg, radius = 9.dp.toPx(), center = Offset(x, size.height / 2))
+                    drawCircle(c, radius = 6.dp.toPx(), center = Offset(x, size.height / 2))
+                },
+        )
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Ic(r.tag.icon(), C.TextMuted, 13.dp)
-                Spacer(Modifier.width(6.dp))
-                Text(r.tag.label, style = inter(14.sp, FontWeight.SemiBold, C.Text))
-            }
-            Text(
-                listOf(time, r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · "),
-                style = inter(12.sp, color = C.TextMuted),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(r.tag.label, style = inter(15.sp, FontWeight.SemiBold, C.Text))
+            val sub = listOf(r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · ")
+            if (sub.isNotEmpty()) Text(sub, style = inter(12.sp, color = C.TextMuted), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+        Spacer(Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
-            Text(Glucose.format(r.mmol, state.unit), style = numeral(20.sp))
+            Text(Glucose.format(r.mmol, state.unit), style = numeral(26.sp))
             Text(status.label, style = inter(11.sp, FontWeight.Medium, C.TextMuted))
         }
     }

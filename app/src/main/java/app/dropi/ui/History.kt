@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -89,7 +90,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                         )
                     }
                 }
-                items(rs, key = { "h${it.id}" }) { r -> ReadingRow(state, r, fmt.time(r.at)) }
+                itemsIndexed(rs, key = { _, r -> "h${r.id}" }) { i, r -> ReadingRow(state, r, fmt.time(r.at), first = i == 0, last = i == rs.lastIndex, halfGap = 4.dp) }
             }
         }
         GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Card)

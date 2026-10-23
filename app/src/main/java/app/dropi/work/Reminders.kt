@@ -151,7 +151,7 @@ object Reminders {
         val text = parts.joinToString(" · ").replaceFirstChar { it.uppercase() } + "."
         val n = NotificationCompat.Builder(context, Alerts.CH_RECAP)
             .setSmallIcon(R.drawable.ic_stat_drop)
-            .setColor(0xFF4F5BEA.toInt())
+            .setColor(0xFF2E6BFF.toInt())
             .setContentTitle("Your week in Dropi")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -199,7 +199,7 @@ object Reminders {
         } else if (Alerts.canNotify(app)) {
             val n = NotificationCompat.Builder(app, Alerts.CH_REMINDERS)
                 .setSmallIcon(R.drawable.ic_stat_drop)
-                .setColor(0xFF4F5BEA.toInt())
+                .setColor(0xFF2E6BFF.toInt())
                 .setContentTitle("Saved $value")
                 .setContentText("${tag.label} · ${status.label}")
                 .setOnlyAlertOnce(true)
@@ -289,7 +289,7 @@ object Reminders {
         )
         val n = NotificationCompat.Builder(context, Alerts.CH_REMINDERS)
             .setSmallIcon(R.drawable.ic_stat_drop)
-            .setColor(if (urgent) 0xFFD0263A.toInt() else 0xFF4F5BEA.toInt())
+            .setColor(if (urgent) 0xFFD0263A.toInt() else 0xFF2E6BFF.toInt())
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

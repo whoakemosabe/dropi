@@ -44,6 +44,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -98,66 +101,76 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
     val color = sensorColor(last.mmol)
     val value = Glucose.format(last.mmol, state.unit)
 
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .card()
-            .semantics(mergeDescendants = true) {
-                contentDescription = "Live from your sensor: $value ${state.unit.label}, ${arrow?.words ?: "no trend yet"}, " +
-                    "${sensorWords(last.mmol)}, ${fmt.ago(last.at, now)}"
-            }
-            .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 14.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            LiveDot(color)
-            Spacer(Modifier.width(8.dp))
-            Text("Live · ${fmt.ago(last.at, now)}", style = inter(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.weight(1f))
-            Text(
-                "Sensor",
-                style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
-                modifier = Modifier.clip(CircleShape).tap { state.liveOpen = true }.padding(horizontal = 10.dp, vertical = 6.dp),
-            )
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // A small settle each time a new value lands.
-            val pop = remember { Animatable(1f) }
-            LaunchedEffect(last.at) {
-                pop.snapTo(0.92f)
-                pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f))
-            }
-            Text(
-                value,
-                style = numeral(84.sp),
-                modifier = Modifier.graphicsLayer {
-                    scaleX = pop.value
-                    scaleY = pop.value
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.6f)
+    val ink = C.onStatus(color)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // The live number on a slab of its range colour, like the home screen's reading.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(SlabShape)
+                .background(Brush.linearGradient(listOf(lerp(color, Color.White, 0.35f), color, lerp(color, Color.Black, 0.12f))))
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "Live from your sensor: $value ${state.unit.label}, ${arrow?.words ?: "no trend yet"}, " +
+                        "${sensorWords(last.mmol)}, ${fmt.ago(last.at, now)}"
                 },
-            )
-            Spacer(Modifier.width(12.dp))
-            if (slope != null) {
-                val tilt = remember { Animatable(0f) }
-                LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
-                TrendArrow(color, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
+        ) {
+            Wave(Color.White.copy(alpha = 0.2f), Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(28.dp))
+            Column(Modifier.padding(start = 22.dp, end = 14.dp, top = 12.dp, bottom = 30.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LiveDot(ink)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Live · ${fmt.ago(last.at, now)}", style = inter(14.sp, FontWeight.SemiBold, ink.copy(alpha = 0.8f)), modifier = Modifier.weight(1f))
+                    Text(
+                        "Sensor",
+                        style = inter(13.sp, FontWeight.Bold, ink),
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .clip(CircleShape)
+                            .background(ink.copy(alpha = 0.12f))
+                            .tap { state.liveOpen = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // A small settle each time a new value lands.
+                    val pop = remember { Animatable(1f) }
+                    LaunchedEffect(last.at) {
+                        pop.snapTo(0.92f)
+                        pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f))
+                    }
+                    Text(
+                        value,
+                        style = numeral(if (state.unit == app.dropi.data.GlucoseUnit.MGDL) 104.sp else 116.sp, ink).copy(lineHeight = 112.sp),
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = pop.value
+                            scaleY = pop.value
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.6f)
+                        },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    if (slope != null) {
+                        val tilt = remember { Animatable(0f) }
+                        LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
+                        TrendArrow(ink, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
+                    }
+                }
+                Text(
+                    listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.words).joinToString(", ").replaceFirstChar { it.uppercase() },
+                    style = inter(15.sp, FontWeight.SemiBold, ink),
+                )
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(color))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.words).joinToString(", "),
-                style = inter(14.sp, FontWeight.Medium, C.TextSecondary),
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-        val ahead = Trend.ahead(points, 20)
-        Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(128.dp))
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-            Text("3 h ago", style = inter(11.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
-            if (ahead != null) {
-                Text("in 20 min ≈ ${Glucose.format(ahead, state.unit)}", style = inter(11.sp, FontWeight.Medium, C.TextMuted))
-            } else {
-                Text("now", style = inter(11.sp, color = C.TextMuted))
+        // The last three hours, running into a dotted 20 minutes ahead.
+        Column(Modifier.fillMaxWidth().card().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
+            val ahead = Trend.ahead(points, 20)
+            Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(120.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                Text("3 h ago", style = inter(11.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
+                if (ahead != null) {
+                    Text("In 20 min, about ${Glucose.format(ahead, state.unit)}", style = inter(11.sp, FontWeight.Medium, C.TextSecondary))
+                } else {
+                    Text("Now", style = inter(11.sp, color = C.TextMuted))
+                }
             }
         }
     }
