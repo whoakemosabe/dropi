@@ -12,7 +12,9 @@ import java.util.Locale
 
 /** Times the way the phone shows them (12 or 24 hour), in English like the rest of the app. */
 class Fmt(context: Context, private val zone: ZoneId) {
-    private val clock = DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", Locale.ENGLISH)
+    /** The phone uses a 24-hour clock. */
+    val is24: Boolean = DateFormat.is24HourFormat(context)
+    private val clock = DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "h:mm a", Locale.ENGLISH)
     private val weekday = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
     private val dayMonth = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     private val longDay = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)

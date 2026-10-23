@@ -107,7 +107,8 @@ fun TrendsPage(state: AppState) {
         item(key = "headline") { Column { Headline(report, unit) } }
         item(key = "lab") { LabA1cCard(state, report) }
         report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
-        item(key = "chart") { DailyChart(state, report, fmt) }
+        item(key = "chart") { TimeChart(state, fmt, now) }
+        item(key = "agp") { TypicalDay(state, report) }
         if (insights.isNotEmpty()) {
             item(key = "insights") {
                 // One card, read top to bottom: a coloured mark says good, worth a look, or just so.
@@ -276,93 +277,6 @@ private fun RangeCard(b: Bands, unit: GlucoseUnit) {
                 Text("${s.pct.roundToInt()}%", style = inter(15.sp, FontWeight.Bold, C.Text))
             }
         }
-    }
-}
-
-/**
- * Every reading in the period as a dot on the time axis, coloured by range, over the shaded
- * 3.9–10.0 band, with the daily average as a line. Tap near a dot to see it.
- */
-@Composable
-private fun DailyChart(state: AppState, r: Report, fmt: Fmt) {
-    val unit = state.unit
-    var selected by remember(r) { mutableStateOf<Reading?>(null) }
-    val maxV = maxOf(15.0, (r.readings.maxOfOrNull { it.mmol } ?: 0.0) + 1.0).coerceAtMost(Glucose.MAX_MMOL)
-    val minV = 2.0
-    val start = r.from.atStartOfDay(state.zone).toInstant().toEpochMilli()
-    val end = r.to.plusDays(1).atStartOfDay(state.zone).toInstant().toEpochMilli()
-    val band = C.InRange.copy(alpha = 0.10f)
-    val grid = C.Border
-    val avgLine = C.TextSecondary
-    val ring = C.Card
-    val dotColors = r.readings.map { C.status(Glucose.status(it.mmol, it.tag, state.targets)) }
-
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Every reading", style = SectionLabel)
-        Box(Modifier.fillMaxWidth().height(200.dp)) {
-            val axisW = 30.dp
-            Canvas(
-                Modifier
-                    .fillMaxSize()
-                    .pointerInput(r) {
-                        detectTapGestures { p ->
-                            val left = axisW.toPx()
-                            val plotW = size.width - left
-                            fun xOf(t: Long) = left + plotW * ((t - start).toFloat() / (end - start))
-                            fun yOf(m: Double) = size.height * (1f - ((m - minV) / (maxV - minV)).toFloat().coerceIn(0f, 1f))
-                            val near = r.readings.minByOrNull { abs(xOf(it.at) - p.x) + abs(yOf(it.mmol) - p.y) * 0.5f }
-                            selected = near?.takeIf { abs(xOf(it.at) - p.x) < 24.dp.toPx() }
-                        }
-                    }
-            ) {
-                val left = axisW.toPx()
-                val plotW = size.width - left
-                fun xOf(t: Long) = left + plotW * ((t - start).toFloat() / (end - start))
-                fun yOf(m: Double) = size.height * (1f - ((m - minV) / (maxV - minV)).toFloat().coerceIn(0f, 1f))
-                // Target band and its two edges.
-                drawRect(band, Offset(left, yOf(Glucose.TIR_HIGH)), Size(plotW, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
-                listOf(Glucose.LOW, Glucose.TIR_HIGH).forEach { g ->
-                    drawLine(grid, Offset(left, yOf(g)), Offset(size.width, yOf(g)), strokeWidth = 1.dp.toPx())
-                }
-                // Daily average line.
-                if (r.byDay.size >= 2) {
-                    val path = Path()
-                    r.byDay.forEachIndexed { i, d ->
-                        val t = d.day.atStartOfDay(state.zone).toInstant().toEpochMilli() + 12 * 3_600_000L
-                        val x = xOf(t)
-                        val y = yOf(d.average)
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                    }
-                    drawPath(path, avgLine.copy(alpha = 0.7f), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                }
-                // Dots with a ring in the card colour, so overlaps stay readable.
-                val rad = if (r.readings.size > 150) 3.dp.toPx() else 4.dp.toPx()
-                r.readings.forEachIndexed { i, rd ->
-                    val c = Offset(xOf(rd.at), yOf(rd.mmol))
-                    drawCircle(ring, rad + 2.dp.toPx(), c)
-                    drawCircle(dotColors[i], rad, c)
-                }
-                selected?.let { s ->
-                    val c = Offset(xOf(s.at), yOf(s.mmol))
-                    drawCircle(avgLine, rad + 5.dp.toPx(), c, style = Stroke(2.dp.toPx()))
-                }
-            }
-            // Axis labels in text colour on the left.
-            fun yDp(m: Double): Dp = 200.dp * (1f - ((m - minV) / (maxV - minV)).toFloat())
-            listOf(Glucose.LOW, Glucose.TIR_HIGH, maxV).forEach { g ->
-                Text(
-                    Glucose.format(g, unit).removeSuffix(".0"),
-                    style = inter(10.sp, FontWeight.Medium, C.TextMuted),
-                    modifier = Modifier.padding(top = (yDp(g) - 7.dp).coerceIn(0.dp, 186.dp)),
-                )
-            }
-        }
-        Text(
-            selected?.let { s ->
-                "${fmt.dayTime(s.at)} · ${Glucose.format(s.mmol, unit)} ${unit.label} · ${s.tag.label}"
-            } ?: "Tap a dot to see it. The line is each day's average.",
-            style = inter(12.sp, FontWeight.Medium, if (selected != null) C.Text else C.TextMuted),
-        )
     }
 }
 
