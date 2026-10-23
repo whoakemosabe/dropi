@@ -1,6 +1,7 @@
 package app.dropi.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -185,8 +186,23 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             val ui = UpdateWatch.ui
             val waiting = UpdateWatch.waitingVersion
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Seven taps on the version show the hidden Developer section (demo data).
+                var taps by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
                 Column(Modifier.weight(1f)) {
-                    Text("Dropi ${Updater.installedVersion(context)}", style = inter(15.sp, FontWeight.SemiBold))
+                    Text(
+                        "Dropi ${Updater.installedVersion(context)}",
+                        style = inter(15.sp, FontWeight.SemiBold),
+                        modifier = Modifier.clickable(
+                            interactionSource = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            taps++
+                            if (taps >= 7 && !state.devUnlocked) {
+                                state.unlockDev(true)
+                                Haptics.confirm(view)
+                            }
+                        },
+                    )
                     Text(
                         when {
                             ui is UpdateUi.Checking -> "Checking…"
@@ -215,6 +231,25 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
         }
 
         SheetSection("On-device AI") { OnDeviceAiSection() }
+
+        if (state.devUnlocked) {
+            SheetSection("Developer") {
+                Text(
+                    if (state.demo) "Demo data is on: you're looking at a made-up month. Your real log is safe and comes back when you leave."
+                    else "Load a made-up month of readings, meals and a sensor day to try every screen. It's kept apart from your real log, never synced to Health Connect, and never backed up.",
+                    style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (state.demo) {
+                        Chip("Leave demo data", icon = R.drawable.lc_x, selected = true) { state.leaveDemo() }
+                        Chip("Fresh demo month", icon = R.drawable.lc_refresh_cw) { state.loadDemo() }
+                    } else {
+                        Chip("Load demo data", icon = R.drawable.lc_download, selected = true) { state.loadDemo() }
+                        Chip("Hide developer") { state.unlockDev(false) }
+                    }
+                }
+            }
+        }
 
         SheetSection("About") {
             Text(

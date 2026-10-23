@@ -34,7 +34,8 @@ import java.time.ZoneId
 /** What the screens show and the actions they take. One per activity. */
 class AppState(private val context: Context, private val scope: CoroutineScope) {
     private val prefs = Prefs(context)
-    private val db = Db.get(context)
+    /** The log in use: the demo one while demo data is on, else the real one. */
+    private val db get() = Db.get(context)
 
     val zone: ZoneId get() = ZoneId.systemDefault()
     /** The person's target bands (ADA defaults until changed in Settings). */
@@ -134,6 +135,47 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
 
     var lastCrash by mutableStateOf<String?>(null)
         private set
+
+    // ---- Developer: demo data ----
+
+    var devUnlocked by mutableStateOf(prefs.devUnlocked)
+        private set
+    var demo by mutableStateOf(prefs.demo)
+        private set
+
+    fun unlockDev(on: Boolean) {
+        devUnlocked = on
+        prefs.devUnlocked = on
+    }
+
+    /** Switches to a fresh month of demo readings, in their own database. The real log is untouched. */
+    fun loadDemo() {
+        scope.launch {
+            Db.wipeDemo(context)
+            prefs.demo = true
+            demo = true
+            val (rs, sensorPoints) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                app.dropi.data.Demo.make(System.currentTimeMillis(), zone)
+            }
+            try {
+                db.merge(rs)
+                db.addSensor(sensorPoints)
+            } catch (e: Exception) { }
+            reload()
+            Reminders.rescheduleAsync(context)
+        }
+    }
+
+    /** Back to the real log, exactly as it was; the demo readings are thrown away. */
+    fun leaveDemo() {
+        scope.launch {
+            prefs.demo = false
+            demo = false
+            Db.wipeDemo(context)
+            reload()
+            Reminders.rescheduleAsync(context)
+        }
+    }
 
     init {
         Haptics.enabled = haptics
@@ -410,7 +452,8 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
 
     /** An encrypted backup of everything, as bytes for the file the person picked. */
     suspend fun backupBytes(password: CharArray): ByteArray = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-        val c = app.dropi.data.Backup.Contents(db.all(), prefs.slots, prefs.targets, prefs.labA1c, System.currentTimeMillis())
+        // Always the real log, even while demo data is on.
+        val c = app.dropi.data.Backup.Contents(Db.real(context).all(), prefs.slots, prefs.targets, prefs.labA1c, System.currentTimeMillis())
         app.dropi.data.Backup.seal(app.dropi.data.Backup.toJson(c), password)
     }
 
@@ -423,7 +466,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         val c = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             app.dropi.data.Backup.fromJson(app.dropi.data.Backup.open(bytes, password))
         }
-        val added = db.merge(c.readings)
+        val added = Db.real(context).merge(c.readings)
         c.slots?.let { changeSlots(it) }
         c.targets?.let { changeTargets(it) }
         if (c.labA1c.isNotEmpty()) {

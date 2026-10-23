@@ -188,4 +188,15 @@ class Prefs(context: Context) {
     var dismissedMoves: Set<String>
         get() = p.getStringSet("dismissed_moves", emptySet()) ?: emptySet()
         set(v) = p.edit { putStringSet("dismissed_moves", v.toList().takeLast(50).toSet()) }
+
+    // ---- Developer (hidden; 7 taps on the version in Settings) ----
+
+    var devUnlocked: Boolean
+        get() = p.getBoolean("dev_unlocked", false)
+        set(v) = p.edit { putBoolean("dev_unlocked", v) }
+
+    /** Demo data on: the app shows the demo log (its own database file) instead of the real one. */
+    var demo: Boolean
+        get() = p.getBoolean("demo", false)
+        set(v) = p.edit(commit = true) { putBoolean("demo", v) }
 }

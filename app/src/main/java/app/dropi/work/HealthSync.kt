@@ -76,6 +76,7 @@ object HealthSync {
 
     /** Writes (or updates) Dropi's own readings. Imported ones are left alone. */
     suspend fun push(context: Context, readings: List<Reading>) {
+        if (app.dropi.Prefs(context).demo) return // demo readings never leave Dropi
         if (!Prefs(context).healthSync || !granted(context)) return
         val own = readings.filter { !it.imported && it.id != 0L }
         if (own.isEmpty()) return
@@ -85,6 +86,7 @@ object HealthSync {
 
     /** Removes a deleted reading: ours from Health Connect, an imported one stays ignored. */
     suspend fun remove(context: Context, r: Reading) {
+        if (app.dropi.Prefs(context).demo) return
         val p = Prefs(context)
         if (r.imported) {
             p.ignoredSources = p.ignoredSources + r.source
@@ -98,6 +100,7 @@ object HealthSync {
 
     /** Brings in readings other apps wrote in the last [days] days. Returns how many are new. */
     suspend fun pull(context: Context, days: Int = 90): Int {
+        if (app.dropi.Prefs(context).demo) return 0
         val p = Prefs(context)
         if (!p.healthSync || !granted(context)) return 0
         val now = Instant.now()

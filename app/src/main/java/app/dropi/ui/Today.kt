@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -109,6 +110,7 @@ fun TodayPage(state: AppState) {
         item(key = "banner") {
             Column {
                 UpdateBanner()
+                if (state.demo) DemoBanner(state)
                 AiBanner(state)
                 CrashCard(state)
             }
@@ -543,6 +545,37 @@ private fun MealsTodayCard(state: AppState, meals: List<Reading>, now: Long, fmt
                 }
             }
         }
+    }
+}
+
+/** While demo data is on: says so plainly, with the way back. */
+@Composable
+private fun DemoBanner(state: AppState) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(C.High.copy(alpha = 0.14f))
+            .border(1.dp, C.High.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+            .semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
+            .padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Demo data", style = inter(14.sp, FontWeight.Bold))
+            Text("Made-up readings. Your real log is safe.", style = inter(12.sp, color = C.TextSecondary))
+        }
+        Text(
+            "Leave",
+            style = inter(13.sp, FontWeight.Bold, C.Text),
+            modifier = Modifier
+                .heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(50))
+                .border(1.dp, C.Border, RoundedCornerShape(50))
+                .tap { state.leaveDemo() }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
     }
 }
 

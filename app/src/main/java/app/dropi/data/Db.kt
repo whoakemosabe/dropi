@@ -11,15 +11,32 @@ import kotlinx.coroutines.withContext
  * Readings in a small SQLite database on the phone ("dropi.db"). Plain SQLite, no annotation
  * processing: one table, a time index, and every call off the main thread.
  */
-class Db private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "dropi.db", null, VERSION) {
+class Db private constructor(context: Context, name: String) :
+    SQLiteOpenHelper(context.applicationContext, name, null, VERSION) {
 
     companion object {
         private const val VERSION = 5
+        const val REAL = "dropi.db"
 
-        @Volatile private var instance: Db? = null
-        fun get(context: Context): Db = instance ?: synchronized(this) {
-            instance ?: Db(context).also { instance = it }
+        /** Demo data lives in its own file, so the real log is never touched while it's on. */
+        const val DEMO = "dropi-demo.db"
+
+        private val open = HashMap<String, Db>()
+
+        private fun named(context: Context, name: String): Db = synchronized(this) {
+            open.getOrPut(name) { Db(context, name) }
+        }
+
+        /** The log in use: the demo one while demo data is on (Settings › Developer), else the real one. */
+        fun get(context: Context): Db = named(context, if (app.dropi.Prefs(context).demo) DEMO else REAL)
+
+        /** Always the real log (backups and restores). */
+        fun real(context: Context): Db = named(context, REAL)
+
+        /** Throws the demo log away (leaving demo data, or loading a fresh set). */
+        fun wipeDemo(context: Context) = synchronized(this) {
+            open.remove(DEMO)?.close()
+            context.applicationContext.deleteDatabase(DEMO)
         }
     }
 
