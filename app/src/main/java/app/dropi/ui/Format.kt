@@ -54,3 +54,6 @@ fun MealTag.icon(): Int = when (this) {
     MealTag.BEDTIME, MealTag.OVERNIGHT -> R.drawable.lc_moon
     MealTag.OTHER -> R.drawable.lc_droplet
 }
+
+/** "1 reading", "3 readings". */
+fun plural(n: Int, one: String, many: String = one + "s") = "$n ${if (n == 1) one else many}"

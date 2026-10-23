@@ -68,6 +68,9 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var alertFor by mutableStateOf<Reading?>(null)
 
     var tab by mutableStateOf(Tab.TODAY)
+
+    /** The Trends period (7, 14, 30 or 90 days); the header shows its dates. */
+    var trendsDays by mutableIntStateOf(14)
     var settingsOpen by mutableStateOf(false)
     var scheduleOpen by mutableStateOf(false)
     var exportOpen by mutableStateOf(false)
@@ -126,12 +129,29 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         }
     }
 
+    /** The reading just deleted, for the Undo bar (cleared after a few seconds). */
+    var lastDeleted by mutableStateOf<Reading?>(null)
+
     fun delete(r: Reading) {
+        lastDeleted = r
         scope.launch {
             try { db.delete(r.id) } catch (e: Exception) { }
             reload()
             Reminders.rescheduleAsync(context)
             try { HealthSync.remove(context, r) } catch (e: Exception) { }
+        }
+    }
+
+    /** Undo on the bar after a delete: the reading comes back as it was. */
+    fun undoDelete() {
+        val r = lastDeleted ?: return
+        lastDeleted = null
+        if (r.imported) prefs.ignoredSources = prefs.ignoredSources - r.source
+        scope.launch {
+            val back = try { db.save(r.copy(id = 0)) } catch (e: Exception) { null } ?: return@launch
+            reload()
+            Reminders.rescheduleAsync(context)
+            if (healthSync && !back.imported) try { HealthSync.push(context, listOf(back)) } catch (e: Exception) { }
         }
     }
 

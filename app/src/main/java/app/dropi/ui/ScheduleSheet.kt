@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,7 +67,7 @@ fun ScheduleSheet(state: AppState) {
 
 /** The daily check times, and whether Dropi reminds you of them. */
 @Composable
-private fun ScheduleContent(state: AppState, close: () -> Unit) {
+private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     var editingTime by remember { mutableStateOf<Slot?>(null) }
@@ -85,15 +86,7 @@ private fun ScheduleContent(state: AppState, close: () -> Unit) {
         DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", Locale.ENGLISH)
     }
 
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        SheetTitle("Check times", close)
+    StickySheetBody("Check times", close) {
         Text(
             "Plan when you check each day. A check counts as done when you log within about an hour of it.",
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),

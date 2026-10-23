@@ -15,6 +15,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.mutableIntStateOf
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
@@ -170,5 +177,43 @@ fun SlideSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.(close: (
             }
             content { close() }
         }
+    }
+}
+
+/**
+ * A sheet's body with its title pinned at the top over a frosted band: the list scrolls under
+ * the title, blurred. Dragging anywhere, the title included, still scrolls the list or pulls the
+ * sheet closed.
+ */
+@Composable
+fun ColumnScope.StickySheetBody(
+    title: String,
+    close: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val backdrop = rememberLayerBackdrop()
+    val density = LocalDensity.current
+    var headerPx by remember { mutableIntStateOf(0) }
+    val headerDp = with(density) { headerPx.toDp() }
+    Box(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .layerBackdrop(backdrop)
+                .background(C.Card)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = headerDp + 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            content = content,
+        )
+        GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Card)
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .onSizeChanged { headerPx = it.height }
+                .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
+        ) { SheetTitle(title, close) }
     }
 }

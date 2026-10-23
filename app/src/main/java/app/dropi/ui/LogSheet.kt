@@ -36,6 +36,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -63,6 +64,20 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
 import app.dropi.data.Glucose
@@ -99,6 +114,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     var picking by remember { mutableStateOf(false) }
     val openedAt = remember { initial.at }
     var confirmDelete by remember { mutableStateOf(false) }
+    var noteOpen by remember { mutableStateOf(false) }
 
     // Scan the meter: the camera app takes a photo, the number is read on the phone.
     val scope = rememberCoroutineScope()
@@ -149,6 +165,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             if (isNew) {
                 Row(
                     Modifier
+                        .minimumInteractiveComponentSize()
                         .clip(RoundedCornerShape(50))
                         .background(C.SurfaceLight)
                         .tap {
@@ -168,6 +185,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             if (!isNew) {
                 Row(
                     Modifier
+                        .minimumInteractiveComponentSize()
                         .clip(RoundedCornerShape(50))
                         .background(if (confirmDelete) C.Low.copy(alpha = 0.16f) else Color.Transparent)
                         .tap {
@@ -176,7 +194,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Ic(R.drawable.lc_trash, C.Low, 16.dp)
+                    Ic(R.drawable.lc_trash, C.Low, 16.dp, contentDescription = if (confirmDelete) null else "Delete reading")
                     if (confirmDelete) {
                         Spacer(Modifier.width(6.dp))
                         Text("Tap to delete", style = inter(13.sp, FontWeight.SemiBold, C.Low))
@@ -191,7 +209,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 
         // The number, coloured by where it lands as you type.
         Column(
-            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+            Modifier.fillMaxWidth().padding(top = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val color = status?.let { C.status(it) } ?: if (text.isEmpty()) C.TextMuted.copy(alpha = 0.5f) else C.Text
@@ -201,7 +219,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             ) {
                 Text(
                     text.ifEmpty { if (unit == GlucoseUnit.MMOL) "0.0" else "0" },
-                    style = inter(64.sp, FontWeight.ExtraBold, color, -0.03f),
+                    style = inter(56.sp, FontWeight.ExtraBold, color, -0.03f).copy(fontFeatureSettings = ""),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(unit.label, style = inter(15.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 14.dp))
@@ -217,45 +235,63 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             }
         }
 
-        // The moment: pre-picked from the time of day and your last reading. All six fit on screen.
-        val tags = MealTag.entries
-        ChoiceGrid(
-            tags.map { Choice(it.label, it.icon()) },
-            tags.indexOf(tag),
-            columns = 3,
-            modifier = Modifier.padding(top = 12.dp),
-        ) { tag = tags[it] }
-
         // When: now, a little earlier, or a forgotten one from hours or days ago.
         fun moveTo(t: Long) {
             at = t
             // A new reading's moment follows its time (an 07:00 one is fasting, a 22:00 one bedtime).
             if (isNew) tag = app.dropi.data.Tagging.suggest(t, state.readings, state.zone)
         }
-        Text("WHEN", style = SectionLabel, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 2.dp))
-        if (isNew) {
-            val quick = listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago", 120 to "2 h ago")
-            val pickLabel = if (offsetMin == null) fmt.dayTime(at) else "Pick a time…"
-            ChoiceGrid(
-                quick.map { Choice(it.second) } + Choice(pickLabel),
-                selected = offsetMin?.let { m -> quick.indexOfFirst { it.first == m } } ?: quick.size,
-                columns = 3,
-                compact = true,
-            ) { i ->
-                if (i < quick.size) {
-                    offsetMin = quick[i].first
-                    moveTo(openedAt - quick[i].first * 60_000L)
-                } else {
-                    picking = true
+
+        // Moment, time and note as three pills in one row, each opening a menu, so the keypad
+        // and Save always fit on screen without scrolling.
+        var momentOpen by remember { mutableStateOf(false) }
+        var whenOpen by remember { mutableStateOf(false) }
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.weight(1.15f)) {
+                Pill(tag.label, tag.icon(), "Moment") { momentOpen = true }
+                DropdownMenu(
+                    expanded = momentOpen,
+                    onDismissRequest = { momentOpen = false },
+                    modifier = Modifier.background(C.Card),
+                ) {
+                    MealTag.entries.forEach { t ->
+                        MenuRow(t.label, t.icon(), t == tag) {
+                            tag = t
+                            momentOpen = false
+                        }
+                    }
                 }
             }
-        } else {
-            ChoiceGrid(
-                listOf(Choice("Taken ${fmt.dayTime(at)}"), Choice("Change time")),
-                selected = 0,
-                columns = 2,
-                compact = true,
-            ) { i -> if (i == 1) picking = true }
+            Box(Modifier.weight(1.15f)) {
+                val whenLabel = when (offsetMin) {
+                    null -> fmt.dayTime(at)
+                    0 -> "Now"
+                    else -> if (offsetMin!! < 60) "$offsetMin min ago" else "${offsetMin!! / 60} h ago"
+                }
+                Pill(whenLabel, R.drawable.lc_clock, "Time taken") { whenOpen = true }
+                DropdownMenu(
+                    expanded = whenOpen,
+                    onDismissRequest = { whenOpen = false },
+                    modifier = Modifier.background(C.Card),
+                ) {
+                    if (isNew) {
+                        listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago", 120 to "2 h ago").forEach { (m, label) ->
+                            MenuRow(label, R.drawable.lc_clock, offsetMin == m) {
+                                offsetMin = m
+                                moveTo(openedAt - m * 60_000L)
+                                whenOpen = false
+                            }
+                        }
+                    }
+                    MenuRow(if (isNew) "Pick a day and time…" else "Change the time…", R.drawable.lc_pencil, offsetMin == null && isNew) {
+                        whenOpen = false
+                        picking = true
+                    }
+                }
+            }
+            Box(Modifier.weight(0.9f)) {
+                Pill(note.ifBlank { "Note" }, R.drawable.lc_pencil, "Note") { noteOpen = !noteOpen }
+            }
         }
         if (picking) {
             WhenPicker(at, state.zone, onDismiss = { picking = false }) { t ->
@@ -265,29 +301,42 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             }
         }
 
-        // An optional note: what you ate, how you feel, a missed dose.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(C.SurfaceLight)
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-        ) {
-            if (note.isEmpty()) Text("Add a note (optional)", style = inter(14.sp, color = C.TextMuted))
-            BasicTextField(
-                value = note,
-                onValueChange = { note = it.take(200) },
-                singleLine = true,
-                textStyle = inter(14.sp, color = C.Text),
-                cursorBrush = SolidColor(C.AccentText),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
+        // The note opens in place of nothing else: it pushes the keypad down only while typing.
+        if (noteOpen) {
+            val focus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { focus.requestFocus() }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(C.SurfaceLight)
+                    .padding(start = 14.dp, end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(1f).padding(vertical = 14.dp)) {
+                    if (note.isEmpty()) Text("What you ate, how you feel…", style = inter(14.sp, color = C.TextMuted))
+                    BasicTextField(
+                        value = note,
+                        onValueChange = { note = it.take(200) },
+                        singleLine = true,
+                        textStyle = inter(14.sp, color = C.Text),
+                        cursorBrush = SolidColor(C.AccentText),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { noteOpen = false }),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                    )
+                }
+                Chip("Done") { noteOpen = false }
+            }
         }
 
-        Keypad(
+        // Keys size themselves to the screen so the whole sheet fits (taller on big phones).
+        val screenH = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+        val keyH = ((screenH * 0.9f - 420.dp) / 4).coerceIn(46.dp, 62.dp)
+        if (!noteOpen) Keypad(
             decimal = unit == GlucoseUnit.MMOL,
+            keyHeight = keyH,
             modifier = Modifier.padding(top = 14.dp),
         ) { key ->
             val next = Glucose.type(text, key, unit)
@@ -302,7 +351,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 
         PrimaryButton(
             if (isNew) "Save reading" else "Save changes",
-            Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 16.dp),
+            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
             icon = R.drawable.lc_check,
             enabled = mmol != null,
         ) {
@@ -316,20 +365,22 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 
 /** 1–9, then point, 0 and backspace. The point is greyed out for mg/dL (whole numbers). */
 @Composable
-private fun Keypad(decimal: Boolean, modifier: Modifier = Modifier, onKey: (Char) -> Unit) {
+private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifier, onKey: (Char) -> Unit) {
     val rows = listOf("123", "456", "789", ".0⌫")
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { k ->
                     val enabled = k != '.' || decimal
+                    val press = rememberPress()
                     Box(
                         Modifier
                             .weight(1f)
-                            .heightIn(min = 56.dp)
+                            .height(keyHeight)
+                            .pressed(press)
                             .clip(RoundedCornerShape(16.dp))
                             .background(C.SurfaceLight)
-                            .clickable(enabled = enabled) { onKey(k) },
+                            .clickable(press.source, LocalIndication.current, enabled = enabled) { onKey(k) },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (k == '⌫') {
@@ -346,4 +397,44 @@ private fun Keypad(decimal: Boolean, modifier: Modifier = Modifier, onKey: (Char
             }
         }
     }
+}
+
+/** A compact pill that opens a menu: icon, the current value (one line), and a ▾ cue. */
+@Composable
+private fun Pill(text: String, icon: Int, label: String, onClick: () -> Unit) {
+    val press = rememberPress()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .pressed(press)
+            .clip(RoundedCornerShape(14.dp))
+            .background(C.SurfaceLight)
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(14.dp))
+            .semantics { contentDescription = "$label: $text" }
+            .tap(press, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Ic(icon, C.TextMuted, 15.dp)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text,
+            style = inter(13.sp, FontWeight.SemiBold, C.Text),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Ic(R.drawable.lc_chevron_down, C.TextMuted, 14.dp)
+    }
+}
+
+@Composable
+private fun MenuRow(text: String, icon: Int, selected: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text, style = inter(15.sp, if (selected) FontWeight.Bold else FontWeight.Medium, C.Text)) },
+        onClick = onClick,
+        leadingIcon = { Ic(icon, if (selected) C.AccentText else C.TextMuted, 18.dp) },
+        trailingIcon = { if (selected) Ic(R.drawable.lc_check, C.AccentText, 16.dp) },
+    )
 }

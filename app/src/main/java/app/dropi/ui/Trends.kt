@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,7 +70,7 @@ fun TrendsPage(state: AppState) {
     val now = rememberNow(60_000)
     val fmt = remember(state.zone) { Fmt(context, state.zone) }
     val periods = listOf(7, 14, 30, 90)
-    var period by remember { mutableIntStateOf(1) }
+    val period = periods.indexOf(state.trendsDays).coerceAtLeast(0)
     val today = LocalDate.now(state.zone)
     val report = remember(state.readings, period, today) { Analytics.report(state.readings, periods[period], today, state.zone) }
     val unit = state.unit
@@ -76,19 +79,12 @@ fun TrendsPage(state: AppState) {
     val bars = WindowInsets.systemBars.asPaddingValues()
 
     LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = bars.calculateTopPadding() + if (C.dracula) 34.dp else 8.dp, bottom = bars.calculateBottomPadding() + 112.dp),
+        Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + 4.dp, bottom = bars.calculateBottomPadding() + 112.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "title") {
-            Column(Modifier.padding(top = 4.dp)) {
-                Text("Trends", style = inter(24.sp, FontWeight.ExtraBold, C.Text, -0.02f))
-                val df = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
-                Text("${df.format(report.from)} – ${df.format(report.to)}", style = inter(13.sp, FontWeight.Medium, C.TextMuted))
-            }
-        }
         item(key = "period") {
-            SlidingSegments(listOf("7 days", "14 days", "30 days", "90 days"), period, Modifier.fillMaxWidth()) { period = it }
+            SlidingSegments(listOf("7 days", "14 days", "30 days", "90 days"), period, Modifier.fillMaxWidth()) { state.trendsDays = periods[it] }
         }
         if (report.count < 3) {
             item(key = "empty") {
@@ -150,7 +146,7 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
                 Spacer(Modifier.width(4.dp))
                 Text(unit.label, style = inter(12.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
             }
-            Text("${r.count} readings on ${r.daysLogged} days", style = inter(12.sp, color = C.TextMuted))
+            Text("${plural(r.count, "reading")} on ${plural(r.daysLogged, "day")}", style = inter(12.sp, color = C.TextMuted))
         }
         Column(Modifier.weight(1f).card().padding(16.dp)) {
             Text("EST. A1C", style = SectionLabel)
@@ -336,7 +332,7 @@ private fun ByMoment(state: AppState, r: Report) {
                     Ic(t.tag.icon(), C.TextMuted, 13.dp)
                     Spacer(Modifier.width(6.dp))
                     Text(t.tag.label, style = inter(13.sp, FontWeight.SemiBold, C.Text), modifier = Modifier.weight(1f))
-                    Text("${t.count} readings", style = inter(11.sp, color = C.TextMuted))
+                    Text(plural(t.count, "reading"), style = inter(11.sp, color = C.TextMuted))
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -364,7 +360,7 @@ private fun DailyTable(r: Report, unit: GlucoseUnit) {
     var open by remember { mutableStateOf(false) }
     val df = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).tap { open = !open }, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(8.dp)).tap { open = !open }, verticalAlignment = Alignment.CenterVertically) {
             Text("DAILY AVERAGES", style = SectionLabel, modifier = Modifier.weight(1f))
             Text(if (open) "Hide" else "Show table", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
         }

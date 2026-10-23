@@ -9,6 +9,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.Density
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.toArgb
@@ -61,7 +65,14 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
-            DropiTheme { DropiRoot(s) }
+            // Very narrow phones get the same layout scaled down a touch rather than wrapping, and
+            // the system text size is followed up to 1.5x (past that, rows would start to clip).
+            val base = LocalDensity.current
+            val widthDp = LocalWindowInfo.current.containerSize.width / base.density
+            val scale = (widthDp / 380f).coerceIn(0.9f, 1f)
+            CompositionLocalProvider(LocalDensity provides Density(base.density * scale, base.fontScale.coerceAtMost(1.5f))) {
+                DropiTheme { DropiRoot(s) }
+            }
         }
     }
 

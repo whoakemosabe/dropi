@@ -3,7 +3,16 @@ package app.dropi.ui
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -66,6 +75,41 @@ fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier = compo
     val view = LocalView.current
     // Announced as a button by screen readers.
     clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.Button) {
+        Haptics.tap(view)
+        onClick()
+    }
+}
+
+/**
+ * Press feedback for buttons and tiles: they dip to 97% the moment a finger lands and spring
+ * back on release, so the app feels like it heard the touch (before the tap even completes).
+ */
+class Press(val source: MutableInteractionSource, val scale: Float)
+
+@Composable
+fun rememberPress(): Press {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed) 0.97f else 1f,
+        if (pressed) tween(100) else spring(dampingRatio = 1f, stiffness = 900f),
+        label = "press",
+    )
+    return Press(source, scale)
+}
+
+/** Put this first in the chain so the whole button (background too) dips on press. */
+fun Modifier.pressed(p: Press): Modifier = graphicsLayer { scaleX = p.scale; scaleY = p.scale }
+
+/** clickable() with a tap haptic, sharing [p]'s press state for the dip. */
+fun Modifier.tap(p: Press, enabled: Boolean = true, onClick: () -> Unit): Modifier = composed {
+    val view = LocalView.current
+    clickable(
+        interactionSource = p.source,
+        indication = LocalIndication.current,
+        enabled = enabled,
+        role = androidx.compose.ui.semantics.Role.Button,
+    ) {
         Haptics.tap(view)
         onClick()
     }

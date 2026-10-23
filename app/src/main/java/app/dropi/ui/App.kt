@@ -31,8 +31,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -54,14 +66,35 @@ fun DropiRoot(state: AppState) {
     Box(Modifier.fillMaxSize().background(C.Bg)) {
         if (!state.ready) return@Box
 
-        // Today and Trends, cross-fading; back on Trends returns to Today.
-        Crossfade(state.tab, animationSpec = tween(220), label = "tab") { t ->
-            when (t) {
-                Tab.TODAY -> TodayPage(state)
-                Tab.TRENDS -> TrendsPage(state)
+        // The page is recorded so the sticky header can blur it as it scrolls underneath.
+        val pageBackdrop = rememberLayerBackdrop()
+        val density = LocalDensity.current
+        var headerPx by remember { mutableIntStateOf(0) }
+        val headerDp = with(density) { headerPx.toDp() }
+        Box(Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
+            Box(Modifier.fillMaxSize().background(C.Bg))
+            CompositionLocalProvider(LocalHeaderHeight provides headerDp) {
+                // Today and Trends, cross-fading; back on Trends returns to Today.
+                Crossfade(state.tab, animationSpec = tween(220), label = "tab") { t ->
+                    when (t) {
+                        Tab.TODAY -> TodayPage(state)
+                        Tab.TRENDS -> TrendsPage(state)
+                    }
+                }
             }
         }
         if (state.tab != Tab.TODAY) BackHandler { state.tab = Tab.TODAY }
+
+        // Sticky header: logo, title and Settings over a frosted band (the fade reaches a little
+        // past the header so there's no hard edge).
+        GlassHeader(pageBackdrop, headerDp + 20.dp, Modifier.align(Alignment.TopCenter))
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .onSizeChanged { headerPx = it.height }
+                .blockTouches()
+        ) { TopBar(state) }
 
         if (C.dracula) BloodDrips(Modifier.align(Alignment.TopCenter))
 
@@ -72,6 +105,44 @@ fun DropiRoot(state: AppState) {
             exit = fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) { TabBar(state) }
+
+        // "Reading deleted · Undo", above the tab bar for a few seconds after a delete.
+        val deleted = state.lastDeleted
+        LaunchedEffect(deleted) {
+            if (deleted != null) {
+                kotlinx.coroutines.delay(5_000)
+                if (state.lastDeleted == deleted) state.lastDeleted = null
+            }
+        }
+        AnimatedVisibility(
+            visible = deleted != null && state.editing == null,
+            enter = fadeIn(tween(160)) + androidx.compose.animation.slideInVertically(tween(220)) { it / 2 },
+            exit = fadeOut(tween(140)),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Row(
+                Modifier
+                    .navigationBarsPadding()
+                    .padding(start = 24.dp, end = 24.dp, bottom = 96.dp)
+                    .widthIn(max = 420.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(C.Text)
+                    .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Reading deleted", style = inter(14.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f))
+                Text(
+                    "Undo",
+                    style = inter(14.sp, FontWeight.Bold, C.Bg),
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .tap { state.undoDelete() }
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                )
+            }
+        }
 
         SettingsSheet(state)
         ScheduleSheet(state)
@@ -109,6 +180,51 @@ fun DropiRoot(state: AppState) {
 
 enum class Tab { TODAY, TRENDS }
 
+/** The sticky header: the drop logo, the page title and date, and Settings. */
+@Composable
+private fun TopBar(state: AppState) {
+    val context = LocalContext.current
+    val fmt = remember(state.zone) { Fmt(context, state.zone) }
+    val now = rememberNow(60_000)
+    val today = java.time.Instant.ofEpochMilli(now).atZone(state.zone).toLocalDate()
+    val (title, sub) = when (state.tab) {
+        Tab.TODAY -> "Dropi" to fmt.longDate(today)
+        Tab.TRENDS -> {
+            val df = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
+            "Trends" to "${df.format(today.minusDays((state.trendsDays - 1).toLong()))} – ${df.format(today)}"
+        }
+    }
+    Row(
+        Modifier
+            .statusBarsPadding()
+            // Under Dracula the dripping edge needs a little room above the title.
+            .padding(start = 16.dp, end = 16.dp, top = if (C.dracula) 30.dp else 8.dp, bottom = 10.dp)
+            .widthIn(max = 640.dp)
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(C.Accent),
+            contentAlignment = Alignment.Center,
+        ) { Ic(R.drawable.lc_droplet, Color.White, 18.dp) }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = inter(24.sp, FontWeight.ExtraBold, C.Text, -0.02f).copy(fontFeatureSettings = ""))
+            Text(sub, style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+        }
+        val press = rememberPress()
+        Box(
+            Modifier
+                .pressed(press)
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(C.SurfaceLight.copy(alpha = 0.8f))
+                .tap(press) { state.settingsOpen = true },
+            contentAlignment = Alignment.Center,
+        ) { Ic(R.drawable.lc_settings, C.TextSecondary, 20.dp, contentDescription = "Settings") }
+    }
+}
+
 @Composable
 private fun TabBar(state: AppState) {
     val view = LocalView.current
@@ -129,12 +245,14 @@ private fun TabBar(state: AppState) {
             if (state.tab != Tab.TODAY) Haptics.segment(view)
             state.tab = Tab.TODAY
         }
+        val plus = rememberPress()
         Box(
             Modifier
+                .pressed(plus)
                 .size(56.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(C.Accent, C.AccentGlow)))
-                .tap { state.startNew() },
+                .tap(plus) { state.startNew() },
             contentAlignment = Alignment.Center,
         ) { Ic(R.drawable.lc_plus, Color.White, 26.dp, contentDescription = "Log reading") }
         TabItem("Trends", R.drawable.lc_chart, state.tab == Tab.TRENDS, Modifier.weight(1f)) {

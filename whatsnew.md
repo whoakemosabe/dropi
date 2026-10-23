@@ -4,6 +4,8 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- New Dracula theme: near-black, blood red and purple, with a dripping edge up top
-- Choosing the moment, the time or the day is now a tap grid: no more swiping sideways
-- Today's checks all fit on screen at once
+- New reading fits on one screen: moment, time and note are now tidy dropdown pills
+- Frosted header on Today and Trends: the page blurs as it scrolls underneath
+- Settings, check times and sharing keep their titles pinned with the same blur
+- Deleted a reading by mistake? Tap Undo
+- Buttons and tiles dip under your finger, and the Dracula drips now run once

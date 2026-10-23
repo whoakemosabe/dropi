@@ -1,11 +1,10 @@
 package app.dropi.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,15 +22,18 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Dracula's dripping-blood edge across the top of the screen: a dark red band behind the status
- * bar with drips of different lengths that slowly stretch and gather. Purely decorative; it
+ * bar with drips of different lengths that run down when the screen opens. Purely decorative; it
  * draws over the page but never takes a touch.
  */
 @Composable
 fun BloodDrips(modifier: Modifier = Modifier) {
     val density = LocalDensity.current
     val top = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
-    val t = rememberInfiniteTransition(label = "drips")
-    val ooze by t.animateFloat(0f, 1f, infiniteRepeatable(tween(5200, easing = LinearEasing), RepeatMode.Reverse), label = "ooze")
+    // The drips run down once when the screen opens, then hold still: a slow endless loop would
+    // be distracting (and about the rate that bothers motion-sensitive people).
+    val grow = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { grow.animateTo(1f, tween(1400, easing = FastOutSlowInEasing)) }
+    val ooze = grow.value
 
     // x position (share of the width), drip length (dp), width (dp), how much it stretches.
     val drips = listOf(
@@ -56,7 +58,7 @@ fun BloodDrips(modifier: Modifier = Modifier) {
         for (d in drips) {
             val cx = size.width * d[0]
             val w = d[2].dp.toPx()
-            val len = (d[1] + d[1] * 0.35f * d[3] * ooze).dp.toPx()
+            val len = (d[1] * (0.35f + 0.65f * ooze) * (1f + 0.15f * d[3])).dp.toPx()
             val tipR = w * 0.62f
             // A drip: wide where it leaves the band, narrowing, then a round bead at the end.
             val p = Path().apply {

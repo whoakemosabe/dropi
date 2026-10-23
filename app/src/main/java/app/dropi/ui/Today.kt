@@ -24,11 +24,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -76,18 +79,18 @@ fun TodayPage(state: AppState) {
 
     val bars = WindowInsets.systemBars.asPaddingValues()
     LazyColumn(
-        Modifier.fillMaxSize(),
+        // A readable column on tablets and unfolded phones, centred.
+        Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
-            // Under Dracula the dripping edge needs a little room above the header.
-            top = bars.calculateTopPadding() + if (C.dracula) 34.dp else 8.dp,
+            // Content starts below the sticky header and scrolls under its blur.
+            top = LocalHeaderHeight.current + 4.dp,
             // Room for the floating log button over the navigation bar.
             bottom = bars.calculateBottomPadding() + 112.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "header") { Header(fmt.longDate(today)) { state.settingsOpen = true } }
         item(key = "banner") {
             Column {
                 UpdateBanner()
@@ -128,25 +131,6 @@ fun TodayPage(state: AppState) {
     }
 }
 
-@Composable
-private fun Header(date: String, onSettings: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(C.Accent),
-            contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_droplet, Color.White, 18.dp) }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Dropi", style = inter(24.sp, FontWeight.ExtraBold, C.Text, -0.02f))
-            Text(date, style = inter(13.sp, FontWeight.Medium, C.TextMuted))
-        }
-        Box(
-            Modifier.size(44.dp).clip(CircleShape).background(C.SurfaceLight).tap(onClick = onSettings),
-            contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_settings, C.TextSecondary, 20.dp, contentDescription = "Settings") }
-    }
-}
-
 /** The latest reading in the middle of a gauge coloured by range: low, in range, high, very high. */
 @Composable
 private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak: Int) {
@@ -172,7 +156,7 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
                     }
                     Text(
                         Glucose.format(latest.mmol, state.unit),
-                        style = inter(58.sp, FontWeight.ExtraBold, C.Text, -0.03f),
+                        style = inter(58.sp, FontWeight.ExtraBold, C.Text, -0.03f).copy(fontFeatureSettings = ""),
                         modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
                     )
                     Text(state.unit.label, style = inter(13.sp, FontWeight.SemiBold, C.TextMuted))
@@ -218,7 +202,11 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
             Text(
                 "Edit",
                 style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
-                modifier = Modifier.clip(RoundedCornerShape(50)).tap { state.scheduleOpen = true }.padding(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .clip(RoundedCornerShape(50))
+                    .tap { state.scheduleOpen = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
         if (checks.isEmpty()) {
@@ -382,7 +370,7 @@ private fun StatTile(
     Column(modifier.card(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 14.dp)) {
         Text(label.uppercase(), style = SectionLabel, maxLines = 1)
         Spacer(Modifier.height(6.dp))
-        Text(value, style = inter(22.sp, FontWeight.ExtraBold, valueColor ?: C.Text), maxLines = 1)
+        Text(value, style = inter(22.sp, FontWeight.ExtraBold, valueColor ?: C.Text).copy(fontFeatureSettings = ""), maxLines = 1)
         Text(sub, style = inter(11.sp, FontWeight.Medium, subColor ?: C.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

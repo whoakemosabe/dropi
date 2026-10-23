@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -50,22 +51,14 @@ fun SettingsSheet(state: AppState) {
 }
 
 @Composable
-private fun SettingsContent(state: AppState, close: () -> Unit) {
+private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
     val unit = state.unit
     fun v(mmol: Double) = Glucose.format(mmol, unit)
 
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        SheetTitle("Settings", close)
+    StickySheetBody("Settings", close) {
 
         Section("Units") {
             SlidingSegments(listOf("mmol/L", "mg/dL"), if (unit == GlucoseUnit.MMOL) 0 else 1, Modifier.fillMaxWidth()) {
@@ -105,7 +98,7 @@ private fun SettingsContent(state: AppState, close: () -> Unit) {
         Section("Check times") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("${state.slots.count { it.enabled }} checks a day", style = inter(15.sp, FontWeight.SemiBold))
+                    Text("${plural(state.slots.count { it.enabled }, "check")} a day", style = inter(15.sp, FontWeight.SemiBold))
                     Text(if (state.remindersOn) "Reminders on" else "Reminders off", style = inter(13.sp, color = C.TextSecondary))
                 }
                 Chip("Edit", icon = R.drawable.lc_clock) {

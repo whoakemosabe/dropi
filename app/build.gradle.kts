@@ -76,6 +76,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:$compose")
     implementation("androidx.compose.animation:animation:$compose")
     implementation("androidx.compose.material3:material3:1.4.0")
+    // Liquid glass: Kyant's Backdrop, the same version F1 Pro uses (blurred sticky headers).
+    implementation("io.github.kyant0:backdrop:2.0.1")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")

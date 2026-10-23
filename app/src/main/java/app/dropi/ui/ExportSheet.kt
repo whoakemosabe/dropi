@@ -2,6 +2,7 @@ package app.dropi.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -31,7 +32,7 @@ fun ExportSheet(state: AppState) {
 
 /** A PDF for a doctor's appointment, or the readings as a spreadsheet, through the share sheet. */
 @Composable
-private fun ExportContent(state: AppState, close: () -> Unit) {
+private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val periods = listOf(14, 30, 90)
@@ -43,17 +44,13 @@ private fun ExportContent(state: AppState, close: () -> Unit) {
     val from = today.minusDays((days - 1).toLong())
     val inPeriod = state.readings.filter { !it.date(state.zone).isBefore(from) }
 
-    Column(
-        Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        SheetTitle("Share a report", close)
+    StickySheetBody("Share a report", close) {
         Text(
             "Made on your phone and shared however you choose: email, Messenger, Drive, a print-out.",
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
         SlidingSegments(listOf("14 days", "30 days", "90 days"), period, Modifier.fillMaxWidth()) { period = it }
-        Text("${inPeriod.size} readings in this period", style = inter(13.sp, FontWeight.Medium, C.TextMuted))
+        Text("${plural(inPeriod.size, "reading")} in this period", style = inter(13.sp, FontWeight.Medium, C.TextMuted))
         PrimaryButton(
             "PDF report for your doctor",
             Modifier.fillMaxWidth(),

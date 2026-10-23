@@ -86,14 +86,16 @@ fun Chip(
     selected: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val press = rememberPress()
     Row(
         modifier = modifier
             // A 48 dp touch area (Android's minimum) around the smaller chip.
             .minimumInteractiveComponentSize()
+            .pressed(press)
             .clip(RoundedCornerShape(50))
             .background(if (selected) C.Accent else C.SurfaceLight)
             .border(1.dp, if (selected) C.Accent else C.GlassBorder, RoundedCornerShape(50))
-            .tap(onClick = onClick)
+            .tap(press, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
@@ -112,15 +114,17 @@ fun PrimaryButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val press = rememberPress()
     Row(
         modifier
             .heightIn(min = 52.dp)
+            .pressed(press)
             .clip(RoundedCornerShape(16.dp))
             .background(
                 if (enabled) Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow))
                 else Brush.horizontalGradient(listOf(C.SurfaceLight, C.SurfaceLight))
             )
-            .tap(enabled = enabled, onClick = onClick)
+            .tap(press, enabled = enabled, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -256,13 +260,13 @@ fun ChoiceGrid(
 
 @Composable
 private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val scale by animateFloatAsState(if (selected) 1f else 0.97f, spring(dampingRatio = 0.55f, stiffness = 500f), label = "tile")
+    val press = rememberPress()
     val shape = RoundedCornerShape(16.dp)
     val fg = if (selected) Color.White else C.TextSecondary
     Column(
         modifier
-            .heightIn(min = if (compact) 44.dp else 64.dp)
-            .scale(scale)
+            .heightIn(min = if (compact) 48.dp else 64.dp)
+            .pressed(press)
             .clip(shape)
             .background(
                 if (selected) Brush.linearGradient(listOf(C.Accent, C.AccentGlow))
@@ -270,7 +274,7 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
             )
             .border(1.dp, if (selected) Color.Transparent else C.GlassBorder, shape)
             .semantics { this.selected = selected }
-            .tap(onClick = onClick)
+            .tap(press, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = if (compact) 8.dp else 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
