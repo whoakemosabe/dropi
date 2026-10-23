@@ -98,9 +98,9 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         }
     }
 
-    fun setUnit(u: GlucoseUnit) { unit = u; prefs.unit = u }
-    fun setTheme(t: String) { theme = t; prefs.theme = t }
-    fun setHaptics(on: Boolean) { haptics = on; prefs.haptics = on; Haptics.enabled = on }
+    fun changeUnit(u: GlucoseUnit) { unit = u; prefs.unit = u }
+    fun changeTheme(t: String) { theme = t; prefs.theme = t }
+    fun changeHaptics(on: Boolean) { haptics = on; prefs.haptics = on; Haptics.enabled = on }
 
     fun dismissCrash() {
         CrashLog.clear(context)

@@ -70,7 +70,7 @@ fun SettingsPage(state: AppState) {
 
         Section("Units") {
             SlidingSegments(listOf("mmol/L", "mg/dL"), if (unit == GlucoseUnit.MMOL) 0 else 1, Modifier.fillMaxWidth()) {
-                state.setUnit(if (it == 0) GlucoseUnit.MMOL else GlucoseUnit.MGDL)
+                state.changeUnit(if (it == 0) GlucoseUnit.MMOL else GlucoseUnit.MGDL)
             }
             Hint("Readings are always saved exactly, so switching never changes them.")
         }
@@ -78,14 +78,14 @@ fun SettingsPage(state: AppState) {
         Section("Appearance") {
             val themes = listOf("system", "dark", "light")
             SlidingSegments(listOf("System", "Dark", "Light"), themes.indexOf(state.theme).coerceAtLeast(0), Modifier.fillMaxWidth()) {
-                state.setTheme(themes[it])
+                state.changeTheme(themes[it])
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Haptics", style = inter(15.sp, FontWeight.Medium), modifier = Modifier.weight(1f))
                 Switch(
                     checked = state.haptics,
                     onCheckedChange = {
-                        state.setHaptics(it)
+                        state.changeHaptics(it)
                         Haptics.toggle(view, it)
                     },
                     colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
