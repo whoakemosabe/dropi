@@ -33,6 +33,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.remember
+import androidx.core.net.toUri
 import app.dropi.R
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
@@ -103,6 +105,23 @@ private fun SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
+        Section("Health Connect") {
+            HealthConnectRow(state)
+        }
+
+        Section("Share with your care team") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("PDF report or CSV", style = inter(15.sp, FontWeight.SemiBold))
+                    Text("Summary, time in range and every reading", style = inter(13.sp, color = C.TextSecondary))
+                }
+                Chip("Share", icon = R.drawable.lc_share) {
+                    state.settingsOpen = false
+                    state.exportOpen = true
+                }
+            }
+        }
+
         Section("Targets") {
             TargetLine("Fasting and before meals", "${v(state.targets.beforeLow)}–${v(state.targets.beforeHigh)}")
             TargetLine("1–2 h after a meal", "under ${v(state.targets.afterHigh)}")
@@ -150,6 +169,71 @@ private fun SettingsContent(state: AppState, close: () -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Two-way blood glucose sync: switching on asks Health Connect for read and write permission
+ * (blood glucose only). Older phones may need the Health Connect app first.
+ */
+@Composable
+private fun HealthConnectRow(state: AppState) {
+    val context = LocalContext.current
+    val view = LocalView.current
+    val scope = rememberCoroutineScope()
+    val available = remember { app.dropi.work.HealthSync.available(context) }
+    val needsInstall = remember { app.dropi.work.HealthSync.needsInstall(context) }
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        state.changeHealthSync(granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS))
+        if (!granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS)) state.healthNote = "Permission wasn't given"
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Sync blood glucose", style = inter(15.sp, FontWeight.SemiBold))
+            Text(
+                when {
+                    !available && needsInstall -> "Install or update Health Connect to use this"
+                    !available -> "Health Connect isn't available on this phone"
+                    state.healthSync -> state.healthNote ?: "Readings go both ways with Health Connect"
+                    else -> state.healthNote ?: "Share readings with apps like a CGM or Google Fit"
+                },
+                style = inter(13.sp, color = C.TextSecondary),
+            )
+        }
+        Switch(
+            checked = state.healthSync,
+            enabled = available,
+            onCheckedChange = { on ->
+                Haptics.toggle(view, on)
+                if (!on) state.changeHealthSync(false)
+                else scope.launch {
+                    if (app.dropi.work.HealthSync.granted(context)) state.changeHealthSync(true)
+                    else try { ask.launch(app.dropi.work.HealthSync.PERMISSIONS) } catch (e: Exception) { state.healthNote = "Couldn't open Health Connect" }
+                }
+            },
+            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
+        )
+    }
+    if (!available && needsInstall) {
+        Chip("Get Health Connect", icon = R.drawable.lc_download) {
+            val uri = "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding".toUri()
+            try {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri).setPackage("com.android.vending"))
+            } catch (e: Exception) {
+                openLink(context, "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+            }
+        }
+    }
+    if (state.healthSync) {
+        Chip("Sync now", icon = R.drawable.lc_refresh_cw) { scope.launch { state.syncHealth() } }
+    }
+}
+
+private fun openLink(context: android.content.Context, url: String) {
+    try {
+        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, url.toUri()).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) { }
 }
 
 @Composable

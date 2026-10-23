@@ -65,7 +65,7 @@ fun DropiRoot(state: AppState) {
 
         // The tab bar floats over the page, above the navigation bar, with the big + in the middle.
         AnimatedVisibility(
-            visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen,
+            visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen && !state.exportOpen,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -73,6 +73,7 @@ fun DropiRoot(state: AppState) {
 
         SettingsSheet(state)
         ScheduleSheet(state)
+        ExportSheet(state)
         LogSheetHost(state)
 
         // After saving a low or very high reading: what to do now.
@@ -87,6 +88,7 @@ fun DropiRoot(state: AppState) {
                 Launch.logTag.value = null
                 state.settingsOpen = false
                 state.scheduleOpen = false
+                state.exportOpen = false
                 state.startNew(if (want == "new") null else MealTag.fromKey(want))
             }
         }

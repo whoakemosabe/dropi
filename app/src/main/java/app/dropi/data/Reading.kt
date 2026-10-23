@@ -25,7 +25,11 @@ data class Reading(
     val mmol: Double,
     val tag: MealTag,
     val note: String = "",
+    /** "" when typed in Dropi; "hc:<record id>" when it came in from Health Connect. */
+    val source: String = "",
 ) {
+    val imported get() = source.isNotEmpty()
+
     fun date(zone: ZoneId): LocalDate = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
 }
 

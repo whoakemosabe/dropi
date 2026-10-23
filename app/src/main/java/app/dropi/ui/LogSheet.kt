@@ -39,6 +39,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import app.dropi.work.Scan
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -94,6 +99,28 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     val openedAt = remember { initial.at }
     var confirmDelete by remember { mutableStateOf(false) }
 
+    // Scan the meter: the camera app takes a photo, the number is read on the phone.
+    val scope = rememberCoroutineScope()
+    var scanUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var scanNote by remember { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val u = scanUri
+        if (ok && u != null) {
+            scanNote = "Reading the number…"
+            scope.launch {
+                val v = Scan.read(context, u, unit)
+                if (v != null) {
+                    text = Glucose.format(v, unit)
+                    scanNote = "Scanned. Check it matches your meter."
+                    Haptics.confirm(view)
+                } else {
+                    scanNote = "Couldn't read the number. Type it instead."
+                    Haptics.reject(view)
+                }
+            }
+        }
+    }
+
     val mmol = Glucose.parse(text, unit)
     val status = mmol?.let { Glucose.status(it, tag, state.targets) }
     val outOfRange = text.isNotEmpty() && !text.endsWith(".") && mmol == null && text.toDoubleOrNull() != null
@@ -118,6 +145,25 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(if (isNew) "New reading" else "Edit reading", style = inter(18.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
+            if (isNew) {
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(C.SurfaceLight)
+                        .tap {
+                            val u = Scan.photoUri(context)
+                            scanUri = u
+                            try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { scanNote = "No camera app found." }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Ic(R.drawable.lc_camera, C.TextSecondary, 16.dp)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Scan meter", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                }
+                Spacer(Modifier.width(8.dp))
+            }
             if (!isNew) {
                 Row(
                     Modifier
@@ -163,6 +209,10 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                 status != null -> StatusPill(status)
                 outOfRange -> Text("Meters read ${Glucose.rangeLabel(unit)}", style = inter(13.sp, FontWeight.Medium, C.High))
                 else -> Text("Type the number on your meter", style = inter(13.sp, color = C.TextMuted))
+            }
+            scanNote?.let { Text(it, style = inter(12.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(top = 6.dp)) }
+            if (initial.imported) {
+                Text("From Health Connect", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(top = 6.dp))
             }
         }
 

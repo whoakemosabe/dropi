@@ -57,6 +57,22 @@ class Prefs(context: Context) {
         get() = p.getStringSet("notified_slots", emptySet()) ?: emptySet()
         set(v) = p.edit { putStringSet("notified_slots", v.toSortedSet().toList().takeLast(40).toSet()) }
 
+    // ---- Health Connect ----
+
+    /** Two-way blood glucose sync with Health Connect (asks for permission when switched on). */
+    var healthSync: Boolean
+        get() = p.getBoolean("health_sync", false)
+        set(v) = p.edit { putBoolean("health_sync", v) }
+
+    var lastHealthSync: Long
+        get() = p.getLong("last_health_sync", 0L)
+        set(v) = p.edit { putLong("last_health_sync", v) }
+
+    /** Imported readings deleted in Dropi, so a sync doesn't bring them back. */
+    var ignoredSources: Set<String>
+        get() = p.getStringSet("ignored_sources", emptySet()) ?: emptySet()
+        set(v) = p.edit { putStringSet("ignored_sources", v.toSortedSet().toList().takeLast(2000).toSet()) }
+
     // ---- Updates (same keys and meaning as F1 Pro) ----
 
     /** The newest version GitHub has, when it's newer than this one; "" when up to date. */

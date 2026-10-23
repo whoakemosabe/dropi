@@ -15,7 +15,7 @@ class Db private constructor(context: Context) :
     SQLiteOpenHelper(context.applicationContext, "dropi.db", null, VERSION) {
 
     companion object {
-        private const val VERSION = 1
+        private const val VERSION = 2
 
         @Volatile private var instance: Db? = null
         fun get(context: Context): Db = instance ?: synchronized(this) {
@@ -31,15 +31,22 @@ class Db private constructor(context: Context) :
                 at INTEGER NOT NULL,
                 mmol REAL NOT NULL,
                 tag TEXT NOT NULL,
-                note TEXT NOT NULL DEFAULT ''
+                note TEXT NOT NULL DEFAULT '',
+                source TEXT NOT NULL DEFAULT ''
             )
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX readings_at ON readings(at)")
+        db.execSQL("CREATE INDEX readings_source ON readings(source)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 is the first; later versions add columns here, never drop data.
+        // Columns are only ever added, never dropped, so readings survive every update.
+        if (oldVersion < 2) {
+            // Where a reading came from: "" for typed in Dropi, "hc:<id>" for Health Connect.
+            db.execSQL("ALTER TABLE readings ADD COLUMN source TEXT NOT NULL DEFAULT ''")
+            db.execSQL("CREATE INDEX readings_source ON readings(source)")
+        }
     }
 
     private fun values(r: Reading) = ContentValues().apply {
@@ -47,6 +54,7 @@ class Db private constructor(context: Context) :
         put("mmol", r.mmol)
         put("tag", r.tag.name)
         put("note", r.note.trim().take(200))
+        put("source", r.source)
     }
 
     /** Saves a new reading (id 0) or updates an existing one; returns the saved reading. */
@@ -66,11 +74,20 @@ class Db private constructor(context: Context) :
         Unit
     }
 
+    /** The sources already imported (Health Connect ids), so nothing comes in twice. */
+    suspend fun sources(): Set<String> = withContext(Dispatchers.IO) {
+        val out = HashSet<String>()
+        readableDatabase.rawQuery("SELECT source FROM readings WHERE source != ''", null).use { c ->
+            while (c.moveToNext()) out += c.getString(0)
+        }
+        out
+    }
+
     /** Readings taken at or after [since] (epoch ms), oldest first. */
     suspend fun since(since: Long): List<Reading> = withContext(Dispatchers.IO) {
         val out = ArrayList<Reading>()
         readableDatabase.rawQuery(
-            "SELECT id, at, mmol, tag, note FROM readings WHERE at >= ? ORDER BY at ASC",
+            "SELECT id, at, mmol, tag, note, source FROM readings WHERE at >= ? ORDER BY at ASC",
             arrayOf(since.toString()),
         ).use { c ->
             while (c.moveToNext()) {
@@ -80,6 +97,7 @@ class Db private constructor(context: Context) :
                     mmol = c.getDouble(2),
                     tag = MealTag.fromKey(c.getString(3)),
                     note = c.getString(4) ?: "",
+                    source = c.getString(5) ?: "",
                 )
             }
         }

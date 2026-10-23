@@ -16,6 +16,7 @@ import app.dropi.data.Slot
 import app.dropi.data.Status
 import app.dropi.data.Tagging
 import app.dropi.data.Targets
+import app.dropi.work.HealthSync
 import app.dropi.work.Reminders
 import app.dropi.work.UpdateWatch
 import kotlinx.coroutines.CoroutineScope
@@ -54,6 +55,11 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var afterMealMinutes by mutableStateOf(prefs.afterMealMinutes)
         private set
 
+    var healthSync by mutableStateOf(prefs.healthSync)
+        private set
+    /** What the last Health Connect sync did, for Settings. */
+    var healthNote by mutableStateOf<String?>(null)
+
     /** The log sheet: null when closed; a reading with id 0 is a new one. */
     var editing by mutableStateOf<Reading?>(null)
 
@@ -63,6 +69,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var tab by mutableStateOf(Tab.TODAY)
     var settingsOpen by mutableStateOf(false)
     var scheduleOpen by mutableStateOf(false)
+    var exportOpen by mutableStateOf(false)
 
     var lastCrash by mutableStateOf<String?>(null)
         private set
@@ -85,6 +92,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun onOpen() {
         scope.launch {
             reload()
+            if (healthSync) syncHealth()
             try { UpdateWatch.check(context, background = false) } catch (e: Exception) { }
         }
         Reminders.rescheduleAsync(context)
@@ -113,6 +121,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
                 if (recent && (s.isLow || s == Status.VERY_HIGH)) alertFor = saved
             }
             Reminders.rescheduleAsync(context)
+            if (healthSync) try { HealthSync.push(context, listOf(saved)) } catch (e: Exception) { }
         }
     }
 
@@ -121,6 +130,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             try { db.delete(r.id) } catch (e: Exception) { }
             reload()
             Reminders.rescheduleAsync(context)
+            try { HealthSync.remove(context, r) } catch (e: Exception) { }
         }
     }
 
@@ -149,6 +159,26 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         afterMealMinutes = minutes
         prefs.afterMealOn = on
         prefs.afterMealMinutes = minutes
+    }
+
+    /** Pulls in other apps' readings and sends ours; quietly does nothing without permission. */
+    suspend fun syncHealth() {
+        try {
+            val added = HealthSync.pull(context)
+            HealthSync.push(context, readings)
+            if (added > 0) reload()
+            healthNote = if (added > 0) "Brought in $added ${if (added == 1) "reading" else "readings"}" else "Up to date"
+        } catch (e: Exception) {
+            healthNote = "Couldn't sync with Health Connect"
+        }
+    }
+
+    /** Health Connect switched on (after permission) or off. */
+    fun changeHealthSync(on: Boolean) {
+        healthSync = on
+        prefs.healthSync = on
+        healthNote = null
+        if (on) scope.launch { syncHealth() }
     }
 
     fun dismissCrash() {
