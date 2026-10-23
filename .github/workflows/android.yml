@@ -32,6 +32,9 @@ jobs:
           java-version: 17
 
       - uses: gradle/actions/setup-gradle@v5
+        with:
+          # Reuse compiled pieces from earlier runs on every branch, not just main.
+          cache-read-only: false
 
       - name: Signing key
         env:
@@ -56,7 +59,8 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew testDebugUnitTest assembleRelease 2>&1 | tee build.log
+          # Tests run against the release build, so the app compiles once instead of twice.
+          ./gradlew testReleaseUnitTest assembleRelease --build-cache --parallel 2>&1 | tee build.log
 
       # GitHub keeps 10 error annotations per step, so compile errors are reported in batches.
       - name: Report errors (1-10)
@@ -80,21 +84,6 @@ jobs:
       - name: Report errors (41-50)
         if: failure()
         run: sed -n '41,50p' errors.txt | while IFS= read -r l; do echo "::error::${l}"; done
-
-      - name: Lint report
-        # Android's own checks (manifest, API levels, resources, accessibility). A report only:
-        # it never fails the build. The full list is in the run summary.
-        continue-on-error: true
-        shell: bash
-        run: |
-          ./gradlew lintDebug > /dev/null 2>&1 || true
-          f=app/build/reports/lint.txt
-          [ -f "$f" ] || { echo "::warning::No lint report"; exit 0; }
-          summary=$(grep -E '^[0-9]+ errors?, [0-9]+ warnings?' "$f" | tail -1)
-          echo "::notice title=Lint::${summary:-No issues}"
-          grep -E ': Error: ' "$f" | head -10 | sed 's#^.*/app/src/#app/src/#' | while IFS= read -r l; do echo "::warning title=Lint error::$l"; done || true
-          echo "::notice title=Lint findings::$(grep -E ': (Warning|Error|Information|Hint): ' "$f" | sed -E 's#^.*/(app|gradle)/#\1/#; s#^([^:]+:[0-9]+): [A-Za-z]+: (.{0,70}).* \[([^]]+)\]$#\1 [\3] \2#' | head -120 | sed ':a;N;$!ba;s/\n/%0A/g')"
-          { echo '### Lint'; echo '```'; head -300 "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Name the APK
         run: |
@@ -139,3 +128,19 @@ jobs:
           body_path: notes.md
           files: dropi.apk
           make_latest: true
+
+      # After the release is out: Android's own checks, as a report only.
+      - name: Lint report
+        # Android's own checks (manifest, API levels, resources, accessibility). A report only:
+        # it never fails the build. The full list is in the run summary.
+        continue-on-error: true
+        shell: bash
+        run: |
+          ./gradlew lintDebug > /dev/null 2>&1 || true
+          f=app/build/reports/lint.txt
+          [ -f "$f" ] || { echo "::warning::No lint report"; exit 0; }
+          summary=$(grep -E '^[0-9]+ errors?, [0-9]+ warnings?' "$f" | tail -1)
+          echo "::notice title=Lint::${summary:-No issues}"
+          grep -E ': Error: ' "$f" | head -10 | sed 's#^.*/app/src/#app/src/#' | while IFS= read -r l; do echo "::warning title=Lint error::$l"; done || true
+          echo "::notice title=Lint findings::$(grep -E ': (Warning|Error|Information|Hint): ' "$f" | sed -E 's#^.*/(app|gradle)/#\1/#; s#^([^:]+:[0-9]+): [A-Za-z]+: (.{0,70}).* \[([^]]+)\]$#\1 [\3] \2#' | head -120 | sed ':a;N;$!ba;s/\n/%0A/g')"
+          { echo '### Lint'; echo '```'; head -300 "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
