@@ -60,6 +60,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     /** A low (or very high) reading just saved, for the guidance card. */
     var alertFor by mutableStateOf<Reading?>(null)
 
+    var tab by mutableStateOf(Tab.TODAY)
     var settingsOpen by mutableStateOf(false)
     var scheduleOpen by mutableStateOf(false)
 
