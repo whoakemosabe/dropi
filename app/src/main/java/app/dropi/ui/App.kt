@@ -169,6 +169,9 @@ fun DropiRoot(state: AppState) {
         ChangelogSheet(state)
         LogSheetHost(state)
 
+        // First run: welcome, unit and every permission, over everything else.
+        if (!state.onboarded) WelcomeFlow(state)
+
         // After saving a low or very high reading: what to do now.
         state.alertFor?.let { r ->
             GuidanceDialog(r, state.status(r), state.unit, onRecheck = { state.remindRecheck(r) }) { state.alertFor = null }

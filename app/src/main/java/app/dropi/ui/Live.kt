@@ -284,7 +284,7 @@ fun ToggleRow(title: String, sub: String?, checked: Boolean, enabled: Boolean = 
                 Haptics.toggle(view, it)
                 onChange(it)
             },
-            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
+            colors = dropiSwitchColors(),
         )
     }
 }

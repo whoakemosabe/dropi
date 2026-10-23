@@ -65,6 +65,16 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var haptics by mutableStateOf(prefs.haptics)
         private set
 
+    /** False until the first-run welcome is finished. */
+    var onboarded by mutableStateOf(prefs.onboarded)
+        private set
+
+    fun finishOnboarding() {
+        onboarded = true
+        prefs.onboarded = true
+        Reminders.rescheduleAsync(context)
+    }
+
     var slots by mutableStateOf(prefs.slots)
         private set
     var remindersOn by mutableStateOf(prefs.remindersOn)
@@ -102,7 +112,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var foodOpen by mutableStateOf<String?>(null)
 
     /** Any sheet over the page (the tab bar hides). */
-    val sheetOpen get() = editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
+    val sheetOpen get() = !onboarded || editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
         liveOpen || askOpen || changelogOpen || foodsOpen
 
     // ---- Live sensor ----

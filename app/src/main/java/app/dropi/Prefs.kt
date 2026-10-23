@@ -25,6 +25,11 @@ class Prefs(context: Context) {
         get() = p.getString("theme", "system") ?: "system"
         set(v) = p.edit { putString("theme", v) }
 
+    /** The first-run welcome (units and every permission) has been through. */
+    var onboarded: Boolean
+        get() = p.getBoolean("onboarded", false)
+        set(v) = p.edit { putBoolean("onboarded", v) }
+
     var haptics: Boolean
         get() = p.getBoolean("haptics", true)
         set(v) = p.edit { putBoolean("haptics", v) }

@@ -333,13 +333,25 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
     val line = C.Border
     val accent = C.AccentText
     val aurora = C.Aurora
-    BoxWithConstraints(Modifier.fillMaxWidth().height(92.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
         val pad = 24.dp
         val span = maxWidth - pad * 2
         fun xOf(h: Float) = pad + span * ((h - from) / (to - from)).coerceIn(0f, 1f)
-        val lineY = 40.dp
+        // Labels go below the line; one too close to the label before it goes above instead.
+        // The line only moves down to make room when some label actually needs to be above.
+        val above = run {
+            var last = -1000.dp
+            hours.map { h ->
+                val x = xOf(h)
+                val below = x - last >= 54.dp
+                if (below) last = x
+                !below
+            }
+        }
+        val lineY = if (above.any { it }) 44.dp else 14.dp
+        Box(Modifier.fillMaxWidth().height(lineY + 52.dp))
         // The day's line, brighter up to now.
-        Canvas(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxWidth().height(lineY + 52.dp)) {
             val y = lineY.toPx()
             drawLine(line, Offset(pad.toPx(), y), Offset(size.width - pad.toPx(), y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
             val nx = xOf(nowH).toPx()
@@ -350,12 +362,9 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 )
             }
         }
-        // Labels below the line, unless the one before is too close: then above.
-        var lastBelow = -1000.dp
         checks.forEachIndexed { i, c ->
             val x = xOf(hours[i])
-            val below = x - lastBelow >= 54.dp
-            if (below) lastBelow = x
+            val below = !above[i]
             val done = c.reading
             val color = done?.let { C.status(state.status(it)) }
             val due = c.state == CheckState.DUE
@@ -388,7 +397,7 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 }
             }
             Column(
-                Modifier.offset(x = x - 28.dp, y = if (below) lineY + 16.dp else 0.dp).width(56.dp),
+                Modifier.offset(x = x - 28.dp, y = if (below) lineY + 14.dp else lineY - 44.dp).width(56.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val value = when {

@@ -291,3 +291,25 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
         )
     }
 }
+
+/**
+ * Switch colours for every toggle: on is the brand violet; off is a dark track with a clear
+ * outline and a light thumb, so it reads as "off" rather than greyed out and disabled.
+ */
+@Composable
+fun dropiSwitchColors() = androidx.compose.material3.SwitchDefaults.colors(
+    checkedTrackColor = C.Accent,
+    checkedThumbColor = C.OnAccent,
+    checkedBorderColor = C.Accent,
+    checkedIconColor = C.Accent,
+    uncheckedTrackColor = C.SurfaceLight,
+    uncheckedThumbColor = C.TextSecondary,
+    uncheckedBorderColor = C.TextMuted.copy(alpha = 0.6f),
+    uncheckedIconColor = C.SurfaceLight,
+    disabledCheckedTrackColor = C.Accent.copy(alpha = 0.4f),
+    disabledCheckedThumbColor = C.OnAccent.copy(alpha = 0.7f),
+    disabledCheckedBorderColor = C.Accent.copy(alpha = 0.4f),
+    disabledUncheckedTrackColor = C.SurfaceLight.copy(alpha = 0.5f),
+    disabledUncheckedThumbColor = C.TextMuted.copy(alpha = 0.5f),
+    disabledUncheckedBorderColor = C.TextMuted.copy(alpha = 0.3f),
+)

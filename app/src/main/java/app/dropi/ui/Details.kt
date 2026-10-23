@@ -150,7 +150,7 @@ fun DetailsDialog(
                 Switch(
                     checked = d.meds,
                     onCheckedChange = { Haptics.toggle(view, it); d = d.copy(meds = it) },
-                    colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
+                    colors = dropiSwitchColors(),
                 )
             }
 

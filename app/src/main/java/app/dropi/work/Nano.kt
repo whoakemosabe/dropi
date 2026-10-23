@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
 
 /**
  * Gemini Nano on the phone, through ML Kit's GenAI Prompt API and Android's AICore. Photos and
@@ -71,6 +72,14 @@ object Nano {
             refresh()
             false
         }
+    }
+
+    private val bg = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Default)
+
+    /** Starts the one-time download in the background, so it carries on if the screen closes. */
+    fun startDownload() {
+        if (state == State.READY || state == State.UNAVAILABLE) return
+        bg.launch { try { prepare() } catch (e: Throwable) { } }
     }
 
     /** A guess at the foods and carbs in a meal photo, or null if the model couldn't tell. */

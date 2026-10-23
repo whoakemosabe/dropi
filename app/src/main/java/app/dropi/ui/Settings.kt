@@ -90,7 +90,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                         state.changeHaptics(it)
                         Haptics.toggle(view, it)
                     },
-                    colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
+                    colors = dropiSwitchColors(),
                 )
             }
         }
@@ -267,7 +267,7 @@ private fun HealthConnectRow(state: AppState) {
                     else try { ask.launch(app.dropi.work.HealthSync.PERMISSIONS) } catch (e: Exception) { state.healthNote = "Couldn't open Health Connect" }
                 }
             },
-            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
+            colors = dropiSwitchColors(),
         )
     }
     if (!available && needsInstall) {

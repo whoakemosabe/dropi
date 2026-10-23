@@ -192,7 +192,7 @@ private fun ToggleRow(title: String, sub: String, on: Boolean, onChange: (Boolea
         Switch(
             checked = on,
             onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
+            colors = dropiSwitchColors(),
         )
     }
 }
@@ -211,7 +211,7 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
             Switch(
                 checked = s.enabled,
                 onCheckedChange = { onChange(s.copy(enabled = it)) },
-                colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
+                colors = dropiSwitchColors(),
             )
             Box(
                 Modifier.size(44.dp).clip(CircleShape).tap(onClick = onDelete),
