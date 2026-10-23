@@ -10,5 +10,7 @@ class DropiApp : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashLog.install(this)
+        // Sensor broadcasts sent to "any app" reach Dropi while it's running.
+        app.dropi.work.LiveCgm.listen(this)
     }
 }

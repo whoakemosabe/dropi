@@ -35,4 +35,17 @@ class WhatsNewTest {
         assertEquals(2, Updater.countSince(json, "1.0.68"))
         assertEquals(0, Updater.countSince(json, "1.0.70"))
     }
+
+    @Test
+    fun changelogIsNewestFirst() {
+        val json = org.json.JSONArray()
+            .put(org.json.JSONObject().put("tag_name", "v1.0.9").put("published_at", "2026-10-20T10:00:00Z").put("body", "### Highlights\n- Nine"))
+            .put(org.json.JSONObject().put("tag_name", "v1.0.21").put("published_at", "2026-10-23T10:00:00Z").put("body", "### Highlights\n- Wings"))
+            .put(org.json.JSONObject().put("tag_name", "v1.0.22").put("draft", true).put("body", ""))
+            .put(org.json.JSONObject().put("tag_name", "v1.0.10").put("published_at", "2026-10-21T10:00:00Z").put("body", "nothing"))
+        val log = Updater.changelog(json.toString())
+        assertEquals(listOf("1.0.21", "1.0.10", "1.0.9"), log.map { it.version })
+        assertEquals("2026-10-23", log.first().date)
+        assertEquals(listOf("Fixes and improvements"), log[1].notes)
+    }
 }

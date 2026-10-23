@@ -98,7 +98,7 @@ fun UpdateBanner() {
                 Box(
                     Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(C.Accent),
                     contentAlignment = Alignment.Center,
-                ) { Ic(R.drawable.lc_download, Color.White, 16.dp) }
+                ) { Ic(R.drawable.lc_download, C.OnAccent, 16.dp) }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Dropi $shownVersion is ready", style = inter(14.sp, FontWeight.Bold, C.Text))
@@ -116,7 +116,7 @@ fun UpdateBanner() {
                 if (ui !is UpdateUi.Downloading) {
                     Text(
                         if (ui is UpdateUi.Ready) "Install" else "Update",
-                        style = inter(13.sp, FontWeight.Bold, Color.White),
+                        style = inter(13.sp, FontWeight.Bold, C.OnAccent),
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(C.Accent)
@@ -187,9 +187,9 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     Box(
                         Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(C.Accent),
                         contentAlignment = Alignment.Center,
-                    ) { Ic(R.drawable.lc_zap, Color.White, 16.dp) }
+                    ) { Ic(R.drawable.lc_zap, C.OnAccent, 16.dp) }
                     Spacer(Modifier.width(10.dp))
-                    Text("UPDATE READY", style = inter(11.sp, FontWeight.Bold, C.AccentText, 0.14f), modifier = Modifier.weight(1f))
+                    Text("Update ready", style = SectionLabel.copy(color = C.AccentText), modifier = Modifier.weight(1f))
                     if (behind > 1) {
                         Text(
                             (if (behind >= 30) "30+" else "$behind") + " updates behind",
@@ -204,7 +204,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 }
                 Text(
                     if (behind > 1) "What's new since your version" else "What's new in v$version",
-                    style = inter(21.sp, FontWeight.ExtraBold, C.Text),
+                    style = heading(22.sp),
                 )
                 if (behind > 1) Text("Installing v$version brings you fully up to date.", style = inter(12.sp, color = C.TextSecondary))
             }

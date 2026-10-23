@@ -47,6 +47,7 @@ object Backup {
                         r.insulinKind?.let { put("insulinKind", it.name) }
                         if (r.meds) put("meds", true)
                         r.exercise?.let { put("exercise", it) }
+                        if (r.foods.isNotEmpty()) put("foods", Foods.pack(r.foods))
                     }
             )
         }
@@ -80,6 +81,7 @@ object Backup {
                 insulinKind = InsulinKind.fromKey(r.optString("insulinKind")),
                 meds = r.optBoolean("meds"),
                 exercise = if (r.has("exercise")) r.getInt("exercise") else null,
+                foods = Foods.unpack(r.optString("foods")),
             )
         }
         val t = o.optJSONObject("targets")?.let {

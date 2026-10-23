@@ -4,7 +4,10 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- New bottom bar: two frosted wings around a big + button, in the same glass as the header
-- At the top of a page nothing sits under the blur any more
-- The moment, time and details tiles now show their full names and values
-- Fixed: the − buttons in Details could keep going on their own and buzz nonstop
+- Live sensor mode: your Dexcom or Libre value, a tilting trend arrow and a 3-hour trace, via xDrip+, Juggluco or Health Connect
+- A live notification (a status bar chip on Android 16) and a heads-up when your trend points low within 20 minutes
+- Your plate: tag what you ate and see which foods lift you most, with a typical curve for each
+- Snap your plate: Gemini Nano guesses the foods and carbs on the phone, nothing uploaded
+- Ask Dropi about your week, your lows or your highest times of day
+- What's changed in Settings: every version's highlights in one place
+- A fresh look: new numerals, calmer labels, and colour saved for your numbers

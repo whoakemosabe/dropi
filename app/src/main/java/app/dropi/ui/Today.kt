@@ -97,7 +97,17 @@ fun TodayPage(state: AppState) {
                 CrashCard(state)
             }
         }
-        item(key = "hero") { Hero(state, latest, fmt, now, streak) }
+        item(key = "hero") {
+            // Live mode with a fresh sensor value: the live number and trace lead the screen.
+            if (state.liveOn && app.dropi.data.Trend.fresh(state.sensor, now)) {
+                LiveHero(state, now, fmt)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Hero(state, latest, fmt, now, streak)
+                    if (state.liveOn) LiveWaiting(state, now, fmt)
+                }
+            }
+        }
         // Sundays and Mondays: last week at a glance (the same as the Sunday recap).
         val dow = today.dayOfWeek
         if ((dow == java.time.DayOfWeek.SUNDAY || dow == java.time.DayOfWeek.MONDAY) && all.size >= 3) {
@@ -106,7 +116,7 @@ fun TodayPage(state: AppState) {
         item(key = "checks") { ChecksCard(state, now, fmt) }
         item(key = "stats") { StatRow(state, summary) }
         item(key = "today-label") {
-            Text("TODAY", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+            Text("Today", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
         if (todays.isEmpty()) {
             item(key = "today-empty") {
@@ -122,7 +132,7 @@ fun TodayPage(state: AppState) {
         }
         if (earlier.isNotEmpty()) {
             item(key = "earlier-label") {
-                Text("EARLIER", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+                Text("Earlier", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
             items(earlier, key = { "r${it.id}" }) { r -> ReadingRow(state, r, fmt.dayTime(r.at, now)) }
         }
@@ -166,7 +176,7 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
                     }
                     Text(
                         Glucose.format(latest.mmol, state.unit),
-                        style = inter(58.sp, FontWeight.ExtraBold, C.Text, -0.03f).copy(fontFeatureSettings = ""),
+                        style = numeral(62.sp, C.Text),
                         modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
                     )
                     Text(state.unit.label, style = inter(13.sp, FontWeight.SemiBold, C.TextMuted))
@@ -216,7 +226,7 @@ private fun WeekCard(state: AppState, today: java.time.LocalDate) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("YOUR WEEK", style = SectionLabel)
+        Text("Your week", style = SectionLabel)
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             WeekStat(r.bands?.let { "${Math.round(it.inRange)}%" } ?: "—", "in range")
             WeekStat(if (r.lows == 0) "0" else "${r.lows}", if (r.lows == 1) "low" else "lows")
@@ -229,7 +239,7 @@ private fun WeekCard(state: AppState, today: java.time.LocalDate) {
 @Composable
 private fun WeekStat(value: String, label: String) {
     Column {
-        Text(value, style = inter(22.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""))
+        Text(value, style = numeral(22.sp, C.Text))
         Text(label, style = inter(11.sp, color = C.TextMuted))
     }
 }
@@ -241,7 +251,7 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
     val next = Schedule.next(state.slots, state.readings, now, state.zone)
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("TODAY'S CHECKS", style = SectionLabel, modifier = Modifier.weight(1f))
+            Text("Today's checks", style = SectionLabel, modifier = Modifier.weight(1f))
             Text(
                 "Edit",
                 style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
@@ -411,9 +421,9 @@ private fun StatTile(
     subColor: Color? = null,
 ) {
     Column(modifier.card(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 14.dp)) {
-        Text(label.uppercase(), style = SectionLabel, maxLines = 1)
+        Text(label, style = SectionLabel, maxLines = 1)
         Spacer(Modifier.height(6.dp))
-        Text(value, style = inter(22.sp, FontWeight.ExtraBold, valueColor ?: C.Text).copy(fontFeatureSettings = ""), maxLines = 1)
+        Text(value, style = numeral(22.sp, valueColor ?: C.Text), maxLines = 1)
         Text(sub, style = inter(11.sp, FontWeight.Medium, subColor ?: C.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -446,7 +456,7 @@ fun ReadingRow(state: AppState, r: Reading, time: String) {
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(Glucose.format(r.mmol, state.unit), style = inter(20.sp, FontWeight.ExtraBold, C.Text))
+            Text(Glucose.format(r.mmol, state.unit), style = numeral(20.sp))
             Text(status.label, style = inter(11.sp, FontWeight.Medium, C.TextMuted))
         }
     }

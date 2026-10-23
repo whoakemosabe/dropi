@@ -15,7 +15,7 @@ class Db private constructor(context: Context) :
     SQLiteOpenHelper(context.applicationContext, "dropi.db", null, VERSION) {
 
     companion object {
-        private const val VERSION = 3
+        private const val VERSION = 4
 
         @Volatile private var instance: Db? = null
         fun get(context: Context): Db = instance ?: synchronized(this) {
@@ -37,12 +37,19 @@ class Db private constructor(context: Context) :
                 insulin REAL,
                 insulin_kind TEXT,
                 meds INTEGER NOT NULL DEFAULT 0,
-                exercise INTEGER
+                exercise INTEGER,
+                foods TEXT NOT NULL DEFAULT ''
             )
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX readings_at ON readings(at)")
         db.execSQL("CREATE INDEX readings_source ON readings(source)")
+        createSensor(db)
+    }
+
+    /** Sensor (CGM) points, one per minute at most: kept apart so they never flood the log. */
+    private fun createSensor(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS sensor (minute INTEGER PRIMARY KEY, at INTEGER NOT NULL, mmol REAL NOT NULL)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -60,6 +67,11 @@ class Db private constructor(context: Context) :
             db.execSQL("ALTER TABLE readings ADD COLUMN meds INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE readings ADD COLUMN exercise INTEGER")
         }
+        if (oldVersion < 4) {
+            // Foods eaten with a reading, and sensor points from a CGM.
+            db.execSQL("ALTER TABLE readings ADD COLUMN foods TEXT NOT NULL DEFAULT ''")
+            createSensor(db)
+        }
     }
 
     private fun values(r: Reading) = ContentValues().apply {
@@ -73,6 +85,7 @@ class Db private constructor(context: Context) :
         if (r.insulinKind != null) put("insulin_kind", r.insulinKind.name) else putNull("insulin_kind")
         put("meds", if (r.meds) 1 else 0)
         if (r.exercise != null) put("exercise", r.exercise) else putNull("exercise")
+        put("foods", Foods.pack(r.foods))
     }
 
     /** Saves a new reading (id 0) or updates an existing one; returns the saved reading. */
@@ -130,7 +143,7 @@ class Db private constructor(context: Context) :
     suspend fun since(since: Long): List<Reading> = withContext(Dispatchers.IO) {
         val out = ArrayList<Reading>()
         readableDatabase.rawQuery(
-            "SELECT id, at, mmol, tag, note, source, carbs, insulin, insulin_kind, meds, exercise FROM readings WHERE at >= ? ORDER BY at ASC",
+            "SELECT id, at, mmol, tag, note, source, carbs, insulin, insulin_kind, meds, exercise, foods FROM readings WHERE at >= ? ORDER BY at ASC",
             arrayOf(since.toString()),
         ).use { c ->
             while (c.moveToNext()) {
@@ -146,8 +159,43 @@ class Db private constructor(context: Context) :
                     insulinKind = InsulinKind.fromKey(c.getString(8)),
                     meds = c.getInt(9) != 0,
                     exercise = if (c.isNull(10)) null else c.getInt(10),
+                    foods = Foods.unpack(c.getString(11)),
                 )
             }
+        }
+        out
+    }
+
+    // ---- Sensor points ----
+
+    /** Adds sensor points (one per minute; a repeat of a minute is ignored). Returns how many were new. */
+    suspend fun addSensor(points: List<SensorPoint>): Int = withContext(Dispatchers.IO) {
+        val db = writableDatabase
+        var added = 0
+        db.beginTransaction()
+        try {
+            for (p in points) {
+                val v = ContentValues().apply {
+                    put("minute", p.at / 60_000)
+                    put("at", p.at)
+                    put("mmol", p.mmol)
+                }
+                if (db.insertWithOnConflict("sensor", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1L) added++
+            }
+            // A month is plenty for trends and food curves.
+            db.delete("sensor", "at < ?", arrayOf((System.currentTimeMillis() - 31L * 86_400_000).toString()))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        added
+    }
+
+    /** Sensor points at or after [since], oldest first. */
+    suspend fun sensorSince(since: Long): List<SensorPoint> = withContext(Dispatchers.IO) {
+        val out = ArrayList<SensorPoint>()
+        readableDatabase.rawQuery("SELECT at, mmol FROM sensor WHERE at >= ? ORDER BY at ASC", arrayOf(since.toString())).use { c ->
+            while (c.moveToNext()) out += SensorPoint(c.getLong(0), c.getDouble(1))
         }
         out
     }

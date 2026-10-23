@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 16: the live sensor value can show as a Live Update chip in the status bar. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <!-- xDrip+ only sends its glucose broadcast to apps holding its permission. -->
+    <uses-permission android:name="com.eveningoutpost.dexdrip.permissions.RECEIVE_BG_ESTIMATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Check reminders fire at the exact minute. USE_EXACT_ALARM is granted on install (13+);
@@ -84,6 +88,17 @@
         <receiver
             android:name=".work.ReminderReceiver"
             android:exported="false" />
+
+        <!-- Sensor values from xDrip+ or Juggluco (their "xDrip+ broadcast" sent to app.dropi).
+             Exported so those apps can reach it; it takes one action and two numbers, checks
+             them, and ignores everything unless live mode is on. -->
+        <receiver
+            android:name=".work.CgmReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.eveningoutpost.dexdrip.BgEstimate" />
+            </intent-filter>
+        </receiver>
 
         <!-- Exported for the system's broadcasts only; it checks the action and ignores the rest. -->
         <receiver

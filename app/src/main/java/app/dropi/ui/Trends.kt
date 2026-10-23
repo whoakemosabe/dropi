@@ -106,24 +106,28 @@ fun TrendsPage(state: AppState) {
         report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
         item(key = "chart") { DailyChart(state, report, fmt) }
         if (insights.isNotEmpty()) {
-            item(key = "insights-label") { Text("INSIGHTS", style = SectionLabel, modifier = Modifier.padding(top = 4.dp, start = 4.dp)) }
-            insights.forEachIndexed { i, ins ->
-                item(key = "insight$i") {
-                    val (icon, tint) = when (ins.kind) {
-                        InsightKind.GOOD -> R.drawable.lc_check to C.InRange
-                        InsightKind.ATTENTION -> R.drawable.lc_circle_alert to C.High
-                        InsightKind.INFO -> R.drawable.lc_info to C.AccentText
-                    }
-                    Row(Modifier.fillMaxWidth().card(RoundedCornerShape(18.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(32.dp).clip(CircleShape).background(tint.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
-                            Ic(icon, tint, 16.dp)
+            item(key = "insights") {
+                // One card, read top to bottom: a coloured mark says good, worth a look, or just so.
+                Column(Modifier.fillMaxWidth().card().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text("What stands out", style = SectionLabel)
+                    insights.forEachIndexed { i, ins ->
+                        val tint = when (ins.kind) {
+                            InsightKind.GOOD -> C.InRange
+                            InsightKind.ATTENTION -> C.High
+                            InsightKind.INFO -> C.TextMuted
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Text(ins.text, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
+                        if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(C.Border.copy(alpha = 0.6f)))
+                        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                            Box(Modifier.padding(top = 4.dp).width(3.dp).height(14.dp).clip(RoundedCornerShape(2.dp)).background(tint))
+                            Spacer(Modifier.width(12.dp))
+                            Text(ins.text, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
+                        }
                     }
                 }
             }
         }
+        item(key = "ask") { AskEntry(state) }
+        item(key = "plate") { FoodsCard(state) }
         if (report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
         item(key = "table") { DailyTable(report, unit) }
         item(key = "pdf") {
@@ -161,10 +165,10 @@ fun TrendsPage(state: AppState) {
 private fun Headline(r: Report, unit: GlucoseUnit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(Modifier.weight(1.2f).card().padding(16.dp)) {
-            Text("AVERAGE", style = SectionLabel)
+            Text("Average", style = SectionLabel)
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = inter(40.sp, FontWeight.ExtraBold, C.Text, -0.02f).copy(fontFeatureSettings = ""))
+                Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(40.sp, C.Text))
                 Spacer(Modifier.width(4.dp))
                 Text(unit.label, style = inter(12.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
             }
@@ -175,10 +179,10 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
             Spacer(Modifier.height(6.dp))
             val g = r.gmiPercent
             if (g != null) {
-                Text(String.format(Locale.ROOT, "%.1f%%", g), style = inter(28.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""))
+                Text(String.format(Locale.ROOT, "%.1f%%", g), style = numeral(28.sp, C.Text))
                 Text("${r.gmiMmolMol?.roundToInt()} mmol/mol", style = inter(12.sp, FontWeight.Medium, C.TextSecondary))
             } else {
-                Text("—", style = inter(28.sp, FontWeight.ExtraBold, C.TextMuted))
+                Text("—", style = numeral(28.sp, C.TextMuted))
                 Text("Needs a week of readings", style = inter(12.sp, color = C.TextMuted))
             }
         }
@@ -194,9 +198,9 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
 @Composable
 private fun SmallStat(label: String, value: String, sub: String, modifier: Modifier) {
     Column(modifier.card(RoundedCornerShape(18.dp)).padding(14.dp)) {
-        Text(label.uppercase(), style = SectionLabel, maxLines = 1)
+        Text(label, style = SectionLabel, maxLines = 1)
         Spacer(Modifier.height(4.dp))
-        Text(value, style = inter(20.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""), maxLines = 1)
+        Text(value, style = numeral(20.sp, C.Text), maxLines = 1)
         Text(sub, style = inter(11.sp, color = C.TextMuted), maxLines = 1)
     }
 }
@@ -217,9 +221,9 @@ private fun RangeCard(b: Bands, unit: GlucoseUnit) {
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
-                Text("IN RANGE", style = SectionLabel)
+                Text("In range", style = SectionLabel)
                 Spacer(Modifier.height(4.dp))
-                Text("${b.inRange.roundToInt()}%", style = inter(34.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""))
+                Text("${b.inRange.roundToInt()}%", style = numeral(34.sp, C.Text))
             }
             Text("Goal: over 70%", style = inter(12.sp, FontWeight.Medium, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
         }
@@ -272,7 +276,7 @@ private fun DailyChart(state: AppState, r: Report, fmt: Fmt) {
     val dotColors = r.readings.map { C.status(Glucose.status(it.mmol, it.tag, state.targets)) }
 
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("EVERY READING", style = SectionLabel)
+        Text("Every reading", style = SectionLabel)
         Box(Modifier.fillMaxWidth().height(200.dp)) {
             val axisW = 30.dp
             Canvas(
@@ -346,7 +350,7 @@ private fun ByMoment(state: AppState, r: Report) {
     val unit = state.unit
     val maxV = maxOf(12.0, r.byTag.maxOf { it.average } + 1.0)
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("BY TIME OF DAY", style = SectionLabel)
+        Text("By time of day", style = SectionLabel)
         r.byTag.forEach { t ->
             val s = Glucose.status(t.average, t.tag, state.targets)
             Column {
@@ -383,7 +387,7 @@ private fun DailyTable(r: Report, unit: GlucoseUnit) {
     val df = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(8.dp)).tap { open = !open }, verticalAlignment = Alignment.CenterVertically) {
-            Text("DAILY AVERAGES", style = SectionLabel, modifier = Modifier.weight(1f))
+            Text("Daily averages", style = SectionLabel, modifier = Modifier.weight(1f))
             Text(if (open) "Hide" else "Show table", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
         }
         if (open) {

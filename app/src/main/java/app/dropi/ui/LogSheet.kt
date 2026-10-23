@@ -117,7 +117,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
     // Optional details, edited in their own window.
-    var details by remember { mutableStateOf(Details(initial.carbs, initial.insulin, initial.insulinKind, initial.meds, initial.exercise)) }
+    var details by remember { mutableStateOf(Details(initial.carbs, initial.insulin, initial.insulinKind, initial.meds, initial.exercise, initial.foods)) }
 
     // Scan the meter: the camera app takes a photo, the number is read on the phone.
     val scope = rememberCoroutineScope()
@@ -222,7 +222,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             ) {
                 Text(
                     text.ifEmpty { if (unit == GlucoseUnit.MMOL) "0.0" else "0" },
-                    style = inter(56.sp, FontWeight.ExtraBold, color, -0.03f).copy(fontFeatureSettings = ""),
+                    style = numeral(56.sp, color),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(unit.label, style = inter(15.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 14.dp))
@@ -301,7 +301,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     summary.isNotBlank() && note.isNotBlank() -> "$summary · note"
                     summary.isNotBlank() -> summary
                     note.isNotBlank() -> "Note added"
-                    else -> "Add carbs, insulin…"
+                    else -> "Add food, carbs…"
                 }
                 Pill(shown, R.drawable.lc_plus, "Details", Modifier.fillMaxHeight()) { detailsOpen = true }
             }
@@ -315,7 +315,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         }
 
         if (detailsOpen) {
-            DetailsDialog(details, note, onDismiss = { detailsOpen = false }) { d, n ->
+            DetailsDialog(details, note, state.recentFoods, onDismiss = { detailsOpen = false }) { d, n ->
                 details = d
                 note = n
                 detailsOpen = false
@@ -354,6 +354,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     carbs = details.carbs, insulin = details.insulin,
                     insulinKind = if (details.insulin != null) details.kind else null,
                     meds = details.meds, exercise = details.exercise,
+                    foods = details.foods,
                 )
             )
             close()
@@ -420,8 +421,8 @@ private fun Pill(text: String, icon: Int, label: String, modifier: Modifier = Mo
             Ic(icon, C.TextMuted, 12.dp)
             Spacer(Modifier.width(4.dp))
             Text(
-                label.uppercase(),
-                style = inter(10.sp, FontWeight.SemiBold, C.TextMuted, 0.08f),
+                label,
+                style = inter(11.sp, FontWeight.Medium, C.TextMuted),
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier.weight(1f),

@@ -60,14 +60,14 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
 
     StickySheetBody("Settings", close) {
 
-        Section("Units") {
+        SheetSection("Units") {
             SlidingSegments(listOf("mmol/L", "mg/dL"), if (unit == GlucoseUnit.MMOL) 0 else 1, Modifier.fillMaxWidth()) {
                 state.changeUnit(if (it == 0) GlucoseUnit.MMOL else GlucoseUnit.MGDL)
             }
-            Hint("Readings are always saved exactly, so switching never changes them.")
+            SheetHint("Readings are always saved exactly, so switching never changes them.")
         }
 
-        Section("Appearance") {
+        SheetSection("Appearance") {
             val themes = listOf("system", "dark", "light", "dracula")
             ChoiceGrid(
                 listOf(
@@ -90,12 +90,12 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                         state.changeHaptics(it)
                         Haptics.toggle(view, it)
                     },
-                    colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
+                    colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
                 )
             }
         }
 
-        Section("Check times") {
+        SheetSection("Check times") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("${plural(state.slots.count { it.enabled }, "check")} a day", style = inter(15.sp, FontWeight.SemiBold))
@@ -108,11 +108,27 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        Section("Health Connect") {
+        SheetSection("Health Connect") {
             HealthConnectRow(state)
         }
 
-        Section("Share with your care team") {
+        SheetSection("Live sensor") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Dexcom, Libre and other CGMs", style = inter(15.sp, FontWeight.SemiBold))
+                    Text(
+                        if (state.liveOn) "Live mode on" else "Live number, trend arrow and a heads-up before lows",
+                        style = inter(13.sp, color = C.TextSecondary),
+                    )
+                }
+                Chip(if (state.liveOn) "Open" else "Set up", icon = R.drawable.lc_activity) {
+                    state.settingsOpen = false
+                    state.liveOpen = true
+                }
+            }
+        }
+
+        SheetSection("Share with your care team") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("PDF report or CSV", style = inter(15.sp, FontWeight.SemiBold))
@@ -125,7 +141,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        Section("Your targets") {
+        SheetSection("Your targets") {
             val t = state.targets
             val step = 0.1
             TargetStepper("Fasting and before meals: from", v(t.beforeLow),
@@ -137,22 +153,22 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             TargetStepper("1–2 h after a meal: under", v(t.afterHigh),
                 { state.changeTargets(t.copy(afterHigh = t.afterHigh - step)) },
                 { state.changeTargets(t.copy(afterHigh = t.afterHigh + step)) })
-            Hint(
+            SheetHint(
                 if (t.isDefault) "American Diabetes Association targets for adults, in ${unit.label}. Set the ones your care team gave you."
                 else "Your own targets, in ${unit.label}. Colours, insights and reports follow them."
             )
             if (!t.isDefault) Chip("Reset to ADA targets") { state.changeTargets(app.dropi.data.Targets()) }
         }
 
-        Section("Fixed thresholds") {
+        SheetSection("Fixed thresholds") {
             TargetLine("Time in range", "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", C.InRange)
             TargetLine("Low", "under ${v(Glucose.LOW)}", C.Low)
             TargetLine("Urgent low", "under ${v(Glucose.URGENT_LOW)}", C.UrgentLow)
             TargetLine("Very high", "over ${v(Glucose.VERY_HIGH)}", C.VeryHigh)
-            Hint("International consensus values, the same for everyone so time in range compares with any clinic's.")
+            SheetHint("International consensus values, the same for everyone so time in range compares with any clinic's.")
         }
 
-        Section("Backup") {
+        SheetSection("Backup") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Back up or restore", style = inter(15.sp, FontWeight.SemiBold))
@@ -165,7 +181,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        Section("Updates") {
+        SheetSection("Updates") {
             val ui = UpdateWatch.ui
             val waiting = UpdateWatch.waitingVersion
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -192,9 +208,28 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                     }
                 }
             }
+            Chip("What's changed", icon = R.drawable.lc_history) {
+                state.settingsOpen = false
+                state.changelogOpen = true
+            }
         }
 
-        Section("About") {
+        SheetSection("On-device AI") {
+            androidx.compose.runtime.LaunchedEffect(Unit) { app.dropi.work.Nano.refresh() }
+            Text(
+                when (app.dropi.work.Nano.state) {
+                    app.dropi.work.Nano.State.READY -> "Gemini Nano is ready. Meal photos and typed questions work on this phone, with nothing uploaded."
+                    app.dropi.work.Nano.State.NEEDS_DOWNLOAD, app.dropi.work.Nano.State.DOWNLOADING ->
+                        "Gemini Nano is available. It downloads once, the first time you use a meal photo or ask a question."
+                    app.dropi.work.Nano.State.CHECKING -> "Checking…"
+                    app.dropi.work.Nano.State.UNAVAILABLE ->
+                        "This phone doesn't have Gemini Nano, so meal photos and typed questions are hidden. Everything else works."
+                },
+                style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+            )
+        }
+
+        SheetSection("About") {
             Text(
                 "Dropi keeps your readings on this phone only. It is a log, not a medical device: it doesn't diagnose or " +
                     "suggest doses. Always follow the plan you agreed with your care team.",
@@ -245,7 +280,7 @@ private fun HealthConnectRow(state: AppState) {
                     else try { ask.launch(app.dropi.work.HealthSync.PERMISSIONS) } catch (e: Exception) { state.healthNote = "Couldn't open Health Connect" }
                 }
             },
-            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
+            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
         )
     }
     if (!available && needsInstall) {
@@ -270,9 +305,9 @@ private fun openLink(context: android.content.Context, url: String) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+fun SheetSection(title: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title.uppercase(), style = SectionLabel)
+        Text(title, style = SectionLabel)
         content()
     }
 }
@@ -299,7 +334,7 @@ private fun TargetStepper(label: String, value: String, onMinus: () -> Unit, onP
 }
 
 @Composable
-private fun Hint(text: String) {
+fun SheetHint(text: String) {
     Spacer(Modifier.height(2.dp))
     Text(text, style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp))
 }

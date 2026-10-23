@@ -37,7 +37,7 @@ object Export {
 
     /** Readings as CSV (both units, so any clinic can read it). */
     fun csv(readings: List<Reading>, zone: ZoneId): String {
-        val sb = StringBuilder("date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,note\n")
+        val sb = StringBuilder("date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,foods,note\n")
         readings.sortedBy { it.at }.forEach { r ->
             val t = Instant.ofEpochMilli(r.at).atZone(zone)
             sb.append(t.toLocalDate()).append(',')
@@ -50,6 +50,7 @@ object Export {
                 .append(r.insulinKind?.label ?: "").append(',')
                 .append(if (r.meds) "yes" else "").append(',')
                 .append(r.exercise?.toString() ?: "").append(',')
+                .append(quote(r.foods.joinToString("; ") { app.dropi.data.Foods.display(it) })).append(',')
                 .append(quote(r.note)).append('\n')
         }
         return sb.toString()

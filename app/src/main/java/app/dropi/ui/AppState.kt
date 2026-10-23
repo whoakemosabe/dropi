@@ -17,7 +17,13 @@ import app.dropi.data.Slot
 import app.dropi.data.Status
 import app.dropi.data.Tagging
 import app.dropi.data.Targets
+import app.dropi.data.Ask
+import app.dropi.data.Foods
+import app.dropi.data.SensorPoint
 import app.dropi.work.HealthSync
+import app.dropi.work.LiveCgm
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import app.dropi.work.Reminders
 import app.dropi.work.UpdateWatch
 import kotlinx.coroutines.CoroutineScope
@@ -88,6 +94,29 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var exportOpen by mutableStateOf(false)
     var historyOpen by mutableStateOf(false)
     var backupOpen by mutableStateOf(false)
+    var liveOpen by mutableStateOf(false)
+    var askOpen by mutableStateOf(false)
+    var changelogOpen by mutableStateOf(false)
+    /** The food scores sheet, and the food opened in it (null: the list). */
+    var foodsOpen by mutableStateOf(false)
+    var foodOpen by mutableStateOf<String?>(null)
+
+    /** Any sheet over the page (the tab bar hides). */
+    val sheetOpen get() = editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
+        liveOpen || askOpen || changelogOpen || foodsOpen
+
+    // ---- Live sensor ----
+
+    /** Sensor points from the last month, oldest first. */
+    var sensor by mutableStateOf<List<SensorPoint>>(emptyList())
+        private set
+    var liveOn by mutableStateOf(prefs.liveOn)
+        private set
+    var liveNotify by mutableStateOf(prefs.liveNotify)
+        private set
+    var headsUpOn by mutableStateOf(prefs.headsUpOn)
+        private set
+    private var livePoll: Job? = null
 
     var lastCrash by mutableStateOf<String?>(null)
         private set
@@ -99,11 +128,18 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             reload()
             ready = true
         }
+        // New sensor values (from a broadcast or Health Connect) refresh the screen.
+        scope.launch { LiveCgm.ticks.collect { if (it > 0) reloadSensor() } }
+    }
+
+    private suspend fun reloadSensor() {
+        sensor = try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() }
     }
 
     private suspend fun reload() {
         val since = LocalDate.now(zone).minusDays(90).atStartOfDay(zone).toInstant().toEpochMilli()
         readings = try { db.since(since) } catch (e: Exception) { emptyList() }
+        reloadSensor()
         if (historyOpen) loadHistory()
     }
 
@@ -124,7 +160,50 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             try { UpdateWatch.check(context, background = false) } catch (e: Exception) { }
         }
         Reminders.rescheduleAsync(context)
+        startLivePoll()
     }
+
+    /** Leaving the app: stop the once-a-minute Health Connect look. */
+    fun onLeave() {
+        livePoll?.cancel()
+        livePoll = null
+    }
+
+    /** While the app is open in live mode, Health Connect is checked every minute for new sensor values. */
+    private fun startLivePoll() {
+        livePoll?.cancel()
+        if (!liveOn || !healthSync) return
+        livePoll = scope.launch {
+            while (true) {
+                delay(60_000)
+                try { HealthSync.pull(context, days = 1) } catch (e: Exception) { }
+            }
+        }
+    }
+
+    fun changeLive(on: Boolean) {
+        liveOn = on
+        prefs.liveOn = on
+        if (!on) LiveCgm.cancelLive(context)
+        else scope.launch { try { LiveCgm.changed(context) } catch (e: Exception) { } }
+        startLivePoll()
+    }
+
+    fun changeLiveNotify(on: Boolean) {
+        liveNotify = on
+        prefs.liveNotify = on
+        if (!on) LiveCgm.cancelLive(context) else scope.launch { try { LiveCgm.changed(context) } catch (e: Exception) { } }
+    }
+
+    fun changeHeadsUp(on: Boolean) {
+        headsUpOn = on
+        prefs.headsUpOn = on
+    }
+
+    /** The foods logged most often, for one-tap picking in Details. */
+    val recentFoods: List<String> get() = Foods.recent(readings)
+
+    fun askCtx() = Ask.Ctx(readings, sensor, unit, targets, LocalDate.now(zone), zone)
 
     fun status(r: Reading): Status = Glucose.status(r.mmol, r.tag, targets)
 

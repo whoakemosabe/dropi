@@ -100,8 +100,8 @@ fun Chip(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
     ) {
-        if (icon != null) Ic(icon, if (selected) Color.White else C.TextMuted, 14.dp)
-        Text(text, style = inter(13.sp, FontWeight.SemiBold, if (selected) Color.White else C.TextSecondary), maxLines = 1)
+        if (icon != null) Ic(icon, if (selected) C.OnAccent else C.TextMuted, 14.dp)
+        Text(text, style = inter(13.sp, FontWeight.SemiBold, if (selected) C.OnAccent else C.TextSecondary), maxLines = 1)
     }
 }
 
@@ -129,7 +129,7 @@ fun PrimaryButton(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val fg = if (enabled) Color.White else C.TextMuted
+        val fg = if (enabled) C.OnAccent else C.TextMuted
         if (icon != null) {
             Ic(icon, fg, 18.dp)
             Spacer(Modifier.width(8.dp))
@@ -196,7 +196,7 @@ fun SlidingSegments(
         Row(Modifier.fillMaxWidth().height(height - 6.dp)) {
             options.forEachIndexed { i, label ->
                 val closeness = (1f - kotlin.math.abs(pos - i)).coerceIn(0f, 1f)
-                val color = lerp(C.TextMuted, Color.White, closeness)
+                val color = lerp(C.TextMuted, C.OnAccent, closeness)
                 Box(
                     Modifier
                         .weight(1f)
@@ -218,7 +218,7 @@ fun SlidingSegments(
 @Composable
 fun SheetTitle(title: String, close: () -> Unit, trailing: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = inter(20.sp, FontWeight.ExtraBold), modifier = Modifier.weight(1f))
+        Text(title, style = heading(20.sp), modifier = Modifier.weight(1f))
         trailing()
         Spacer(Modifier.width(8.dp))
         Box(
@@ -262,7 +262,7 @@ fun ChoiceGrid(
 private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val press = rememberPress()
     val shape = RoundedCornerShape(16.dp)
-    val fg = if (selected) Color.White else C.TextSecondary
+    val fg = if (selected) C.OnAccent else C.TextSecondary
     Column(
         modifier
             .heightIn(min = if (compact) 48.dp else 64.dp)
@@ -280,7 +280,7 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
         verticalArrangement = Arrangement.Center,
     ) {
         if (c.icon != null && !compact) {
-            Ic(c.icon, if (selected) Color.White else C.TextMuted, 18.dp)
+            Ic(c.icon, if (selected) C.OnAccent else C.TextMuted, 18.dp)
             Spacer(Modifier.height(4.dp))
         }
         Text(

@@ -109,6 +109,31 @@ class Prefs(context: Context) {
         get() = p.getStringSet("ignored_sources", emptySet()) ?: emptySet()
         set(v) = p.edit { putStringSet("ignored_sources", v.toSortedSet().toList().takeLast(2000).toSet()) }
 
+    // ---- Live sensor (CGM) ----
+
+    /** Live mode: sensor values from xDrip+, Juggluco or Health Connect drive the home screen. */
+    var liveOn: Boolean
+        get() = p.getBoolean("live_on", false)
+        set(v) = p.edit { putBoolean("live_on", v) }
+
+    /** The ongoing notification with the latest value and arrow (a Live Update on Android 16). */
+    var liveNotify: Boolean
+        get() = p.getBoolean("live_notify", true)
+        set(v) = p.edit { putBoolean("live_notify", v) }
+
+    /** A heads-up when the sensor trend points under 3.9 within 20 minutes. */
+    var headsUpOn: Boolean
+        get() = p.getBoolean("heads_up_on", true)
+        set(v) = p.edit { putBoolean("heads_up_on", v) }
+
+    var lastHeadsAt: Long
+        get() = p.getLong("last_heads_at", 0L)
+        set(v) = p.edit { putLong("last_heads_at", v) }
+
+    var lastHeadsKind: String
+        get() = p.getString("last_heads_kind", "") ?: ""
+        set(v) = p.edit { putString("last_heads_kind", v) }
+
     // ---- Updates (same keys and meaning as F1 Pro) ----
 
     /** The newest version GitHub has, when it's newer than this one; "" when up to date. */

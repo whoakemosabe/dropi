@@ -192,7 +192,7 @@ private fun ToggleRow(title: String, sub: String, on: Boolean, onChange: (Boolea
         Switch(
             checked = on,
             onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
+            colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
         )
     }
 }
@@ -205,13 +205,13 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).tap(onClick = onTime)) {
-                Text(time, style = inter(26.sp, FontWeight.ExtraBold, if (s.enabled) C.Text else C.TextMuted))
+                Text(time, style = numeral(26.sp, if (s.enabled) C.Text else C.TextMuted))
                 Text(s.name, style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
             }
             Switch(
                 checked = s.enabled,
                 onCheckedChange = { onChange(s.copy(enabled = it)) },
-                colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
+                colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
             )
             Box(
                 Modifier.size(44.dp).clip(CircleShape).tap(onClick = onDelete),
@@ -242,7 +242,7 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("Check time", style = inter(20.sp, FontWeight.ExtraBold))
+            Text("Check time", style = heading(20.sp))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TimePicker(
                     state = st,
@@ -252,7 +252,7 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
                         timeSelectorSelectedContainerColor = C.Accent.copy(alpha = 0.22f),
                         timeSelectorUnselectedContainerColor = C.SurfaceLight,
                         periodSelectorSelectedContainerColor = C.Accent.copy(alpha = 0.22f),
-                        clockDialSelectedContentColor = Color.White,
+                        clockDialSelectedContentColor = C.OnAccent,
                     ),
                 )
             }

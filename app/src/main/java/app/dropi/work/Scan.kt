@@ -20,13 +20,18 @@ import kotlin.coroutines.resume
  */
 object Scan {
     /** Where the camera app saves the photo, shared with it through our FileProvider. */
-    fun photoUri(context: Context): Uri {
+    fun photoUri(context: Context, name: String = "meter.jpg"): Uri {
         val dir = File(context.cacheDir, "scans").apply { mkdirs() }
-        val f = File(dir, "meter.jpg").apply { delete() }
+        val f = File(dir, name).apply { delete() }
         return FileProvider.getUriForFile(context, "${context.packageName}.files", f)
     }
 
     private fun photoFile(context: Context) = File(File(context.cacheDir, "scans"), "meter.jpg")
+
+    /** Deletes a meal photo once Gemini Nano has looked at it. */
+    fun forgetPlate(context: Context) {
+        try { File(File(context.cacheDir, "scans"), "plate.jpg").delete() } catch (e: Exception) { }
+    }
 
     /** The reading in mmol/L, or null if no plausible number was found. */
     suspend fun read(context: Context, uri: Uri, unit: GlucoseUnit): Double? = withContext(Dispatchers.Default) {

@@ -65,8 +65,10 @@ data class Details(
     val kind: InsulinKind? = null,
     val meds: Boolean = false,
     val exercise: Int? = null,
+    val foods: List<String> = emptyList(),
 ) {
     fun summary(): String = listOfNotNull(
+        foods.takeIf { it.isNotEmpty() }?.let { f -> if (f.size <= 2) f.joinToString(", ") { app.dropi.data.Foods.display(it) } else "${f.size} foods" },
         carbs?.let { "$it g" },
         insulin?.let { "${fmt(it)} u" },
         if (meds) "Tablets" else null,
@@ -83,7 +85,13 @@ data class Details(
  * nothing to type except the note. The window scrolls only if the keyboard is up for the note.
  */
 @Composable
-fun DetailsDialog(initial: Details, initialNote: String, onDismiss: () -> Unit, onSave: (Details, String) -> Unit) {
+fun DetailsDialog(
+    initial: Details,
+    initialNote: String,
+    recentFoods: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (Details, String) -> Unit,
+) {
     val view = LocalView.current
     var d by remember { mutableStateOf(initial) }
     var note by remember { mutableStateOf(initialNote) }
@@ -100,10 +108,18 @@ fun DetailsDialog(initial: Details, initialNote: String, onDismiss: () -> Unit, 
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("Details", style = inter(20.sp, FontWeight.ExtraBold))
+            Text("Details", style = heading(20.sp))
             Text(
-                "All optional. They make your insights smarter, like how big meals affect you.",
+                "All optional. Foods and carbs teach Dropi how meals affect you.",
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
+            )
+
+            FoodPicker(
+                d.foods, recentFoods,
+                onChange = { d = d.copy(foods = it) },
+                onGuess = { g ->
+                    d = d.copy(foods = (d.foods + g.foods).distinct().take(12), carbs = g.carbs ?: d.carbs)
+                },
             )
 
             Stepper("Carbs", d.carbs?.let { "$it g" }, R.drawable.lc_utensils,
@@ -134,7 +150,7 @@ fun DetailsDialog(initial: Details, initialNote: String, onDismiss: () -> Unit, 
                 Switch(
                     checked = d.meds,
                     onCheckedChange = { Haptics.toggle(view, it); d = d.copy(meds = it) },
-                    colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = Color.White),
+                    colors = SwitchDefaults.colors(checkedTrackColor = C.Accent, checkedThumbColor = C.OnAccent),
                 )
             }
 
@@ -145,7 +161,7 @@ fun DetailsDialog(initial: Details, initialNote: String, onDismiss: () -> Unit, 
                     .background(C.SurfaceLight)
                     .padding(horizontal = 14.dp, vertical = 14.dp),
             ) {
-                if (note.isEmpty()) Text("Note: what you ate, how you feel…", style = inter(14.sp, color = C.TextMuted))
+                if (note.isEmpty()) Text("Note: how you feel, anything unusual…", style = inter(14.sp, color = C.TextMuted))
                 BasicTextField(
                     value = note,
                     onValueChange = { note = it.take(200) },

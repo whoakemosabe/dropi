@@ -74,6 +74,7 @@ import app.dropi.work.UpdateWatch
 fun DropiRoot(state: AppState) {
     // Coming back to the app: reload (the day may have changed) and look for updates.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { state.onOpen() }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { state.onLeave() }
 
     Box(Modifier.fillMaxSize().background(C.Bg)) {
         if (!state.ready) return@Box
@@ -112,8 +113,7 @@ fun DropiRoot(state: AppState) {
 
         // The tab bar floats over the page, above the navigation bar, with the big + in the middle.
         AnimatedVisibility(
-            visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen && !state.exportOpen &&
-                !state.historyOpen && !state.backupOpen,
+            visible = !state.sheetOpen,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(120)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -162,6 +162,10 @@ fun DropiRoot(state: AppState) {
         ExportSheet(state)
         BackupSheet(state)
         HistorySheet(state)
+        LiveSheet(state)
+        FoodsSheet(state)
+        AskSheet(state)
+        ChangelogSheet(state)
         LogSheetHost(state)
 
         // After saving a low or very high reading: what to do now.
@@ -178,6 +182,10 @@ fun DropiRoot(state: AppState) {
                 state.scheduleOpen = false
                 state.exportOpen = false
                 state.backupOpen = false
+                state.liveOpen = false
+                state.askOpen = false
+                state.foodsOpen = false
+                state.changelogOpen = false
                 state.startNew(if (want == "new") null else MealTag.fromKey(want))
             }
         }
@@ -234,10 +242,10 @@ private fun TopBar(state: AppState) {
         Box(
             Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(C.Accent),
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_droplet, Color.White, 18.dp) }
+        ) { Ic(R.drawable.lc_droplet, C.OnAccent, 18.dp) }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, style = inter(24.sp, FontWeight.ExtraBold, C.Text, -0.02f).copy(fontFeatureSettings = ""))
+            Text(title, style = heading(26.sp))
             Text(sub, style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
         }
         val press = rememberPress()
@@ -307,7 +315,7 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 .background(Brush.linearGradient(listOf(C.Accent, C.AccentGlow)))
                 .tap(plus) { state.startNew() },
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_plus, Color.White, 32.dp, contentDescription = "Log reading") }
+        ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = "Log reading") }
     }
 }
 

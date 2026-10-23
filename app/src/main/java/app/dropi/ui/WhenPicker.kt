@@ -71,7 +71,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
                 .padding(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("When did you take it?", style = inter(20.sp, FontWeight.ExtraBold), modifier = Modifier.padding(horizontal = 20.dp))
+            Text("When did you take it?", style = heading(20.sp), modifier = Modifier.padding(horizontal = 20.dp))
             // Today and the seven days before, as a 4 × 2 grid.
             val days = (0..7).map { today.minusDays(it.toLong()) }
             ChoiceGrid(
@@ -98,7 +98,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
                         timeSelectorSelectedContainerColor = C.Accent.copy(alpha = 0.22f),
                         timeSelectorUnselectedContainerColor = C.SurfaceLight,
                         periodSelectorSelectedContainerColor = C.Accent.copy(alpha = 0.22f),
-                        clockDialSelectedContentColor = Color.White,
+                        clockDialSelectedContentColor = C.OnAccent,
                     ),
                 )
             }

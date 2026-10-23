@@ -87,6 +87,9 @@ dependencies {
     implementation("androidx.health.connect:connect-client:1.1.0")
     // On-device text recognition for Scan meter, through Google Play services (small APK).
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    // Gemini Nano on the phone (meal photos, Ask Dropi); does nothing on phones without AICore.
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     testImplementation("junit:junit:4.13.2")

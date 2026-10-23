@@ -68,6 +68,34 @@ object Updater {
         return out.take(10)
     }
 
+    /** One release in the change log. [date] is "2026-10-23". */
+    data class Logged(val version: String, val date: String, val notes: List<String>)
+
+    /** Every published release, newest first, with its highlights. */
+    fun changelog(releasesJson: String): List<Logged> {
+        val arr = org.json.JSONArray(releasesJson)
+        val out = ArrayList<Logged>()
+        for (i in 0 until arr.length()) {
+            val r = arr.getJSONObject(i)
+            if (r.optBoolean("draft") || r.optBoolean("prerelease")) continue
+            val notes = whatsNew(r.optString("body")).ifEmpty { listOf("Fixes and improvements") }
+            out += Logged(r.optString("tag_name").removePrefix("v"), r.optString("published_at").take(10), notes)
+        }
+        return out.sortedWith { a, b -> if (isNewer(a.version, b.version)) -1 else if (isNewer(b.version, a.version)) 1 else 0 }
+    }
+
+    /** The change log from GitHub, or null when it can't be reached. */
+    suspend fun fetchChangelog(): List<Logged>? = withContext(Dispatchers.IO) {
+        try {
+            val r = open("https://api.github.com/repos/$REPO/releases?per_page=50", "application/vnd.github+json")
+            val body = if (r.responseCode in 200..299) r.inputStream.bufferedReader().use { it.readText() } else null
+            r.disconnect()
+            body?.let { changelog(it) }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /** How many published releases are newer than [installed] (capped by what the page holds). */
     fun countSince(releasesJson: String, installed: String): Int {
         val arr = org.json.JSONArray(releasesJson)

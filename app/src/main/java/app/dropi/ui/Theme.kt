@@ -19,8 +19,9 @@ import app.dropi.R
 import app.dropi.data.Status
 
 /**
- * Dropi's palette: calm ink and paper neutrals with a periwinkle brand colour, so it suits
- * anyone, plus Dracula: near-black, blood red and a purple glow. Range colours carry the meaning
+ * Dropi's palette: ink and paper neutrals, and the brand itself is just ink (paper-white on the
+ * dark theme), so colour belongs to the numbers: the range colours are the only hues on screen.
+ * Plus Dracula: near-black, blood red and a purple glow. Range colours carry the meaning
  * (pink-red low, teal in range, amber high; violet in range under Dracula, so it never blurs
  * into the reds) and every text colour clears 4.5:1 on cards. [dark] and [dracula] are Compose
  * state, so screens redraw when the theme changes.
@@ -39,12 +40,13 @@ object C {
     val Border get() = pick(0xFF2A2F3D, 0xFFD8DBE5, 0xFF3D1621)
     val GlassBorder get() = pick(0x14FFFFFF, 0x1411131A, 0x2EFF2D55)
 
-    /** Brand fill (buttons, the + button, selected tiles): white text sits on it. */
-    val Accent get() = pick(0xFF4F5BEA, 0xFF4F5BEA, 0xFFA3001B)
-    val AccentGlow get() = pick(0xFF7A86FF, 0xFF7A86FF, 0xFF6A1B9A)
+    /** Brand fill (buttons, the + button, selected tiles); [OnAccent] sits on it. */
+    val Accent get() = pick(0xFFE9ECF2, 0xFF15171D, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFFFFFFFF, 0xFF30343E, 0xFF6A1B9A)
+    val OnAccent get() = pick(0xFF0D0F14, 0xFFFFFFFF, 0xFFFFFFFF)
 
     /** Brand colour as text or a thin icon. */
-    val AccentText get() = pick(0xFF9AA5FF, 0xFF3B47C9, 0xFFFF5C7A)
+    val AccentText get() = pick(0xFFF3F4F8, 0xFF11131A, 0xFFFF5C7A)
 
     val Text get() = pick(0xFFF3F4F8, 0xFF11131A, 0xFFF6E9EC)
     val TextSecondary get() = pick(0xFFA6ACBD, 0xFF474D5E, 0xFFCDA6B0)
@@ -77,6 +79,26 @@ val Inter = FontFamily(
     Font(R.font.inter_extrabold, FontWeight.ExtraBold),
 )
 
+/**
+ * Bricolage Grotesque for the numbers and titles that carry the personality (its ink traps show
+ * at size), Inter for everything you read. Three static cuts of the variable font: display
+ * (big numbers), title and label.
+ */
+val BricolageDisplay = FontFamily(Font(R.font.bricolage_display, FontWeight.ExtraBold))
+val BricolageTitle = FontFamily(Font(R.font.bricolage_title, FontWeight.Bold))
+val BricolageLabel = FontFamily(Font(R.font.bricolage_label, FontWeight.SemiBold))
+
+/** A big number: Bricolage display, tight, tabular so live values don't jiggle. */
+fun numeral(size: TextUnit, color: Color = C.Text) = TextStyle(
+    fontFamily = BricolageDisplay, fontSize = size, fontWeight = FontWeight.ExtraBold, color = color,
+    letterSpacing = (-0.02).em, fontFeatureSettings = "tnum",
+)
+
+/** A heading in Bricolage. */
+fun heading(size: TextUnit, color: Color = C.Text) = TextStyle(
+    fontFamily = BricolageTitle, fontSize = size, fontWeight = FontWeight.Bold, color = color, letterSpacing = (-0.01).em,
+)
+
 /** Inter with tabular figures, so numbers don't jiggle as they change. Tracking is in em. */
 fun inter(size: TextUnit, weight: FontWeight = FontWeight.Normal, color: Color = C.Text, tracking: Float = 0f) =
     TextStyle(
@@ -84,15 +106,17 @@ fun inter(size: TextUnit, weight: FontWeight = FontWeight.Normal, color: Color =
         fontFeatureSettings = "tnum",
     )
 
-/** Small uppercase section label. */
-val SectionLabel: TextStyle get() = inter(11.sp, FontWeight.SemiBold, C.TextMuted, 0.1f)
+/** A section's name: sentence case in Bricolage, not shouted. */
+val SectionLabel: TextStyle get() = TextStyle(
+    fontFamily = BricolageLabel, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = C.TextSecondary,
+)
 
 @Composable
 fun DropiTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = (if (C.dark) darkColorScheme() else lightColorScheme()).copy(
             primary = C.Accent,
-            onPrimary = Color.White,
+            onPrimary = C.OnAccent,
             background = C.Bg,
             surface = C.Card,
             onSurface = C.Text,

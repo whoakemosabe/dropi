@@ -39,8 +39,8 @@ class ScanExportTest {
         val at = LocalDateTime.of(2026, 10, 23, 7, 30).atZone(zone).toInstant().toEpochMilli()
         val csv = Export.csv(listOf(Reading(1, at, 5.5, MealTag.FASTING, "toast, jam", carbs = 45, insulin = 4.5, insulinKind = app.dropi.data.InsulinKind.RAPID)), zone)
         assertEquals(
-            "date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,note\n" +
-                "2026-10-23,07:30,5.5,99,Fasting,45,4.5,Rapid,,,\"toast, jam\"\n",
+            "date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,foods,note\n" +
+                "2026-10-23,07:30,5.5,99,Fasting,45,4.5,Rapid,,,,\"toast, jam\"\n",
             csv,
         )
         assertEquals("'=SUM(A1)", Export.quote("=SUM(A1)"))

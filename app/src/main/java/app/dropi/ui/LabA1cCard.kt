@@ -72,7 +72,7 @@ fun LabA1cCard(state: AppState, report: Report) {
         } else {
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
-                    Text(pct(last.percent), style = inter(28.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""))
+                    Text(pct(last.percent), style = numeral(28.sp, C.Text))
                     Text("${last.mmolMol.roundToInt()} mmol/mol · ${df.format(last.date)}", style = inter(12.sp, color = C.TextSecondary))
                 }
                 report.gmiPercent?.let { g ->
@@ -142,7 +142,7 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                 .padding(vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Lab A1C result", style = inter(20.sp, FontWeight.ExtraBold), modifier = Modifier.padding(horizontal = 20.dp))
+            Text("Lab A1C result", style = heading(20.sp), modifier = Modifier.padding(horizontal = 20.dp))
             Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SlidingSegments(listOf("%", "mmol/mol"), unit, Modifier.fillMaxWidth()) { unit = it }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,7 +152,7 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                     }
                     Text(
                         if (unit == 0) pct(percent) else "${A1c.toMmolMol(percent).roundToInt()} mmol/mol",
-                        style = inter(30.sp, FontWeight.ExtraBold, C.Text).copy(fontFeatureSettings = ""),
+                        style = numeral(30.sp, C.Text),
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )

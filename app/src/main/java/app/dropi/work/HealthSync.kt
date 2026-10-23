@@ -107,6 +107,7 @@ object HealthSync {
         val have = db.sources() + p.ignoredSources
         val existing = db.since(now.toEpochMilli() - days * DAY)
         var added = 0
+        val sensor = ArrayList<app.dropi.data.SensorPoint>()
         var pageToken: String? = null
         var pages = 0
         do {
@@ -120,6 +121,11 @@ object HealthSync {
                 val at = rec.time.toEpochMilli()
                 val mmol = rec.level.inMillimolesPerLiter
                 if (mmol < 0.5 || mmol > 40) continue
+                // A CGM's values (from under the skin) are sensor points, not log entries.
+                if (rec.specimenSource == BloodGlucoseRecord.SPECIMEN_SOURCE_INTERSTITIAL_FLUID) {
+                    if (now.toEpochMilli() - at <= 31 * DAY) sensor += app.dropi.data.SensorPoint(at, mmol.coerceIn(Glucose.MIN_MMOL, Glucose.MAX_MMOL))
+                    continue
+                }
                 // The same reading typed in Dropi too (same minute, same value): don't double it.
                 if (existing.any { kotlin.math.abs(it.at - at) < 60_000 && kotlin.math.abs(it.mmol - mmol) < 0.05 }) continue
                 val tag = when (rec.relationToMeal) {
@@ -133,7 +139,8 @@ object HealthSync {
             }
             pageToken = res.pageToken
             pages++
-        } while (pageToken != null && pages < 20)
+        } while (pageToken != null && pages < 40)
+        if (sensor.isNotEmpty() && db.addSensor(sensor) > 0) LiveCgm.changed(context)
         p.lastHealthSync = System.currentTimeMillis()
         return added
     }

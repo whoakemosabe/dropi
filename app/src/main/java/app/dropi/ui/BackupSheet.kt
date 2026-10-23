@@ -91,7 +91,7 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
                 "Save it to Drive or Files and you can restore it on a new phone.",
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
-        Text("BACK UP", style = SectionLabel, modifier = Modifier.padding(top = 4.dp))
+        Text("Back up", style = SectionLabel, modifier = Modifier.padding(top = 4.dp))
         PasswordField(pass, "Password (6 characters or more)") { pass = it }
         PasswordField(pass2, "The same password again") { pass2 = it }
         if (pass2.isNotEmpty() && pass != pass2) Text("The passwords don't match.", style = inter(12.sp, FontWeight.Medium, C.High))
@@ -99,7 +99,7 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
             create.launch("dropi-backup-${LocalDate.now(state.zone)}.dropi")
         }
 
-        Text("RESTORE", style = SectionLabel, modifier = Modifier.padding(top = 12.dp))
+        Text("Restore", style = SectionLabel, modifier = Modifier.padding(top = 12.dp))
         if (restoreUri == null) {
             GhostButton("Choose a backup file", Modifier.fillMaxWidth(), color = C.AccentText) {
                 try { open.launch(arrayOf("*/*")) } catch (e: Exception) { note = "No file picker found." }

@@ -44,12 +44,15 @@ data class Reading(
     val insulinKind: InsulinKind? = null,
     val meds: Boolean = false,
     val exercise: Int? = null,
+    /** What was eaten with this reading ("porridge", "banana"), lower case; for food scores. */
+    val foods: List<String> = emptyList(),
 ) {
     val imported get() = source.isNotEmpty()
-    val hasDetails get() = carbs != null || insulin != null || meds || exercise != null
+    val hasDetails get() = carbs != null || insulin != null || meds || exercise != null || foods.isNotEmpty()
 
     /** "45 g carbs · 4 u rapid · tablets · 30 min exercise", or "" with none. */
     fun detailsText(): String = listOfNotNull(
+        foods.takeIf { it.isNotEmpty() }?.joinToString(", ") { Foods.display(it) },
         carbs?.let { "$it g carbs" },
         insulin?.let { u -> "${trim(u)} u" + (insulinKind?.let { " ${it.label.lowercase()}" } ?: "") },
         if (meds) "tablets" else null,

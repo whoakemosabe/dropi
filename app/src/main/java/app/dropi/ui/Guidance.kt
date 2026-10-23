@@ -75,8 +75,8 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                 ) { Ic(if (low) R.drawable.lc_circle_alert else R.drawable.lc_heart_pulse, c, 20.dp) }
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text(status.label.uppercase(), style = inter(11.sp, FontWeight.Bold, C.TextSecondary, 0.12f))
-                    Text(value, style = inter(24.sp, FontWeight.ExtraBold, C.Text))
+                    Text(status.label, style = SectionLabel)
+                    Text(value, style = numeral(26.sp))
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
