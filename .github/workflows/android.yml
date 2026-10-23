@@ -59,8 +59,8 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
-          # Tests run against the release build, so the app compiles once instead of twice.
-          ./gradlew testReleaseUnitTest assembleRelease --build-cache --parallel 2>&1 | tee build.log
+          # Tests and the release build in one run; the debug and release compiles run side by side.
+          ./gradlew testDebugUnitTest assembleRelease --build-cache --parallel 2>&1 | tee build.log
 
       # GitHub keeps 10 error annotations per step, so compile errors are reported in batches.
       - name: Report errors (1-10)
