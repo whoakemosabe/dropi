@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
@@ -60,7 +61,10 @@ object Widgets {
     }
 }
 
-/** Widget colours for the app's theme setting; "system" follows the phone's day/night. */
+/**
+ * Widget colours for the app's theme setting; "system" follows the phone's day/night. Solid
+ * (no see-through) so the wallpaper never sits behind the numbers.
+ */
 private class Pal(context: Context) {
     private val theme = Prefs(context).theme
 
@@ -71,12 +75,13 @@ private class Pal(context: Context) {
         else -> androidx.glance.color.ColorProvider(day = Color(light), night = Color(dark))
     }
 
-    val bg = cp(0xF20E121C, 0xF5FFFFFF, 0xF2170A0E)
-    val text = cp(0xFFEEF3FF, 0xFF0E1638, 0xFFF6E9EC)
-    val text2 = cp(0xFFC9D3F0, 0xFF3C4670, 0xFFCDA6B0)
-    val muted = cp(0xFF8B95B2, 0xFF5A6488, 0xFFA57E8A)
-    val accent = cp(0xFF7CF5C4, 0xFF4B3BD6, 0xFFFF5C7A)
-    val brand = cp(0xFF6E5BFF, 0xFF5B47F0, 0xFFA3001B)
+    val bg = cp(0xFF1A1C23, 0xFFFFFFFF, 0xFF170A0E)
+    val surface = cp(0xFF262932, 0xFFE9EEFB, 0xFF261018)
+    val text = cp(0xFFF2F3F5, 0xFF0E1638, 0xFFF6E9EC)
+    val text2 = cp(0xFFC4C7CF, 0xFF3C4670, 0xFFCDA6B0)
+    val muted = cp(0xFF9296A1, 0xFF5A6488, 0xFFA57E8A)
+    val accent = cp(0xFFB3A5FF, 0xFF4B3BD6, 0xFFFF5C7A)
+    val brand = cp(0xFF6347F0, 0xFF5B47F0, 0xFFA3001B)
     val white = ColorProvider(Color.White)
 
     fun status(s: Status): ColorProvider = when (s) {
@@ -118,14 +123,25 @@ private class Data(
     }
 }
 
-/** The latest reading in its range colour, the next planned check, and a + to log. */
+/**
+ * The latest reading, big and in plain text colour, with its range as a coloured bar and a word;
+ * the next check; and buttons to log a reading or snap a meal. Three layouts by size, so
+ * nothing is squeezed: a slim row, a square, and a wide card.
+ */
 class ReadingWidget : GlanceAppWidget() {
-    override val sizeMode: SizeMode = SizeMode.Exact
+    override val sizeMode: SizeMode = SizeMode.Responsive(setOf(SLIM, SQUARE, TALL, WIDE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = withContext(Dispatchers.IO) { Data.load(context) }
         val pal = Pal(context)
         provideContent { Content(context, data, pal) }
+    }
+
+    companion object {
+        val SLIM = DpSize(180.dp, 56.dp)
+        val SQUARE = DpSize(130.dp, 120.dp)
+        val TALL = DpSize(130.dp, 180.dp)
+        val WIDE = DpSize(250.dp, 110.dp)
     }
 }
 
@@ -136,19 +152,14 @@ class ReadingWidgetReceiver : GlanceAppWidgetReceiver() {
 private fun style(color: ColorProvider, size: Int, weight: FontWeight = FontWeight.Normal) =
     TextStyle(color = color, fontSize = size.sp, fontWeight = weight)
 
+private fun intent(context: Context, extra: String, value: String) = Intent(context, MainActivity::class.java)
+    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    .putExtra(extra, value)
+
 @Composable
 private fun Content(context: Context, d: Data, p: Pal) {
-    val wide = LocalSize.current.width >= 220.dp
+    val size = LocalSize.current
     val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-    val log = Intent(context, MainActivity::class.java)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        .putExtra(Alerts.EXTRA_LOG_TAG, "new")
-    val snap = Intent(context, MainActivity::class.java)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        .putExtra(Alerts.EXTRA_OPEN_MEAL, "camera")
-    val r = d.latest
-    val status = r?.let { Glucose.status(it.mmol, it.tag, d.targets) }
-
     Box(
         GlanceModifier
             .fillMaxSize()
@@ -157,68 +168,112 @@ private fun Content(context: Context, d: Data, p: Pal) {
             .clickable(actionStartActivity(open))
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Column(GlanceModifier.fillMaxSize()) {
-            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    ImageProvider(R.drawable.ic_stat_drop),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(p.accent),
-                    modifier = GlanceModifier.size(14.dp),
-                )
-                Spacer(GlanceModifier.width(6.dp))
-                Text("DROPI", style = style(p.muted, 11, FontWeight.Bold), modifier = GlanceModifier.defaultWeight())
-                // A photo of the meal, one tap from the home screen.
-                Box(
-                    GlanceModifier
-                        .size(32.dp)
-                        .cornerRadius(16.dp)
-                        .background(p.brand)
-                        .clickable(actionStartActivity(snap)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        ImageProvider(R.drawable.lc_camera),
-                        contentDescription = "Snap a meal",
-                        colorFilter = ColorFilter.tint(p.white),
-                        modifier = GlanceModifier.size(17.dp),
-                    )
-                }
-                Spacer(GlanceModifier.width(8.dp))
-                Box(
-                    GlanceModifier
-                        .size(32.dp)
-                        .cornerRadius(16.dp)
-                        .background(p.brand)
-                        .clickable(actionStartActivity(log)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        ImageProvider(R.drawable.lc_plus),
-                        contentDescription = "Log reading",
-                        colorFilter = ColorFilter.tint(p.white),
-                        modifier = GlanceModifier.size(18.dp),
-                    )
-                }
-            }
-            Spacer(GlanceModifier.defaultWeight())
-            if (r == null || status == null) {
-                Text("No readings yet", style = style(p.text, 15, FontWeight.Bold))
-                Text("Tap + to log one", style = style(p.text2, 12))
-            } else {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(Glucose.format(r.mmol, d.unit), style = style(p.status(status), if (wide) 40 else 34, FontWeight.Bold))
-                    Spacer(GlanceModifier.width(4.dp))
-                    Text(d.unit.label, style = style(p.muted, 11, FontWeight.Medium), modifier = GlanceModifier.padding(bottom = 6.dp))
-                }
-                Text("${status.label} · ${d.time(r.at)}", style = style(p.text2, 12, FontWeight.Medium), maxLines = 1)
-            }
-            Spacer(GlanceModifier.height(6.dp))
-            val n = d.next
-            Text(
-                if (n != null) "Next: ${n.slot.name} ${d.time(n.at)}" else "No check times set",
-                style = style(p.muted, 11),
-                maxLines = 1,
-            )
+        when {
+            size.height < 100.dp -> Slim(context, d, p)
+            size.width >= 230.dp -> Wide(context, d, p)
+            else -> Square(context, d, p, showNext = size.height >= 170.dp, short = size.height < 140.dp)
         }
     }
+}
+
+/** The number and its unit, then the range bar and word with the time. */
+@Composable
+private fun Value(d: Data, p: Pal, big: Int) {
+    val r = d.latest
+    val status = r?.let { Glucose.status(it.mmol, it.tag, d.targets) }
+    if (r == null || status == null) {
+        Text("No readings yet", style = style(p.text, 16, FontWeight.Bold), maxLines = 1)
+        Text("Tap + to log one", style = style(p.text2, 13), maxLines = 1)
+        return
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(Glucose.format(r.mmol, d.unit), style = style(p.text, big, FontWeight.Bold), maxLines = 1)
+        Spacer(GlanceModifier.width(4.dp))
+        Text(d.unit.label, style = style(p.text2, 12, FontWeight.Medium), maxLines = 1, modifier = GlanceModifier.padding(bottom = (big / 6).dp))
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(GlanceModifier.size(width = 4.dp, height = 14.dp).cornerRadius(2.dp).background(p.status(status))) {}
+        Spacer(GlanceModifier.width(6.dp))
+        Text("${status.label} · ${d.time(r.at)}", style = style(p.text2, 13, FontWeight.Medium), maxLines = 1)
+    }
+}
+
+/** A round button with an icon (and, when there's room, a word). */
+@Composable
+private fun Action(icon: Int, label: String, filled: Boolean, p: Pal, intent: Intent, showLabel: Boolean, modifier: GlanceModifier, tall: Int = 44) {
+    Row(
+        modifier
+            .height(tall.dp)
+            .cornerRadius((tall / 2).dp)
+            .background(if (filled) p.brand else p.surface)
+            .clickable(actionStartActivity(intent))
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            ImageProvider(icon),
+            contentDescription = label,
+            colorFilter = ColorFilter.tint(if (filled) p.white else p.text),
+            modifier = GlanceModifier.size(20.dp),
+        )
+        if (showLabel) {
+            Spacer(GlanceModifier.width(6.dp))
+            Text(label, style = style(if (filled) p.white else p.text, 14, FontWeight.Bold), maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun Slim(context: Context, d: Data, p: Pal) {
+    Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        Column(GlanceModifier.defaultWeight()) { Value(d, p, 26) }
+        Spacer(GlanceModifier.width(8.dp))
+        Action(R.drawable.lc_plus, "Log reading", true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), false, GlanceModifier.width(44.dp))
+    }
+}
+
+@Composable
+private fun Square(context: Context, d: Data, p: Pal, showNext: Boolean, short: Boolean) {
+    Column(GlanceModifier.fillMaxSize()) {
+        Value(d, p, if (short) 30 else 38)
+        if (showNext) {
+            Spacer(GlanceModifier.height(6.dp))
+            Next(d, p)
+        }
+        Spacer(GlanceModifier.defaultWeight())
+        Row(GlanceModifier.fillMaxWidth()) {
+            val h = if (short) 40 else 44
+            Action(R.drawable.lc_plus, "Log reading", true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), false, GlanceModifier.defaultWeight(), h)
+            Spacer(GlanceModifier.width(8.dp))
+            Action(R.drawable.lc_camera, "Snap a meal", false, p, intent(context, Alerts.EXTRA_OPEN_MEAL, "camera"), false, GlanceModifier.defaultWeight(), h)
+        }
+    }
+}
+
+@Composable
+private fun Wide(context: Context, d: Data, p: Pal) {
+    Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        Column(GlanceModifier.defaultWeight()) {
+            Value(d, p, 42)
+            Spacer(GlanceModifier.height(4.dp))
+            Next(d, p)
+        }
+        Spacer(GlanceModifier.width(10.dp))
+        Column(GlanceModifier.width(118.dp)) {
+            Action(R.drawable.lc_plus, "Reading", true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), true, GlanceModifier.fillMaxWidth())
+            Spacer(GlanceModifier.height(8.dp))
+            Action(R.drawable.lc_camera, "Meal", false, p, intent(context, Alerts.EXTRA_OPEN_MEAL, "camera"), true, GlanceModifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun Next(d: Data, p: Pal) {
+    val n = d.next
+    Text(
+        if (n != null) "Next: ${n.slot.name} ${d.time(n.at)}" else "No check times set",
+        style = style(p.muted, 12),
+        maxLines = 1,
+    )
 }
