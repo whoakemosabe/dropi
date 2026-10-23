@@ -72,20 +72,23 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("When did you take it?", style = inter(20.sp, FontWeight.ExtraBold), modifier = Modifier.padding(horizontal = 20.dp))
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                (0..7).forEach { back ->
-                    val d = today.minusDays(back.toLong())
-                    val label = when (back) {
-                        0 -> "Today"
-                        1 -> "Yesterday"
-                        else -> dayName.format(d)
-                    }
-                    Chip(label, selected = d == day) { day = d }
-                }
-            }
+            // Today and the seven days before, as a 4 × 2 grid.
+            val days = (0..7).map { today.minusDays(it.toLong()) }
+            ChoiceGrid(
+                days.mapIndexed { back, d ->
+                    Choice(
+                        when (back) {
+                            0 -> "Today"
+                            1 -> "Yesterday"
+                            else -> dayName.format(d)
+                        }
+                    )
+                },
+                selected = days.indexOf(day).takeIf { it >= 0 },
+                columns = 4,
+                compact = true,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            ) { day = days[it] }
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TimePicker(
                     state = time,

@@ -80,7 +80,8 @@ fun TodayPage(state: AppState) {
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
-            top = bars.calculateTopPadding() + 8.dp,
+            // Under Dracula the dripping edge needs a little room above the header.
+            top = bars.calculateTopPadding() + if (C.dracula) 34.dp else 8.dp,
             // Room for the floating log button over the navigation bar.
             bottom = bars.calculateBottomPadding() + 112.dp,
         ),
@@ -225,14 +226,17 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
             Chip("Plan check times", icon = R.drawable.lc_clock, selected = true) { state.scheduleOpen = true }
             return@Column
         }
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            checks.forEach { c ->
-                CheckChip(c, fmt.time(c.at), state.unit) {
-                    val r = c.reading
-                    if (r != null) state.editing = r else state.startNew(c.slot.tag)
+        // Every check on screen at once, two to a row.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            checks.chunked(2).forEach { pair ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pair.forEach { c ->
+                        CheckChip(c, fmt.time(c.at), state.unit, Modifier.weight(1f)) {
+                            val r = c.reading
+                            if (r != null) state.editing = r else state.startNew(c.slot.tag)
+                        }
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -259,7 +263,7 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
 }
 
 @Composable
-private fun CheckChip(c: Check, time: String, unit: app.dropi.data.GlucoseUnit, onClick: () -> Unit) {
+private fun CheckChip(c: Check, time: String, unit: app.dropi.data.GlucoseUnit, modifier: Modifier, onClick: () -> Unit) {
     val (icon, tint) = when (c.state) {
         CheckState.DONE -> R.drawable.lc_check to C.InRange
         CheckState.DUE -> R.drawable.lc_droplet to C.AccentText
@@ -268,7 +272,7 @@ private fun CheckChip(c: Check, time: String, unit: app.dropi.data.GlucoseUnit, 
     }
     val due = c.state == CheckState.DUE
     Column(
-        Modifier
+        modifier
             .clip(RoundedCornerShape(16.dp))
             .background(if (due) C.Accent.copy(alpha = 0.16f) else C.SurfaceLight)
             .border(1.dp, if (due) C.Accent.copy(alpha = 0.5f) else C.GlassBorder, RoundedCornerShape(16.dp))

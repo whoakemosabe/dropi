@@ -32,7 +32,9 @@ class PrivacyActivity : ComponentActivity() {
         enableEdgeToEdge()
         val night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
-        C.dark = when (Prefs(this).theme) { "light" -> false; "dark" -> true; else -> night }
+        val theme = Prefs(this).theme
+        C.dark = when (theme) { "light" -> false; "dark", "dracula" -> true; else -> night }
+        C.dracula = theme == "dracula"
         setContent {
             DropiTheme {
                 Column(

@@ -34,6 +34,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -217,5 +221,69 @@ fun SheetTitle(title: String, close: () -> Unit, trailing: @Composable () -> Uni
             Modifier.size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
             contentAlignment = Alignment.Center,
         ) { Ic(app.dropi.R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
+    }
+}
+
+/** One tile in a [ChoiceGrid]. */
+data class Choice(val label: String, @DrawableRes val icon: Int? = null)
+
+/**
+ * Options laid out as a grid of tiles that all fit on screen: nothing scrolls or swipes sideways.
+ * The chosen tile fills with the brand gradient and pops slightly.
+ */
+@Composable
+fun ChoiceGrid(
+    choices: List<Choice>,
+    selected: Int?,
+    columns: Int,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    onPick: (Int) -> Unit,
+) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        choices.chunked(columns).forEachIndexed { row, items ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEachIndexed { col, c ->
+                    val i = row * columns + col
+                    ChoiceTile(c, i == selected, compact, Modifier.weight(1f)) { onPick(i) }
+                }
+                // Keep a short last row's tiles the same width as the rest.
+                repeat(columns - items.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val scale by animateFloatAsState(if (selected) 1f else 0.97f, spring(dampingRatio = 0.55f, stiffness = 500f), label = "tile")
+    val shape = RoundedCornerShape(16.dp)
+    val fg = if (selected) Color.White else C.TextSecondary
+    Column(
+        modifier
+            .heightIn(min = if (compact) 44.dp else 64.dp)
+            .scale(scale)
+            .clip(shape)
+            .background(
+                if (selected) Brush.linearGradient(listOf(C.Accent, C.AccentGlow))
+                else Brush.linearGradient(listOf(C.SurfaceLight, C.SurfaceLight))
+            )
+            .border(1.dp, if (selected) Color.Transparent else C.GlassBorder, shape)
+            .semantics { this.selected = selected }
+            .tap(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = if (compact) 8.dp else 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        if (c.icon != null && !compact) {
+            Ic(c.icon, if (selected) Color.White else C.TextMuted, 18.dp)
+            Spacer(Modifier.height(4.dp))
+        }
+        Text(
+            c.label,
+            style = inter(12.sp, FontWeight.SemiBold, fg),
+            maxLines = 2,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 }

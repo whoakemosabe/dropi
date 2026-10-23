@@ -20,39 +20,44 @@ import app.dropi.data.Status
 
 /**
  * Dropi's palette: calm ink and paper neutrals with a periwinkle brand colour, so it suits
- * anyone. Range colours carry the meaning (pink-red low, teal in range, amber high) and every text
- * colour clears 4.5:1 on cards in both themes. [dark] is Compose state, so screens redraw.
+ * anyone, plus Dracula: near-black, blood red and a purple glow. Range colours carry the meaning
+ * (pink-red low, teal in range, amber high; violet in range under Dracula, so it never blurs
+ * into the reds) and every text colour clears 4.5:1 on cards. [dark] and [dracula] are Compose
+ * state, so screens redraw when the theme changes.
  */
 object C {
     var dark by mutableStateOf(true)
 
-    private fun pick(d: Long, l: Long) = Color(if (dark) d else l)
+    /** The Dracula theme (always dark). */
+    var dracula by mutableStateOf(false)
 
-    val Bg get() = pick(0xFF0D0F14, 0xFFF3F4F8)
-    val Card get() = pick(0xFF161922, 0xFFFFFFFF)
-    val SurfaceLight get() = pick(0xFF1F2330, 0xFFE8EAF1)
-    val Border get() = pick(0xFF2A2F3D, 0xFFD8DBE5)
-    val GlassBorder get() = pick(0x14FFFFFF, 0x1411131A)
+    private fun pick(d: Long, l: Long, dr: Long = d) = Color(if (dracula) dr else if (dark) d else l)
 
-    /** Brand fill (buttons, the log button, selected chips): white text sits on it. */
-    val Accent get() = Color(0xFF4F5BEA)
-    val AccentGlow get() = Color(0xFF7A86FF)
+    val Bg get() = pick(0xFF0D0F14, 0xFFF3F4F8, 0xFF0A0406)
+    val Card get() = pick(0xFF161922, 0xFFFFFFFF, 0xFF170A0E)
+    val SurfaceLight get() = pick(0xFF1F2330, 0xFFE8EAF1, 0xFF261018)
+    val Border get() = pick(0xFF2A2F3D, 0xFFD8DBE5, 0xFF3D1621)
+    val GlassBorder get() = pick(0x14FFFFFF, 0x1411131A, 0x2EFF2D55)
+
+    /** Brand fill (buttons, the + button, selected tiles): white text sits on it. */
+    val Accent get() = pick(0xFF4F5BEA, 0xFF4F5BEA, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFF7A86FF, 0xFF7A86FF, 0xFF6A1B9A)
 
     /** Brand colour as text or a thin icon. */
-    val AccentText get() = pick(0xFF9AA5FF, 0xFF3B47C9)
+    val AccentText get() = pick(0xFF9AA5FF, 0xFF3B47C9, 0xFFFF5C7A)
 
-    val Text get() = pick(0xFFF3F4F8, 0xFF11131A)
-    val TextSecondary get() = pick(0xFFA6ACBD, 0xFF474D5E)
-    val TextMuted get() = pick(0xFF8A90A3, 0xFF5E6477)
+    val Text get() = pick(0xFFF3F4F8, 0xFF11131A, 0xFFF6E9EC)
+    val TextSecondary get() = pick(0xFFA6ACBD, 0xFF474D5E, 0xFFCDA6B0)
+    val TextMuted get() = pick(0xFF8A90A3, 0xFF5E6477, 0xFFA57E8A)
 
-    // Range colours, checked with the dataviz palette validator against both card colours: they
-    // stay apart for colour-blind readers too, and always come with a label.
-    val UrgentLow get() = pick(0xFFD6336C, 0xFFA3134A)
-    val Low get() = pick(0xFFFF85A8, 0xFFE04A78)
-    val BelowTarget get() = pick(0xFF7FA7D9, 0xFF3D6A9E)
-    val InRange get() = pick(0xFF22C3C9, 0xFF00939A)
-    val High get() = pick(0xFFF4C542, 0xFFB08000)
-    val VeryHigh get() = pick(0xFFE8622C, 0xFFC23A0A)
+    // Range colours, checked with the dataviz palette validator against each theme's card colour:
+    // they stay apart for colour-blind readers too, and always come with a label.
+    val UrgentLow get() = pick(0xFFD6336C, 0xFFA3134A, 0xFFD6336C)
+    val Low get() = pick(0xFFFF85A8, 0xFFE04A78, 0xFFFF8FB0)
+    val BelowTarget get() = pick(0xFF7FA7D9, 0xFF3D6A9E, 0xFF7FA7D9)
+    val InRange get() = pick(0xFF22C3C9, 0xFF00939A, 0xFF9F8CFF)
+    val High get() = pick(0xFFF4C542, 0xFFB08000, 0xFFF2C94C)
+    val VeryHigh get() = pick(0xFFE8622C, 0xFFC23A0A, 0xFFE8622C)
 
     fun status(s: Status): Color = when (s) {
         Status.URGENT_LOW -> UrgentLow

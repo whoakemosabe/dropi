@@ -75,8 +75,18 @@ private fun SettingsContent(state: AppState, close: () -> Unit) {
         }
 
         Section("Appearance") {
-            val themes = listOf("system", "dark", "light")
-            SlidingSegments(listOf("System", "Dark", "Light"), themes.indexOf(state.theme).coerceAtLeast(0), Modifier.fillMaxWidth()) {
+            val themes = listOf("system", "dark", "light", "dracula")
+            ChoiceGrid(
+                listOf(
+                    Choice("System", R.drawable.lc_settings),
+                    Choice("Dark", R.drawable.lc_moon),
+                    Choice("Light", R.drawable.lc_sun),
+                    Choice("Dracula", R.drawable.lc_droplet),
+                ),
+                themes.indexOf(state.theme).coerceAtLeast(0),
+                columns = 4,
+            ) {
+                Haptics.segment(view)
                 state.changeTheme(themes[it])
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {

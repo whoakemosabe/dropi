@@ -40,10 +40,11 @@ class MainActivity : ComponentActivity() {
             val systemDark = isSystemInDarkTheme()
             val dark = when (s.theme) {
                 "light" -> false
-                "dark" -> true
+                "dark", "dracula" -> true
                 else -> systemDark
             }
             C.dark = dark
+            C.dracula = s.theme == "dracula"
             LaunchedEffect(dark) {
                 barStyle(dark)
                 window.setBackgroundDrawable(C.Bg.toArgb().toDrawable())
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity() {
                     splashScreen.setSplashScreenTheme(
                         when (s.theme) {
                             "light" -> R.style.Theme_Dropi_Light
-                            "dark" -> R.style.Theme_Dropi
+                            "dark", "dracula" -> R.style.Theme_Dropi
                             else -> R.style.Theme_Dropi_System
                         }
                     )
@@ -67,7 +68,7 @@ class MainActivity : ComponentActivity() {
     /** Dark or light, from the saved theme setting, before any screen has loaded. */
     private fun startsDark(): Boolean = when (Prefs(this).theme) {
         "light" -> false
-        "dark" -> true
+        "dark", "dracula" -> true
         else -> (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
     }

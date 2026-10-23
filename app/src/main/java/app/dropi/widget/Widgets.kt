@@ -64,26 +64,27 @@ object Widgets {
 private class Pal(context: Context) {
     private val theme = Prefs(context).theme
 
-    fun cp(dark: Long, light: Long): ColorProvider = when (theme) {
+    fun cp(dark: Long, light: Long, dracula: Long = dark): ColorProvider = when (theme) {
         "light" -> ColorProvider(Color(light))
         "dark" -> ColorProvider(Color(dark))
+        "dracula" -> ColorProvider(Color(dracula))
         else -> androidx.glance.color.ColorProvider(day = Color(light), night = Color(dark))
     }
 
-    val bg = cp(0xF2161922, 0xF5FFFFFF)
-    val text = cp(0xFFF3F4F8, 0xFF11131A)
-    val text2 = cp(0xFFA6ACBD, 0xFF474D5E)
-    val muted = cp(0xFF8A90A3, 0xFF5E6477)
-    val accent = cp(0xFF9AA5FF, 0xFF3B47C9)
-    val brand = ColorProvider(Color(0xFF4F5BEA))
+    val bg = cp(0xF2161922, 0xF5FFFFFF, 0xF2170A0E)
+    val text = cp(0xFFF3F4F8, 0xFF11131A, 0xFFF6E9EC)
+    val text2 = cp(0xFFA6ACBD, 0xFF474D5E, 0xFFCDA6B0)
+    val muted = cp(0xFF8A90A3, 0xFF5E6477, 0xFFA57E8A)
+    val accent = cp(0xFF9AA5FF, 0xFF3B47C9, 0xFFFF5C7A)
+    val brand = cp(0xFF4F5BEA, 0xFF4F5BEA, 0xFFA3001B)
     val white = ColorProvider(Color.White)
 
     fun status(s: Status): ColorProvider = when (s) {
         Status.URGENT_LOW -> cp(0xFFD6336C, 0xFFA3134A)
-        Status.LOW -> cp(0xFFFF85A8, 0xFFE04A78)
+        Status.LOW -> cp(0xFFFF85A8, 0xFFE04A78, 0xFFFF8FB0)
         Status.BELOW_TARGET -> cp(0xFF7FA7D9, 0xFF3D6A9E)
-        Status.IN_RANGE -> cp(0xFF22C3C9, 0xFF00939A)
-        Status.HIGH -> cp(0xFFF4C542, 0xFFB08000)
+        Status.IN_RANGE -> cp(0xFF22C3C9, 0xFF00939A, 0xFF9F8CFF)
+        Status.HIGH -> cp(0xFFF4C542, 0xFFB08000, 0xFFF2C94C)
         Status.VERY_HIGH -> cp(0xFFE8622C, 0xFFC23A0A)
     }
 }

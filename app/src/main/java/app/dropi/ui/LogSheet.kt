@@ -45,6 +45,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import app.dropi.work.Scan
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -127,7 +128,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 
     // A tiny shake when a key can't be added.
     val shake = remember { Animatable(0f) }
-    var shakes by remember { mutableStateOf(0) }
+    var shakes by remember { mutableIntStateOf(0) }
     LaunchedEffect(shakes) {
         if (shakes > 0) {
             shake.snapTo(1f)
@@ -216,15 +217,14 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             }
         }
 
-        // The moment: pre-picked from the time of day and your last reading.
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            MealTag.entries.forEach { t ->
-                Chip(t.label, icon = t.icon(), selected = t == tag) { tag = t }
-            }
-        }
+        // The moment: pre-picked from the time of day and your last reading. All six fit on screen.
+        val tags = MealTag.entries
+        ChoiceGrid(
+            tags.map { Choice(it.label, it.icon()) },
+            tags.indexOf(tag),
+            columns = 3,
+            modifier = Modifier.padding(top = 12.dp),
+        ) { tag = tags[it] }
 
         // When: now, a little earlier, or a forgotten one from hours or days ago.
         fun moveTo(t: Long) {
@@ -232,25 +232,30 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             // A new reading's moment follows its time (an 07:00 one is fasting, a 22:00 one bedtime).
             if (isNew) tag = app.dropi.data.Tagging.suggest(t, state.readings, state.zone)
         }
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Ic(R.drawable.lc_clock, C.TextMuted, 16.dp)
-            if (isNew) {
-                listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago").forEach { (m, label) ->
-                    Chip(label, selected = offsetMin == m) {
-                        offsetMin = m
-                        moveTo(openedAt - m * 60_000L)
-                    }
+        Text("WHEN", style = SectionLabel, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 2.dp))
+        if (isNew) {
+            val quick = listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago", 120 to "2 h ago")
+            val pickLabel = if (offsetMin == null) fmt.dayTime(at) else "Pick a time…"
+            ChoiceGrid(
+                quick.map { Choice(it.second) } + Choice(pickLabel),
+                selected = offsetMin?.let { m -> quick.indexOfFirst { it.first == m } } ?: quick.size,
+                columns = 3,
+                compact = true,
+            ) { i ->
+                if (i < quick.size) {
+                    offsetMin = quick[i].first
+                    moveTo(openedAt - quick[i].first * 60_000L)
+                } else {
+                    picking = true
                 }
             }
-            Chip(
-                if (offsetMin == null) fmt.dayTime(at) else "Pick a time…",
-                icon = R.drawable.lc_pencil,
-                selected = offsetMin == null,
-            ) { picking = true }
+        } else {
+            ChoiceGrid(
+                listOf(Choice("Taken ${fmt.dayTime(at)}"), Choice("Change time")),
+                selected = 0,
+                columns = 2,
+                compact = true,
+            ) { i -> if (i == 1) picking = true }
         }
         if (picking) {
             WhenPicker(at, state.zone, onDismiss = { picking = false }) { t ->

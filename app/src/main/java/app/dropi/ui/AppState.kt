@@ -2,6 +2,7 @@ package app.dropi.ui
 
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.dropi.CrashLog
@@ -52,7 +53,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         private set
     var afterMealOn by mutableStateOf(prefs.afterMealOn)
         private set
-    var afterMealMinutes by mutableStateOf(prefs.afterMealMinutes)
+    var afterMealMinutes by mutableIntStateOf(prefs.afterMealMinutes)
         private set
 
     var healthSync by mutableStateOf(prefs.healthSync)

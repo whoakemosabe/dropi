@@ -63,6 +63,8 @@ fun DropiRoot(state: AppState) {
         }
         if (state.tab != Tab.TODAY) BackHandler { state.tab = Tab.TODAY }
 
+        if (C.dracula) BloodDrips(Modifier.align(Alignment.TopCenter))
+
         // The tab bar floats over the page, above the navigation bar, with the big + in the middle.
         AnimatedVisibility(
             visible = state.editing == null && !state.settingsOpen && !state.scheduleOpen && !state.exportOpen,

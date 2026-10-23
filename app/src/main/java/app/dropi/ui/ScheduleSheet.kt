@@ -216,10 +216,9 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
                 contentAlignment = Alignment.Center,
             ) { Ic(R.drawable.lc_trash, C.TextMuted, 18.dp, contentDescription = "Remove") }
         }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MealTag.entries.filter { it != MealTag.OTHER }.forEach { t ->
-                Chip(t.label, icon = t.icon(), selected = t == s.tag) { onChange(s.copy(tag = t)) }
-            }
+        val tags = MealTag.entries.filter { it != MealTag.OTHER }
+        ChoiceGrid(tags.map { Choice(it.label, it.icon()) }, tags.indexOf(s.tag), columns = 3, compact = true) {
+            onChange(s.copy(tag = tags[it]))
         }
     }
 }
