@@ -144,7 +144,7 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         }
 
         if (needAi) {
-            AiNeededDialog("Asking in your own words", "Ask it", onDismiss = { needAi = false }) {
+            AiNeededDialog("Asking in your own words", "Ask it", onDismiss = { needAi = false }, readyIcon = R.drawable.lc_send) {
                 needAi = false
                 askTyped(text)
             }

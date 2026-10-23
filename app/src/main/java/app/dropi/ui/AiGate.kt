@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  * [what] finishes "… needs an on-device model", e.g. "Meal photos".
  */
 @Composable
-fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, onReady: () -> Unit) {
+fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, readyIcon: Int = R.drawable.lc_camera, onReady: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val g = Gemma.state
@@ -71,7 +71,7 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, onR
                 Ai.usable -> {
                     Text("Ready", style = heading(24.sp))
                     Text("${Ai.name} is on your phone.", style = body)
-                    PrimaryButton(readyAction, Modifier.fillMaxWidth(), icon = R.drawable.lc_camera) { onReady() }
+                    PrimaryButton(readyAction, Modifier.fillMaxWidth(), icon = readyIcon) { onReady() }
                 }
                 Ai.checking -> {
                     Text("One moment", style = heading(24.sp))
