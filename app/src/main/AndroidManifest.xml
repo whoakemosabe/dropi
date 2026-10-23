@@ -26,6 +26,9 @@
     <queries>
         <!-- Health Connect's app on Android 13 and older. -->
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- The CGM bridges that may send sensor values (xDrip+, Juggluco). -->
+        <package android:name="com.eveningoutpost.dexdrip" />
+        <package android:name="tk.glucodata" />
         <!-- A camera app for Scan meter. -->
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
@@ -94,7 +97,8 @@
              them, and ignores everything unless live mode is on. -->
         <receiver
             android:name=".work.CgmReceiver"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.eveningoutpost.dexdrip.BgEstimate" />
             </intent-filter>

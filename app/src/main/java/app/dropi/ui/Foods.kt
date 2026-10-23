@@ -114,7 +114,7 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
             Box(Modifier.width(maxWidth * frac).height(10.dp).clip(RoundedCornerShape(5.dp)).background(tone))
         }
         Spacer(Modifier.width(10.dp))
-        Text(delta, style = numeral(17.sp), modifier = Modifier.width(52.dp), maxLines = 1)
+        Text(delta, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.width(52.dp), maxLines = 1)
     }
 }
 

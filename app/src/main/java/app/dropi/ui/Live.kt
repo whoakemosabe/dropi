@@ -138,13 +138,7 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
             if (slope != null) {
                 val tilt = remember { Animatable(0f) }
                 LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Ic(R.drawable.lc_arrow_right, color, 44.dp, Modifier.rotate(-tilt.value))
-                    // Fast changes get a second, fainter arrow behind the first.
-                    if (arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST) {
-                        Ic(R.drawable.lc_arrow_right, color.copy(alpha = 0.45f), 28.dp, Modifier.rotate(-tilt.value))
-                    }
-                }
+                TrendArrow(color, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,6 +159,36 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
             } else {
                 Text("now", style = inter(11.sp, color = C.TextMuted))
             }
+        }
+    }
+}
+
+/**
+ * The trend arrow, drawn as heavy as the numeral beside it and tilted to the real rate of change.
+ * Fast changes get a second chevron.
+ */
+@Composable
+private fun TrendArrow(color: Color, degrees: Float, double: Boolean) {
+    Canvas(Modifier.size(52.dp).rotate(-degrees)) {
+        val w = 5.5.dp.toPx()
+        val cy = size.height / 2
+        val tip = size.width * 0.86f
+        val head = size.width * 0.3f
+        val stroke = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        drawLine(color, Offset(size.width * 0.12f, cy), Offset(tip - w * 0.4f, cy), strokeWidth = w, cap = StrokeCap.Round)
+        val chevron = Path().apply {
+            moveTo(tip - head, cy - head)
+            lineTo(tip, cy)
+            lineTo(tip - head, cy + head)
+        }
+        drawPath(chevron, color, style = stroke)
+        if (double) {
+            val back = Path().apply {
+                moveTo(tip - head * 1.9f, cy - head)
+                lineTo(tip - head * 0.9f, cy)
+                lineTo(tip - head * 1.9f, cy + head)
+            }
+            drawPath(back, color.copy(alpha = 0.5f), style = stroke)
         }
     }
 }
@@ -330,7 +354,17 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
                 state.changeHeadsUp(on)
                 if (on) needNotify()
             }
-            if (state.liveOn && !canNotify) SheetHint("Notifications are off for Dropi, so these can't show.")
+            if (state.liveOn && !canNotify) {
+                SheetHint("Notifications are off for Dropi, so these can't show.")
+                Chip("Open notification settings", icon = R.drawable.lc_settings) {
+                    try {
+                        context.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        )
+                    } catch (e: Exception) { }
+                }
+            }
             SheetHint(
                 "Dropi's heads-up is an estimate from the sensor trend, not a medical alarm. Keep your CGM app's own alarms on."
             )

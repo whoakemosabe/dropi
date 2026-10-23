@@ -88,11 +88,18 @@ val BricolageDisplay = FontFamily(Font(R.font.bricolage_display, FontWeight.Extr
 val BricolageTitle = FontFamily(Font(R.font.bricolage_title, FontWeight.Bold))
 val BricolageLabel = FontFamily(Font(R.font.bricolage_label, FontWeight.SemiBold))
 
-/** A big number: Bricolage display, tight, tabular so live values don't jiggle. */
-fun numeral(size: TextUnit, color: Color = C.Text) = TextStyle(
-    fontFamily = BricolageDisplay, fontSize = size, fontWeight = FontWeight.ExtraBold, color = color,
-    letterSpacing = (-0.02).em, fontFeatureSettings = "tnum",
-)
+/**
+ * A number set in Bricolage, tabular so live values don't jiggle. Optical sizes by hand: the
+ * display cut (tight, deep ink traps) from 40 sp up, the text-size cut below that.
+ */
+fun numeral(size: TextUnit, color: Color = C.Text): TextStyle {
+    val big = size.value >= 40f
+    return TextStyle(
+        fontFamily = if (big) BricolageDisplay else BricolageTitle, fontSize = size,
+        fontWeight = if (big) FontWeight.ExtraBold else FontWeight.Bold, color = color,
+        letterSpacing = if (big) (-0.02).em else 0.em, fontFeatureSettings = "tnum",
+    )
+}
 
 /** A heading in Bricolage. */
 fun heading(size: TextUnit, color: Color = C.Text) = TextStyle(

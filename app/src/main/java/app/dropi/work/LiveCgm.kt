@@ -79,10 +79,26 @@ object LiveCgm {
         return SensorPoint(at, mmol)
     }
 
+    /** The apps that send this broadcast. */
+    val BRIDGES = listOf("com.eveningoutpost.dexdrip", "tk.glucodata")
+
+    /**
+     * A broadcast's sender can't be verified (neither app shares its identity), so values are
+     * only taken while one of the bridge apps is actually installed, and only as plain numbers.
+     */
+    fun bridgeInstalled(context: Context): Boolean = BRIDGES.any {
+        try {
+            context.packageManager.getPackageInfo(it, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /** Stores a broadcast value (when live mode is on) and refreshes everything that shows it. */
     fun receive(context: Context, intent: Intent, done: () -> Unit = {}) {
         val p = Prefs(context)
-        val point = if (p.liveOn) fromBroadcast(intent) else null
+        val point = if (p.liveOn && bridgeInstalled(context)) fromBroadcast(intent) else null
         if (point == null) {
             done()
             return
