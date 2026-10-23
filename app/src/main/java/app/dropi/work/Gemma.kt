@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import app.dropi.data.Plate
 import app.dropi.data.PlateGuess
 import com.google.ai.edge.litertlm.Backend
@@ -167,7 +168,7 @@ object Gemma {
                 state = State.Failed("Needs about ${gb(SIZE + SPARE)} GB free; this phone has ${gb(free)} GB.")
                 return@withLock
             }
-            val req = DownloadManager.Request(Uri.parse(URL))
+            val req = DownloadManager.Request(URL.toUri())
                 .setTitle("Dropi on-device AI")
                 .setDescription("Gemma 4 model, 2.6 GB")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
