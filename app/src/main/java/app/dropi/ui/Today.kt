@@ -106,6 +106,7 @@ fun TodayPage(state: AppState) {
         item(key = "banner") {
             Column {
                 UpdateBanner()
+                AiBanner(state)
                 CrashCard(state)
             }
         }

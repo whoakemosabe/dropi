@@ -77,6 +77,12 @@ object Gemma {
         private set
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** The SHA-256 check of a finished download. App-wide, so closing a screen can't cancel it. */
+    private var verifyJob: Job? = null
+
+    /** Follows a running download once a second while the app is alive, whatever screen is open. */
+    private var watchJob: Job? = null
     private val lock = Mutex()
     private val fileLock = Mutex()
     private var engine: Engine? = null
@@ -105,6 +111,7 @@ object Gemma {
         val f = file(ctx)!!
         val p = prefs(ctx)
         if (p.getBoolean("verified", false) && f.length() == SIZE) {
+            readyBanner = !p.getBoolean("ready_seen", true)
             state = State.Ready
             return@withLock state
         }
@@ -133,14 +140,8 @@ object Gemma {
                 if (row.third == DownloadManager.PAUSED_QUEUED_FOR_WIFI || row.third == DownloadManager.PAUSED_WAITING_FOR_NETWORK) State.WaitingForWifi
                 else State.Downloading(row.second)
             DownloadManager.STATUS_SUCCESSFUL -> {
-                state = State.Verifying
-                val good = withContext(Dispatchers.IO) { f.length() == SIZE && sha256(f) == SHA256 }
-                p.edit { remove("download_id"); putBoolean("verified", good) }
-                if (good) State.Ready
-                else {
-                    f.delete()
-                    State.Failed("The download didn't check out, so it was deleted. Try again.")
-                }
+                startVerify(ctx)
+                State.Verifying
             }
             else -> {
                 dm.remove(id)
@@ -152,6 +153,59 @@ object Gemma {
             }
         }
         state
+    }
+
+    /**
+     * Checks the finished file against its SHA-256 (10–30 s for 2.6 GB). Runs in Gemma's own
+     * scope: a screen closing, or the state changing under a screen's loop, can't cancel it.
+     */
+    private fun startVerify(ctx: Context) {
+        if (verifyJob?.isActive == true) return
+        verifyJob = scope.launch {
+            val f = file(ctx) ?: return@launch
+            val good = withContext(Dispatchers.IO) { f.length() == SIZE && sha256(f) == SHA256 }
+            fileLock.withLock {
+                val p = prefs(ctx)
+                p.edit { remove("download_id"); putBoolean("verified", good) }
+                if (good) {
+                    // The home screen's banner says "ready" once, until it's tapped or closed.
+                    p.edit { putBoolean("ready_seen", false) }
+                    readyBanner = true
+                    state = State.Ready
+                    Alerts.postAiReady(ctx)
+                } else {
+                    f.delete()
+                    state = State.Failed("The download didn't check out, so it was deleted. Try again.")
+                }
+            }
+        }
+    }
+
+    /** Waits for a running check to finish (used by the download-complete worker). */
+    suspend fun awaitVerify() {
+        verifyJob?.join()
+    }
+
+    /** Keeps [state] current while a download or its check is under way. */
+    fun watch(context: Context) {
+        val ctx = context.applicationContext
+        if (watchJob?.isActive == true) return
+        watchJob = scope.launch {
+            while (true) {
+                val st = refresh(ctx)
+                if (st !is State.Downloading && st != State.WaitingForWifi && st != State.Verifying) break
+                delay(1000)
+            }
+        }
+    }
+
+    /** The home screen shows "on-device AI is ready" once, until it's tapped or closed. */
+    var readyBanner by mutableStateOf(false)
+        private set
+
+    fun markReadySeen(context: Context) {
+        prefs(context).edit { putBoolean("ready_seen", true) }
+        readyBanner = false
     }
 
     /** Starts the one-time download (Wi-Fi only; Android's download manager shows its progress). */
@@ -180,7 +234,7 @@ object Gemma {
             p.edit { putLong("download_id", id); putBoolean("verified", false) }
             state = State.Downloading(0)
         }
-        refresh(ctx)
+        watch(ctx)
     }
 
     /** Stops a download, or deletes the downloaded model to get the space back. */
@@ -286,4 +340,29 @@ object Gemma {
     }
 
     fun gb(bytes: Long): String = "%.1f".format(bytes / 1_000_000_000.0)
+}
+
+/**
+ * Android's download manager says a download finished, possibly while Dropi was closed. A short
+ * background job checks the model file and posts "ready", so nobody has to open the app first.
+ * It only looks at Dropi's own state; the broadcast's contents aren't trusted.
+ */
+class GemmaDownloadReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: android.content.Intent) {
+        if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+        androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+            "gemma-verify",
+            androidx.work.ExistingWorkPolicy.KEEP,
+            androidx.work.OneTimeWorkRequestBuilder<GemmaVerifyWorker>().build(),
+        )
+    }
+}
+
+class GemmaVerifyWorker(context: Context, params: androidx.work.WorkerParameters) :
+    androidx.work.CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        Gemma.refresh(applicationContext)
+        Gemma.awaitVerify()
+        return Result.success()
+    }
 }

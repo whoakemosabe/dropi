@@ -286,8 +286,8 @@ private fun Highlight(text: String, index: Int) {
 }
 
 /** A soft wash of the aurora (green → cyan → violet) across a card. */
-private fun auroraWash(alpha: Float): Brush =
+internal fun auroraWash(alpha: Float): Brush =
     Brush.horizontalGradient(C.Aurora.mapIndexed { i, c -> c.copy(alpha = if (i == 1) alpha / 2 else alpha) })
 
 /** A hairline edge in the aurora colours. */
-private fun auroraEdge(alpha: Float): Brush = Brush.horizontalGradient(C.Aurora.map { it.copy(alpha = alpha) })
+internal fun auroraEdge(alpha: Float): Brush = Brush.horizontalGradient(C.Aurora.map { it.copy(alpha = alpha) })

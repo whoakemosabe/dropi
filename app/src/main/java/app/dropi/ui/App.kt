@@ -203,6 +203,16 @@ fun DropiRoot(state: AppState) {
             }
         }
 
+        val askCtx = LocalContext.current
+        val wantAsk = Launch.openAsk.value
+        LaunchedEffect(wantAsk) {
+            if (wantAsk) {
+                Launch.openAsk.value = false
+                app.dropi.work.Gemma.markReadySeen(askCtx)
+                state.askOpen = true
+            }
+        }
+
         // The "What's new" window: from the banner, Settings or the update notification.
         val ctx = LocalContext.current
         val ui = UpdateWatch.ui
@@ -404,4 +414,7 @@ object Launch {
 
     /** The weekly recap asked for Trends (7 days). */
     val openTrends = mutableStateOf(false)
+
+    /** The "on-device AI is ready" notification or banner asked for Ask Dropi. */
+    val openAsk = mutableStateOf(false)
 }

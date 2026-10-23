@@ -34,7 +34,10 @@ object Ai {
 
     suspend fun refresh(context: Context) {
         Nano.refresh()
-        if (Nano.state == Nano.State.UNAVAILABLE) Gemma.refresh(context)
+        if (Nano.state == Nano.State.UNAVAILABLE) {
+            val g = Gemma.refresh(context)
+            if (g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying) Gemma.watch(context)
+        }
     }
 
     suspend fun plate(context: Context, uri: Uri): PlateGuess? = when {

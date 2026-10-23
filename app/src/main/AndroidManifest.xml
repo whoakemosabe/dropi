@@ -96,6 +96,17 @@
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="ocr" />
 
+        <!-- The on-device AI model finished downloading (sent by Android's download manager). It
+             only starts a check of Dropi's own file; nothing in the broadcast is used. -->
+        <receiver
+            android:name=".work.GemmaDownloadReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
         <!-- Reminder alarm and Snooze: only our own PendingIntents reach it. -->
         <receiver
             android:name=".work.ReminderReceiver"

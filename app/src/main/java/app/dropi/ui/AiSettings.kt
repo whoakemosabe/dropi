@@ -74,7 +74,7 @@ fun OnDeviceAiSection() {
                 ProgressLine(done.toFloat() / Gemma.SIZE)
                 Chip("Cancel", icon = R.drawable.lc_x) { scope.launch { Gemma.remove(context) } }
             }
-            g is Gemma.State.Verifying -> Text("Checking the download…", style = body)
+            g is Gemma.State.Verifying -> Text("Almost ready: setting up on-device AI on your phone (about half a minute)…", style = body)
             g is Gemma.State.Ready -> {
                 Text(
                     "Gemma is ready. Meal photos and typed questions work on this phone, with nothing uploaded. " +

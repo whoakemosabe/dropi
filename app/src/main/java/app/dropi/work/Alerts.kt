@@ -20,6 +20,10 @@ object Alerts {
     const val CH_UPDATES = "updates"
     const val CH_REMINDERS = "reminders"
     const val CH_RECAP = "recap"
+    const val CH_AI = "ai"
+
+    /** Opens Ask Dropi (the "on-device AI is ready" notification). */
+    const val EXTRA_OPEN_ASK = "open_ask"
 
     /** Opens a tab: "trends" (the weekly recap). */
     const val EXTRA_OPEN_TAB = "open_tab"
@@ -28,6 +32,7 @@ object Alerts {
     /** Opens the log sheet: a MealTag name, or "new" to pick the moment from the time. */
     const val EXTRA_LOG_TAG = "log_tag"
     private const val ID_UPDATE = 4
+    private const val ID_AI_READY = 5
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
@@ -44,6 +49,11 @@ object Alerts {
         nm.createNotificationChannel(
             NotificationChannel(CH_UPDATES, "App updates", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "When a new version of Dropi is ready"
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_AI, "On-device AI", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "When the on-device AI model has finished downloading"
             }
         )
     }
@@ -76,5 +86,29 @@ object Alerts {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         NotificationManagerCompat.from(context).notify(ID_UPDATE, n)
+    }
+
+    /** The Gemma download has finished and checked out: meal photos and questions work now. */
+    @SuppressLint("MissingPermission")
+    fun postAiReady(context: Context) {
+        createChannels(context)
+        if (!canNotify(context)) return
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_OPEN_ASK, true)
+        val open = PendingIntent.getActivity(
+            context, ID_AI_READY, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val n = NotificationCompat.Builder(context, CH_AI)
+            .setSmallIcon(R.drawable.ic_stat_drop)
+            .setColor(0xFF6E5BFF.toInt())
+            .setContentTitle("Dropi's on-device AI is ready")
+            .setContentText("Meal photos and questions now work on your phone. Tap to try Ask Dropi.")
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .build()
+        NotificationManagerCompat.from(context).notify(ID_AI_READY, n)
     }
 }

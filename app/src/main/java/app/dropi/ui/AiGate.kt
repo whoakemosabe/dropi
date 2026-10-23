@@ -91,7 +91,7 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, rea
                     Text(
                         if (g is Gemma.State.Downloading) "${Gemma.gb(g.done)} of ${Gemma.gb(Gemma.SIZE)} GB. It carries on in the background, " +
                             "and this works as soon as it's done."
-                        else "Checking the download…",
+                        else "Almost ready: setting it up on your phone…",
                         style = body,
                     )
                     if (g is Gemma.State.Downloading) ProgressLine((g.done.toFloat() / Gemma.SIZE).coerceIn(0f, 1f))

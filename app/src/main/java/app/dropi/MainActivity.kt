@@ -105,6 +105,11 @@ class MainActivity : ComponentActivity() {
             UpdateWatch.load(this)
             UpdateWatch.whatsNewOpen.value = true
         }
+        // "On-device AI is ready" opens Ask Dropi.
+        if (intent.getBooleanExtra(Alerts.EXTRA_OPEN_ASK, false)) {
+            intent.removeExtra(Alerts.EXTRA_OPEN_ASK)
+            app.dropi.ui.Launch.openAsk.value = true
+        }
         // The weekly recap opens Trends.
         if (intent.getStringExtra(Alerts.EXTRA_OPEN_TAB) == "trends") {
             intent.removeExtra(Alerts.EXTRA_OPEN_TAB)
