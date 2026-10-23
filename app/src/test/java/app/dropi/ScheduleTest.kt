@@ -94,8 +94,11 @@ class ScheduleTest {
 
     @Test
     fun nextCheckRollsToTomorrow() {
-        // Past 23:30 the 22:00 check is missed, so the next one is tomorrow morning.
-        val n = Schedule.next(slots, emptyList(), at(23, 45), zone)!!
+        // Bedtime counts until midnight, so at 23:45 it's still the next one.
+        assertEquals("bedtime", Schedule.next(slots, emptyList(), at(23, 45), zone)!!.slot.id)
+        // With a 30-minute window it's missed by then, and the next one is tomorrow morning.
+        val tight = slots.map { if (it.tag == MealTag.BEDTIME) it.copy(window = 30) else it }
+        val n = Schedule.next(tight, emptyList(), at(23, 45), zone)!!
         assertEquals("fasting", n.slot.id)
         assertEquals(at(7, 30, 24), n.at)
         assertNull(Schedule.next(emptyList(), emptyList(), at(9), zone))
