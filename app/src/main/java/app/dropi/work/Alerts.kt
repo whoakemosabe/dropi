@@ -67,7 +67,7 @@ object Alerts {
         )
         val n = NotificationCompat.Builder(context, CH_UPDATES)
             .setSmallIcon(R.drawable.ic_stat_drop)
-            .setColor(0xFF2E6BFF.toInt())
+            .setColor(0xFF6E5BFF.toInt())
             .setContentTitle("Dropi $version is ready")
             .setContentText("Tap to see what's new and update.")
             .setContentIntent(open)

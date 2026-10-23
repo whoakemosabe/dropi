@@ -86,6 +86,7 @@ fun DropiRoot(state: AppState) {
         val headerDp = with(density) { headerPx.toDp() }
         Box(Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
             Box(Modifier.fillMaxSize().background(C.Bg))
+            AuroraGlow(Modifier.fillMaxWidth().height(560.dp))
             CompositionLocalProvider(LocalHeaderHeight provides headerDp) {
                 // Today and Trends, cross-fading; back on Trends returns to Today.
                 Crossfade(state.tab, animationSpec = tween(220), label = "tab") { t ->
@@ -240,7 +241,7 @@ private fun TopBar(state: AppState) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(C.Accent),
+            Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Brush.linearGradient(C.Aurora)),
             contentAlignment = Alignment.Center,
         ) { Ic(R.drawable.lc_droplet, C.OnAccent, 18.dp) }
         Spacer(Modifier.width(12.dp))
@@ -310,9 +311,9 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 .align(Alignment.Center)
                 .pressed(plus)
                 .size(80.dp)
-                .shadow(18.dp, CircleShape, ambientColor = C.Accent, spotColor = C.Accent)
+                .shadow(18.dp, CircleShape, ambientColor = C.Aurora[1], spotColor = C.Aurora[2])
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(C.Accent, C.AccentGlow)))
+                .background(Brush.linearGradient(C.Aurora))
                 .tap(plus) { state.startNew() },
             contentAlignment = Alignment.Center,
         ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = "Log reading") }
@@ -373,7 +374,11 @@ private fun Wing(
             .height(64.dp)
             .pressed(press)
             .frosted(backdrop, shape)
-            .background(if (selected) C.Accent.copy(alpha = 0.16f) else Color.Transparent, shape)
+            .background(
+                if (selected) Brush.horizontalGradient(listOf(C.Aurora[0].copy(alpha = 0.2f), C.Aurora[2].copy(alpha = 0.2f)))
+                else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)),
+                shape,
+            )
             .border(1.5.dp, if (selected) C.AccentText.copy(alpha = 0.8f) else C.Text.copy(alpha = 0.22f), shape)
             .clip(shape)
             .semantics { this.selected = selected; role = Role.Tab }

@@ -101,69 +101,53 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
     val color = sensorColor(last.mmol)
     val value = Glucose.format(last.mmol, state.unit)
 
-    val ink = C.onStatus(color)
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // The live number on a slab of its range colour, like the home screen's reading.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(SlabShape)
-                .background(Brush.linearGradient(listOf(lerp(color, Color.White, 0.35f), color, lerp(color, Color.Black, 0.12f))))
-                .semantics(mergeDescendants = true) {
-                    contentDescription = "Live from your sensor: $value ${state.unit.label}, ${arrow?.words ?: "no trend yet"}, " +
-                        "${sensorWords(last.mmol)}, ${fmt.ago(last.at, now)}"
-                },
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Column(
+            Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+                contentDescription = "Live from your sensor: $value ${state.unit.label}, ${arrow?.words ?: "no trend yet"}, " +
+                    "${sensorWords(last.mmol)}, ${fmt.ago(last.at, now)}"
+            },
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Wave(Color.White.copy(alpha = 0.2f), Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(28.dp))
-            Column(Modifier.padding(start = 22.dp, end = 14.dp, top = 12.dp, bottom = 30.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    LiveDot(ink)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Live · ${fmt.ago(last.at, now)}", style = inter(14.sp, FontWeight.SemiBold, ink.copy(alpha = 0.8f)), modifier = Modifier.weight(1f))
-                    Text(
-                        "Sensor",
-                        style = inter(13.sp, FontWeight.Bold, ink),
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .clip(CircleShape)
-                            .background(ink.copy(alpha = 0.12f))
-                            .tap { state.liveOpen = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // A small settle each time a new value lands.
-                    val pop = remember { Animatable(1f) }
-                    LaunchedEffect(last.at) {
-                        pop.snapTo(0.92f)
-                        pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f))
-                    }
-                    Text(
-                        value,
-                        style = numeral(if (state.unit == app.dropi.data.GlucoseUnit.MGDL) 104.sp else 116.sp, ink).copy(lineHeight = 112.sp),
-                        modifier = Modifier.graphicsLayer {
-                            scaleX = pop.value
-                            scaleY = pop.value
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.6f)
-                        },
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    if (slope != null) {
-                        val tilt = remember { Animatable(0f) }
-                        LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
-                        TrendArrow(ink, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
-                    }
+            Row(
+                Modifier.clip(CircleShape).tap { state.liveOpen = true }.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LiveDot(color)
+                Spacer(Modifier.width(8.dp))
+                Text("Live from your sensor · ${fmt.ago(last.at, now)}", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // A small settle each time a new value lands.
+                val pop = remember { Animatable(1f) }
+                LaunchedEffect(last.at) {
+                    pop.snapTo(0.92f)
+                    pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f))
                 }
                 Text(
-                    listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.words).joinToString(", ").replaceFirstChar { it.uppercase() },
-                    style = inter(15.sp, FontWeight.SemiBold, ink),
+                    value,
+                    style = numeral(if (state.unit == app.dropi.data.GlucoseUnit.MGDL) 116.sp else 136.sp).copy(lineHeight = 140.sp),
+                    modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
                 )
+                if (slope != null) {
+                    Spacer(Modifier.width(4.dp))
+                    val tilt = remember { Animatable(0f) }
+                    LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
+                    TrendArrow(C.Text, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
+                }
             }
+            Text(
+                listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.words).joinToString(" · "),
+                style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary),
+            )
         }
-        // The last three hours, running into a dotted 20 minutes ahead.
-        Column(Modifier.fillMaxWidth().card().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
+        Spacer(Modifier.height(12.dp))
+        RangeRuler(last.mmol, state.unit)
+        Spacer(Modifier.height(8.dp))
+        // The last three hours in aurora colours, running into a dotted 20 minutes ahead.
+        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp)).padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
             val ahead = Trend.ahead(points, 20)
-            Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(120.dp))
+            Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(116.dp))
             Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 Text("3 h ago", style = inter(11.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
                 if (ahead != null) {
@@ -226,6 +210,7 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
     val line = C.Text
     val grid = C.Border
     val cardC = C.Card
+    val aurora = C.Aurora
     val from = now - 3 * 60 * MIN
     val to = now + 25 * MIN
     val lo = minOf(2.8, (points.minOfOrNull { it.mmol } ?: 4.0) - 0.6, ahead?.minus(0.4) ?: 99.0)
@@ -249,17 +234,18 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
             if (prev == null || p.at - prev.at > 15 * MIN) path.moveTo(x(p.at), y(p.mmol)) else path.lineTo(x(p.at), y(p.mmol))
             prev = p
         }
-        drawPath(path, line.copy(alpha = 0.9f), style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path, Brush.horizontalGradient(aurora), style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         val last = prev!!
         if (ahead != null) {
             drawLine(
-                sensorColor(ahead).copy(alpha = 0.8f), Offset(x(last.at), y(last.mmol)), Offset(x(last.at + 20 * MIN), y(ahead)),
+                line.copy(alpha = 0.7f), Offset(x(last.at), y(last.mmol)), Offset(x(last.at + 20 * MIN), y(ahead)),
                 strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round,
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(1f, 6.dp.toPx())),
             )
         }
+        drawCircle(line.copy(alpha = 0.25f), radius = 10.dp.toPx(), center = Offset(x(last.at), y(last.mmol)))
         drawCircle(cardC, radius = 7.dp.toPx(), center = Offset(x(last.at), y(last.mmol)))
-        drawCircle(sensorColor(last.mmol), radius = 5.dp.toPx(), center = Offset(x(last.at), y(last.mmol)))
+        drawCircle(line, radius = 5.dp.toPx(), center = Offset(x(last.at), y(last.mmol)))
     }
 }
 

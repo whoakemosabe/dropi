@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Night Swim: electric blue into cyan, like light through water. -->
+<!-- Aurora: green through cyan into violet. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <gradient
         android:angle="45"
-        android:startColor="#FF2E6BFF"
-        android:endColor="#FF45D4FF"
+        android:startColor="#FF2FE39A"
+        android:centerColor="#FF45D4FF"
+        android:endColor="#FF785CFF"
         android:type="linear" />
 </shape>

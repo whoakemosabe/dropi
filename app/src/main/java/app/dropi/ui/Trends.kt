@@ -39,6 +39,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -103,7 +104,7 @@ fun TrendsPage(state: AppState) {
             }
             return@LazyColumn
         }
-        item(key = "headline") { Headline(report, unit) }
+        item(key = "headline") { Column { Headline(report, unit) } }
         item(key = "lab") { LabA1cCard(state, report) }
         report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
         item(key = "chart") { DailyChart(state, report, fmt) }
@@ -165,37 +166,48 @@ fun TrendsPage(state: AppState) {
 
 @Composable
 private fun Headline(r: Report, unit: GlucoseUnit) {
-    // The period's average on a slab of Dropi's own water colours, with the estimated A1C beside it.
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(SlabShape)
-            .background(Brush.linearGradient(listOf(C.AccentGlow, C.Accent))),
-    ) {
-        Wave(Color.White.copy(alpha = 0.18f), Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(26.dp))
-        Row(Modifier.padding(start = 22.dp, end = 20.dp, top = 16.dp, bottom = 30.dp), verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text("Average", style = inter(14.sp, FontWeight.SemiBold, C.OnAccent.copy(alpha = 0.85f)))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(76.sp, C.OnAccent).copy(lineHeight = 80.sp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(unit.label, style = inter(13.sp, FontWeight.SemiBold, C.OnAccent.copy(alpha = 0.85f)), modifier = Modifier.padding(bottom = 14.dp))
-                }
-                Text("${plural(r.count, "reading")} on ${plural(r.daysLogged, "day")}", style = inter(13.sp, FontWeight.Medium, C.OnAccent.copy(alpha = 0.85f)))
-            }
-            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 2.dp)) {
-                Text("Estimated A1C", style = inter(12.sp, FontWeight.SemiBold, C.OnAccent.copy(alpha = 0.85f)))
-                val g = r.gmiPercent
-                if (g != null) {
-                    Text(String.format(Locale.ROOT, "%.1f%%", g), style = numeral(32.sp, C.OnAccent))
-                    Text("${r.gmiMmolMol?.roundToInt()} mmol/mol", style = inter(12.sp, FontWeight.Medium, C.OnAccent.copy(alpha = 0.85f)))
-                } else {
-                    Text("—", style = numeral(32.sp, C.OnAccent))
-                    Text("after a week", style = inter(12.sp, FontWeight.Medium, C.OnAccent.copy(alpha = 0.85f)))
-                }
+    // The average big under the aurora, the estimated A1C beside it, then the period in a sentence.
+    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
+        Column(Modifier.weight(1f)) {
+            Text("Average", style = inter(14.sp, FontWeight.Medium, C.TextSecondary))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(84.sp).copy(lineHeight = 88.sp))
+                Spacer(Modifier.width(6.dp))
+                Text(unit.label, style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 16.dp))
             }
         }
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 10.dp)) {
+            Text("Estimated A1C", style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+            val g = r.gmiPercent
+            Text(g?.let { String.format(Locale.ROOT, "%.1f%%", it) } ?: "—", style = numeral(36.sp, if (g != null) C.Text else C.TextMuted))
+            Text(
+                if (g != null) "${r.gmiMmolMol?.roundToInt()} mmol/mol" else "after a week",
+                style = inter(12.sp, FontWeight.Medium, C.TextMuted),
+            )
+        }
     }
+    val mint = androidx.compose.ui.text.SpanStyle(color = C.AccentText)
+    val period = if (r.days == 7) "this week" else "in ${r.days} days"
+    val sentence = androidx.compose.ui.text.buildAnnotatedString {
+        val tir = r.bands?.inRange?.roundToInt()
+        if (tir != null) {
+            withStyle(mint) { append("$tir%") }
+            append(" in range $period")
+            r.previousInRange?.roundToInt()?.let { p ->
+                append(
+                    when {
+                        tir > p -> ", up from $p%"
+                        tir < p -> ", down from $p%"
+                        else -> ", the same as before"
+                    }
+                )
+            }
+            append(". ")
+        }
+        if (r.lows == 0) append("No lows.")
+        else withStyle(androidx.compose.ui.text.SpanStyle(color = C.Low)) { append(if (r.lows == 1) "1 low." else "${r.lows} lows.") }
+    }
+    Text(sentence, style = heading(19.sp).copy(lineHeight = 26.sp), modifier = Modifier.padding(horizontal = 4.dp))
     Spacer(Modifier.height(14.dp))
     Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(horizontal = 4.dp)) {
         SmallStat("Variability", r.cv?.let { "${it.roundToInt()}%" } ?: "—", "goal 36% or less", Modifier.weight(1f))

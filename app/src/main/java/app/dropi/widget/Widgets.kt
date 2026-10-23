@@ -71,12 +71,12 @@ private class Pal(context: Context) {
         else -> androidx.glance.color.ColorProvider(day = Color(light), night = Color(dark))
     }
 
-    val bg = cp(0xF2131C45, 0xF5FFFFFF, 0xF2170A0E)
-    val text = cp(0xFFEAF0FF, 0xFF0E1638, 0xFFF6E9EC)
-    val text2 = cp(0xFFB4C0E6, 0xFF3C4670, 0xFFCDA6B0)
-    val muted = cp(0xFF8E9BC7, 0xFF5A6488, 0xFFA57E8A)
-    val accent = cp(0xFF6FE0FF, 0xFF1F52D6, 0xFFFF5C7A)
-    val brand = cp(0xFF2E6BFF, 0xFF2E6BFF, 0xFFA3001B)
+    val bg = cp(0xF20E121C, 0xF5FFFFFF, 0xF2170A0E)
+    val text = cp(0xFFEEF3FF, 0xFF0E1638, 0xFFF6E9EC)
+    val text2 = cp(0xFFC9D3F0, 0xFF3C4670, 0xFFCDA6B0)
+    val muted = cp(0xFF8B95B2, 0xFF5A6488, 0xFFA57E8A)
+    val accent = cp(0xFF7CF5C4, 0xFF4B3BD6, 0xFFFF5C7A)
+    val brand = cp(0xFF6E5BFF, 0xFF5B47F0, 0xFFA3001B)
     val white = ColorProvider(Color.White)
 
     fun status(s: Status): ColorProvider = when (s) {

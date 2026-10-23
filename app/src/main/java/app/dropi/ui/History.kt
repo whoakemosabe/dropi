@@ -90,7 +90,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                         )
                     }
                 }
-                itemsIndexed(rs, key = { _, r -> "h${r.id}" }) { i, r -> ReadingRow(state, r, fmt.time(r.at), first = i == 0, last = i == rs.lastIndex, halfGap = 4.dp) }
+                item(key = "l$day") { ReadingsCard(state, rs, C.SurfaceLight) { fmt.time(it.at) } }
             }
         }
         GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Card)
