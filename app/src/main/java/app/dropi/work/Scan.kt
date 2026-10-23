@@ -40,6 +40,44 @@ object Scan {
         MeterScan.pick(pieces, unit)
     }
 
+    /** Every line of text on a photo, top to bottom (nutrition labels). The photo is then deleted. */
+    suspend fun lines(context: Context, uri: Uri): List<String> = withContext(Dispatchers.Default) {
+        val image = try { InputImage.fromFilePath(context, uri) } catch (e: Exception) { return@withContext emptyList() }
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        try {
+            suspendCancellableCoroutine { cont ->
+                recognizer.process(image)
+                    .addOnSuccessListener { text ->
+                        // Rows of a label table: lines sorted by height on the photo, so a value in the
+                        // right-hand column lands next to its name.
+                        val all = text.textBlocks.flatMap { it.lines }
+                        val rows = all.sortedBy { it.boundingBox?.centerY() ?: 0 }
+                        val out = ArrayList<String>()
+                        var row = StringBuilder()
+                        var rowY = Int.MIN_VALUE
+                        for (l in rows) {
+                            val y = l.boundingBox?.centerY() ?: 0
+                            val h = l.boundingBox?.height() ?: 20
+                            if (rowY != Int.MIN_VALUE && kotlin.math.abs(y - rowY) > h / 2) {
+                                out += row.toString(); row = StringBuilder()
+                            }
+                            if (row.isNotEmpty()) row.append(' ')
+                            row.append(l.text)
+                            rowY = y
+                        }
+                        if (row.isNotEmpty()) out += row.toString()
+                        cont.resume(out)
+                    }
+                    .addOnFailureListener { cont.resume(emptyList()) }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        } finally {
+            recognizer.close()
+            try { File(File(context.cacheDir, "scans"), "label.jpg").delete() } catch (e: Exception) { }
+        }
+    }
+
     private suspend fun recognise(context: Context, uri: Uri): List<MeterScan.Piece> {
         val image = InputImage.fromFilePath(context, uri)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)

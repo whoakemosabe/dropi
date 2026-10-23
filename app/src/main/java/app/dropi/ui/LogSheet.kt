@@ -117,7 +117,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
     // Optional details, edited in their own window.
-    var details by remember { mutableStateOf(Details(initial.carbs, initial.insulin, initial.insulinKind, initial.meds, initial.exercise, initial.foods)) }
+    var details by remember { mutableStateOf(Details(initial.carbs, initial.insulin, initial.insulinKind, initial.meds, initial.exercise, initial.foods, initial.meal)) }
 
     // Scan the meter: the camera app takes a photo, the number is read on the phone.
     val scope = rememberCoroutineScope()
@@ -355,6 +355,8 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     insulinKind = if (details.insulin != null) details.kind else null,
                     meds = details.meds, exercise = details.exercise,
                     foods = details.foods,
+                    // The breakdown stays while it still describes the foods on the reading.
+                    meal = details.meal?.takeIf { m -> m.foods.toSet() == details.foods.toSet() },
                 )
             )
             close()

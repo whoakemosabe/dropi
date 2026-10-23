@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -128,6 +131,8 @@ fun TodayPage(state: AppState) {
         }
         item(key = "sentence") { DaySentence(state, summary) }
         item(key = "checks") { ChecksCard(state, now, fmt) }
+        val meals = todays.filter { it.foods.isNotEmpty() }
+        if (meals.isNotEmpty()) item(key = "meals") { MealsTodayCard(state, meals, now, fmt) }
         item(key = "today-label") {
             Text("Today", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
@@ -363,6 +368,20 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 )
             }
         }
+        // Meals sit on the line as small squares just after their reading.
+        val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        state.readings.filter { it.foods.isNotEmpty() && it.date(zone) == day }.forEach { m ->
+            val x = xOf(hourOf(m.at)) + 12.dp
+            Box(
+                Modifier
+                    .offset(x = x - 6.dp, y = lineY - 6.dp)
+                    .size(12.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(C.AccentText)
+                    .border(2.dp, C.Bg, RoundedCornerShape(3.dp))
+                    .semantics { contentDescription = "Meal at ${fmt.time(m.at)}: ${m.foods.joinToString(", ")}" },
+            )
+        }
         checks.forEachIndexed { i, c ->
             val x = xOf(hours[i])
             val below = !above[i]
@@ -413,6 +432,71 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 } else {
                     Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
                     Text(fmt.time(c.at), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Today's meals: what was eaten, the carbs, and how it went (from before the meal to the highest
+ * reading 45 min–3 h after), or that the after-meal check is still to come.
+ */
+@Composable
+private fun MealsTodayCard(state: AppState, meals: List<Reading>, now: Long, fmt: Fmt) {
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Meals today", style = SectionLabel, modifier = Modifier.padding(start = 4.dp))
+        Column(Modifier.fillMaxWidth().card()) {
+            meals.forEachIndexed { i, r ->
+                if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(C.GlassBorder))
+                val out = app.dropi.data.MealHistory.outcome(r, state.readings, state.sensor)
+                val rise = out?.let { app.dropi.data.Rise.of(it.rise) }
+                val carbs = r.meal?.carbs ?: r.carbs
+                val foods = r.foods.joinToString(", ") { app.dropi.data.Foods.display(it) }
+                val result = when {
+                    out != null -> "Peaked ${Glucose.format(out.peak, state.unit)} (${app.dropi.data.Foods.delta(out.rise, state.unit)}) at ${fmt.time(out.peakAt)}"
+                    now - r.at < 3 * 3_600_000L -> "Waiting for your after-meal check"
+                    else -> "No after-meal reading"
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Button
+                            contentDescription = "Meal at ${fmt.time(r.at)}: $foods" + (carbs?.let { ", $it grams of carbs" } ?: "") +
+                                ". $result" + (rise?.let { ", ${it.word.lowercase()}" } ?: "")
+                        }
+                        .tap {
+                            val m = r.meal
+                            if (m != null) app.dropi.work.MealWork.edit(m, r.id) else state.editing = r
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(C.SurfaceLight), contentAlignment = Alignment.Center) {
+                        Ic(R.drawable.lc_utensils, C.AccentText, 18.dp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            fmt.time(r.at) + (carbs?.let { " · $it g carbs" } ?: ""),
+                            style = inter(15.sp, FontWeight.SemiBold),
+                        )
+                        Text(foods, style = inter(13.sp, color = C.TextSecondary), maxLines = 2)
+                        Text(result, style = inter(12.sp, color = C.TextMuted))
+                    }
+                    if (rise != null) {
+                        Spacer(Modifier.width(10.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(app.dropi.data.Foods.delta(out.rise, state.unit), style = numeral(18.sp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(7.dp).clip(CircleShape).background(riseColor(rise)))
+                                Spacer(Modifier.width(5.dp))
+                                Text(rise.word.removeSuffix(" rise"), style = inter(12.sp, FontWeight.SemiBold))
+                            }
+                        }
+                    }
                 }
             }
         }

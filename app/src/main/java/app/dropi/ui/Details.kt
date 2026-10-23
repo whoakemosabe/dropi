@@ -66,6 +66,8 @@ data class Details(
     val meds: Boolean = false,
     val exercise: Int? = null,
     val foods: List<String> = emptyList(),
+    /** The meal breakdown behind [foods] and [carbs], when there is one. */
+    val meal: app.dropi.data.Meal? = null,
 ) {
     fun summary(): String = listOfNotNull(
         foods.takeIf { it.isNotEmpty() }?.let { f -> if (f.size <= 2) f.joinToString(", ") { app.dropi.data.Foods.display(it) } else "${f.size} foods" },
@@ -117,8 +119,8 @@ fun DetailsDialog(
             FoodPicker(
                 d.foods, recentFoods,
                 onChange = { d = d.copy(foods = it) },
-                onGuess = { g ->
-                    d = d.copy(foods = (d.foods + g.foods).distinct().take(12), carbs = g.carbs ?: d.carbs)
+                onMeal = { m ->
+                    d = d.copy(foods = (d.foods + m.foods).distinct().take(12), carbs = m.carbs, meal = m)
                 },
             )
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.tween
@@ -158,6 +159,35 @@ fun DropiRoot(state: AppState) {
             }
         }
 
+        // "Added to your 12:40 reading" after a meal is used.
+        val mealNote = state.mealNote
+        LaunchedEffect(mealNote) {
+            if (mealNote != null) {
+                kotlinx.coroutines.delay(4_000)
+                if (state.mealNote == mealNote) state.mealNote = null
+            }
+        }
+        AnimatedVisibility(
+            visible = mealNote != null && !state.sheetOpen,
+            enter = fadeIn(tween(160)) + androidx.compose.animation.slideInVertically(tween(220)) { it / 2 },
+            exit = fadeOut(tween(140)),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Text(
+                mealNote ?: "",
+                style = inter(14.sp, FontWeight.SemiBold, C.Bg),
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(start = 24.dp, end = 24.dp, bottom = 96.dp)
+                    .widthIn(max = 420.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(C.Text)
+                    .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            )
+        }
+
         SettingsSheet(state)
         ScheduleSheet(state)
         ExportSheet(state)
@@ -167,7 +197,10 @@ fun DropiRoot(state: AppState) {
         FoodsSheet(state)
         AskSheet(state)
         ChangelogSheet(state)
+        AddPanel(state)
+        MealSheet(state)
         LogSheetHost(state)
+        MealLaunchers(state)
 
         // First run: welcome, unit and every permission, over everything else.
         if (!state.onboarded) WelcomeFlow(state)
@@ -327,9 +360,9 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 .shadow(18.dp, CircleShape, ambientColor = C.Aurora[1], spotColor = C.Aurora[2])
                 .clip(CircleShape)
                 .background(Brush.linearGradient(C.Aurora))
-                .tap(plus) { state.startNew() },
+                .tap(plus) { state.addOpen = true },
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = "Log reading") }
+        ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = "Add a reading or meal") }
     }
 }
 
@@ -414,6 +447,9 @@ object Launch {
 
     /** The weekly recap asked for Trends (7 days). */
     val openTrends = mutableStateOf(false)
+
+    /** A meal action asked for from outside the + panel: "camera", "pick", "words", "label", "draft", "shared:<uri>". */
+    val mealAction = mutableStateOf<String?>(null)
 
     /** The "on-device AI is ready" notification or banner asked for Ask Dropi. */
     val openAsk = mutableStateOf(false)

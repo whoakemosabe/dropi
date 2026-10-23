@@ -46,6 +46,26 @@ object Ai {
         else -> null
     }
 
+    /** A meal breakdown from a photo, or null when the model couldn't make it out. */
+    suspend fun mealFromPhoto(context: Context, uri: Uri): app.dropi.data.Meal? {
+        val raw = when {
+            nano -> Nano.imageText(context, uri, app.dropi.data.MealAi.PHOTO)
+            Gemma.state == Gemma.State.Ready -> Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, app.dropi.data.MealAi.SCHEMA)
+            else -> null
+        }
+        return app.dropi.data.MealAi.parse(raw, "photo")
+    }
+
+    /** A meal breakdown from a prompt in words (a description, or a change to a meal). */
+    suspend fun mealFromWords(context: Context, prompt: String, source: String): app.dropi.data.Meal? {
+        val raw = when {
+            nano -> Nano.text(prompt)
+            Gemma.state == Gemma.State.Ready -> Gemma.textJson(context, prompt, app.dropi.data.MealAi.SCHEMA)
+            else -> null
+        }
+        return app.dropi.data.MealAi.parse(raw, source)
+    }
+
     suspend fun ask(context: Context, prompt: String): String? = when {
         nano -> Nano.ask(prompt)
         Gemma.state == Gemma.State.Ready -> Gemma.ask(context, prompt)

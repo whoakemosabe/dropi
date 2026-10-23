@@ -15,7 +15,7 @@ class Db private constructor(context: Context) :
     SQLiteOpenHelper(context.applicationContext, "dropi.db", null, VERSION) {
 
     companion object {
-        private const val VERSION = 4
+        private const val VERSION = 5
 
         @Volatile private var instance: Db? = null
         fun get(context: Context): Db = instance ?: synchronized(this) {
@@ -38,7 +38,8 @@ class Db private constructor(context: Context) :
                 insulin_kind TEXT,
                 meds INTEGER NOT NULL DEFAULT 0,
                 exercise INTEGER,
-                foods TEXT NOT NULL DEFAULT ''
+                foods TEXT NOT NULL DEFAULT '',
+                meal TEXT
             )
             """.trimIndent()
         )
@@ -72,6 +73,10 @@ class Db private constructor(context: Context) :
             db.execSQL("ALTER TABLE readings ADD COLUMN foods TEXT NOT NULL DEFAULT ''")
             createSensor(db)
         }
+        if (oldVersion < 5) {
+            // The meal's breakdown (foods, portions, carbs, sugars, fibre) as JSON.
+            db.execSQL("ALTER TABLE readings ADD COLUMN meal TEXT")
+        }
     }
 
     private fun values(r: Reading) = ContentValues().apply {
@@ -86,6 +91,7 @@ class Db private constructor(context: Context) :
         put("meds", if (r.meds) 1 else 0)
         if (r.exercise != null) put("exercise", r.exercise) else putNull("exercise")
         put("foods", Foods.pack(r.foods))
+        if (r.meal != null) put("meal", r.meal.toJson()) else putNull("meal")
     }
 
     /** Saves a new reading (id 0) or updates an existing one; returns the saved reading. */
@@ -143,7 +149,7 @@ class Db private constructor(context: Context) :
     suspend fun since(since: Long): List<Reading> = withContext(Dispatchers.IO) {
         val out = ArrayList<Reading>()
         readableDatabase.rawQuery(
-            "SELECT id, at, mmol, tag, note, source, carbs, insulin, insulin_kind, meds, exercise, foods FROM readings WHERE at >= ? ORDER BY at ASC",
+            "SELECT id, at, mmol, tag, note, source, carbs, insulin, insulin_kind, meds, exercise, foods, meal FROM readings WHERE at >= ? ORDER BY at ASC",
             arrayOf(since.toString()),
         ).use { c ->
             while (c.moveToNext()) {
@@ -160,6 +166,7 @@ class Db private constructor(context: Context) :
                     meds = c.getInt(9) != 0,
                     exercise = if (c.isNull(10)) null else c.getInt(10),
                     foods = Foods.unpack(c.getString(11)),
+                    meal = Meal.fromJson(c.getString(12)),
                 )
             }
         }

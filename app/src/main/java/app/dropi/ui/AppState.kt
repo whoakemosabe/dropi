@@ -110,10 +110,14 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     /** The food scores sheet, and the food opened in it (null: the list). */
     var foodsOpen by mutableStateOf(false)
     var foodOpen by mutableStateOf<String?>(null)
+    /** The + panel: reading, meal photo, words, label. */
+    var addOpen by mutableStateOf(false)
+    /** "Added to your 12:40 reading" after a meal is used, for a moment. */
+    var mealNote by mutableStateOf<String?>(null)
 
     /** Any sheet over the page (the tab bar hides). */
     val sheetOpen get() = !onboarded || editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
-        liveOpen || askOpen || changelogOpen || foodsOpen
+        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || app.dropi.work.MealWork.open
 
     // ---- Live sensor ----
 
@@ -209,6 +213,44 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         headsUpOn = on
         prefs.headsUpOn = on
     }
+
+    /**
+     * Uses a worked-out meal: it goes on the reading taken in the hour before (when that one
+     * has no meal yet), or opens the log sheet for the before-meal reading with it attached.
+     */
+    fun useMeal(meal: app.dropi.data.Meal, forReading: Long? = null) {
+        val now = System.currentTimeMillis()
+        val target = (forReading?.let { id -> readings.firstOrNull { it.id == id } })
+            ?: readings.filter {
+                now - it.at in 0..60 * 60_000L && it.meal == null && it.foods.isEmpty() && it.tag != MealTag.AFTER_MEAL
+            }.maxByOrNull { it.at }
+        if (target != null) {
+            save(target.copy(carbs = meal.carbs, foods = meal.foods, meal = meal))
+            // A rich meal moves this reading's after-meal check to 3 hours.
+            if (meal.rich && target.tag == MealTag.BEFORE_MEAL && prefs.afterMealOn) {
+                val later = target.at + maxOf(prefs.afterMealMinutes, 180) * 60_000L
+                prefs.oneOffs = prefs.oneOffs.map {
+                    if (it.kind == app.dropi.data.OneOff.Kind.AFTER_MEAL && it.at in target.at..target.at + 4 * 3_600_000L) it.copy(at = later) else it
+                }
+                Reminders.rescheduleAsync(context)
+            }
+            mealNote = "Added to your ${java.time.Instant.ofEpochMilli(target.at).atZone(zone).toLocalTime().let { "%02d:%02d".format(it.hour, it.minute) }} reading"
+        } else {
+            editing = Reading(at = now, mmol = 0.0, tag = Tagging.suggest(now, readings, zone).let { if (it == MealTag.AFTER_MEAL) MealTag.BEFORE_MEAL else it },
+                carbs = meal.carbs, foods = meal.foods, meal = meal)
+        }
+    }
+
+    /** The latest reading in the last hour: where a meal starts from. */
+    fun startForMeal(): Reading? {
+        val now = System.currentTimeMillis()
+        return readings.filter { now - it.at in 0..60 * 60_000L }.maxByOrNull { it.at }
+    }
+
+    /** Meals logged lately, newest first, one per set of foods (the + panel's "Again"). */
+    val recentMeals: List<app.dropi.data.Meal>
+        get() = readings.asReversed().mapNotNull { it.meal }.filter { it.items.isNotEmpty() }
+            .distinctBy { m -> m.foods.sorted().joinToString("|") }.take(3)
 
     /** The foods logged most often, for one-tap picking in Details. */
     val recentFoods: List<String> get() = Foods.recent(readings)

@@ -164,4 +164,23 @@ class Prefs(context: Context) {
     var notifiedVersion: String
         get() = p.getString("notified_version", "") ?: ""
         set(v) = p.edit { putString("notified_version", v) }
+
+    // ---- Meals ----
+
+    /** The person's own amounts per food (food → portion and carbs), used before any guess. */
+    var usualFoods: Map<String, app.dropi.data.Usual>
+        get() = try {
+            val o = org.json.JSONObject(p.getString("usual_foods", null) ?: "{}")
+            o.keys().asSequence().associateWith { k ->
+                val u = o.getJSONObject(k)
+                app.dropi.data.Usual(u.optString("portion", "1 portion"), u.optInt("carbs"), if (u.has("sugars")) u.optInt("sugars") else null)
+            }
+        } catch (e: Exception) { emptyMap() }
+        set(v) = p.edit {
+            val o = org.json.JSONObject()
+            v.entries.take(300).forEach { (k, u) ->
+                o.put(k, org.json.JSONObject().put("portion", u.portion).put("carbs", u.carbs).apply { u.sugars?.let { put("sugars", it) } })
+            }
+            putString("usual_foods", o.toString())
+        }
 }

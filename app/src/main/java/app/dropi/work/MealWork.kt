@@ -1,0 +1,188 @@
+package app.dropi.work
+
+import android.content.Context
+import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import app.dropi.Prefs
+import app.dropi.data.Label
+import app.dropi.data.Meal
+import app.dropi.data.MealAi
+import app.dropi.data.MealItem
+import app.dropi.data.Usual
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import java.io.File
+
+/**
+ * The meal being worked out, app-wide: a photo, words or a label go in, a breakdown comes out.
+ * It lives outside any screen, so closing the meal screen doesn't stop the work; if it finishes
+ * while the screen is closed, a notification brings the person back to check it.
+ */
+object MealWork {
+    sealed interface Status {
+        data class Working(val what: String) : Status
+        data object Ready : Status
+        data class Failed(val message: String) : Status
+        /** A label was read; how much was eaten is still needed. */
+        data class NeedsGrams(val per100: Label.Per100) : Status
+        /** Waiting for the person to say what they ate. */
+        data object Words : Status
+    }
+
+    data class Draft(
+        val id: Long,
+        val status: Status,
+        val meal: Meal? = null,
+        /** The photo it came from, while it's being looked at. */
+        val photo: Uri? = null,
+        /** A reading this meal belongs to, when the log sheet started it. */
+        val forReading: Long? = null,
+    )
+
+    var draft by mutableStateOf<Draft?>(null)
+        private set
+
+    /** The meal screen is showing. */
+    var open by mutableStateOf(false)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var counter = 0L
+
+    private fun start(status: Status, meal: Meal? = null, photo: Uri? = null): Long {
+        val id = ++counter
+        draft = Draft(id, status, meal, photo)
+        open = true
+        return id
+    }
+
+    /** Only the newest piece of work may land. */
+    private fun land(id: Long, d: Draft) {
+        if (draft?.id == id) draft = d
+    }
+
+    fun usual(context: Context): Map<String, Usual> = Prefs(context).usualFoods
+
+    /** Remembers [item] at its portion as the person's own amount for that food. */
+    fun remember(context: Context, item: MealItem) {
+        val p = Prefs(context)
+        val per = if (item.qty > 0) 1.0 / item.qty else 1.0
+        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, Math.round(item.carbs * per).toInt(), item.sugars?.let { Math.round(it * per).toInt() }))
+    }
+
+    fun forget(context: Context, food: String) {
+        val p = Prefs(context)
+        p.usualFoods = p.usualFoods - food
+    }
+
+    /** A photo of a plate. */
+    fun fromPhoto(context: Context, uri: Uri) {
+        val ctx = context.applicationContext
+        Alerts.cancelMeal(ctx)
+        val id = start(Status.Working("Looking at your plate…"), photo = uri)
+        scope.launch {
+            val meal = try { Ai.mealFromPhoto(ctx, uri) } catch (e: Throwable) { null }
+            try { File(File(ctx.cacheDir, "scans"), "plate.jpg").delete() } catch (e: Exception) { }
+            finish(ctx, id, meal, "Couldn't make out the meal. Say what you ate instead, or add the foods yourself.")
+        }
+    }
+
+    /** "Say what you ate", before anything has been said. */
+    fun words() {
+        start(Status.Words)
+    }
+
+    /** A meal said or typed in words. */
+    fun fromWords(context: Context, text: String) {
+        if (text.isBlank()) return
+        val ctx = context.applicationContext
+        val id = start(Status.Working("Working out your meal…"))
+        scope.launch {
+            val meal = try { Ai.mealFromWords(ctx, MealAi.words(text), "words") } catch (e: Throwable) { null }
+            finish(ctx, id, meal, "Couldn't work that out. Try naming each food, like \"2 slices of toast and jam\".")
+        }
+    }
+
+    /** "Make the juice a small glass": the change applied to the meal on screen. */
+    fun change(context: Context, text: String) {
+        val current = draft?.meal ?: return fromWords(context, text)
+        if (text.isBlank()) return
+        val ctx = context.applicationContext
+        val id = ++counter
+        draft = Draft(id, Status.Working("Changing it…"), current, forReading = draft?.forReading)
+        scope.launch {
+            val meal = try { Ai.mealFromWords(ctx, MealAi.change(current, text), current.source) } catch (e: Throwable) { null }
+            if (meal == null) land(id, Draft(id, Status.Ready, current, forReading = draft?.forReading).also { failedChange = true })
+            else finish(ctx, id, meal.copy(rich = meal.rich || current.rich), "")
+        }
+    }
+
+    /** True for a moment after a change in words didn't work (the meal stays as it was). */
+    var failedChange by mutableStateOf(false)
+
+    /** A photo of a nutrition label: exact numbers, then how much was eaten. */
+    fun fromLabel(context: Context, uri: Uri) {
+        val ctx = context.applicationContext
+        val id = start(Status.Working("Reading the label…"))
+        scope.launch {
+            val p = Label.read(Scan.lines(ctx, uri))
+            land(
+                id,
+                if (p == null || p.carbs == null) Draft(id, Status.Failed("Couldn't find the carbohydrate line. Hold the phone straight over the nutrition table and try again."))
+                else Draft(id, Status.NeedsGrams(p)),
+            )
+        }
+    }
+
+    /** How much of the labelled food was eaten. */
+    fun labelGrams(name: String, grams: Int) {
+        val d = draft ?: return
+        val p = (d.status as? Status.NeedsGrams)?.per100 ?: return
+        val item = Label.item(name, grams, p)
+        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), false, "label"))
+    }
+
+    /** A meal logged before, again. */
+    fun again(meal: Meal) {
+        start(Status.Ready, meal.copy(source = "typed"))
+    }
+
+    /** An empty meal to fill in by hand. */
+    fun manual() {
+        start(Status.Ready, Meal(emptyList(), false, "typed"))
+    }
+
+    /** A meal already on a reading, opened for changes. */
+    fun edit(meal: Meal, readingId: Long) {
+        val id = ++counter
+        draft = Draft(id, Status.Ready, meal, forReading = readingId)
+        open = true
+    }
+
+    /** The person changed the meal on screen. */
+    fun update(meal: Meal) {
+        val d = draft ?: return
+        draft = d.copy(meal = meal, status = Status.Ready)
+        failedChange = false
+    }
+
+    fun discard() {
+        draft = null
+        open = false
+    }
+
+    private fun finish(ctx: Context, id: Long, meal: Meal?, failed: String) {
+        if (draft?.id != id) return
+        if (meal == null) {
+            land(id, Draft(id, Status.Failed(failed)))
+            return
+        }
+        val withUsual = MealAi.applyUsual(meal, usual(ctx))
+        land(id, Draft(id, Status.Ready, withUsual, forReading = draft?.forReading))
+        // Worked out while the screen was closed: a notification to come back and check it.
+        if (!open) Alerts.postMealReady(ctx, withUsual.carbs, withUsual.foods, null)
+    }
+}

@@ -287,6 +287,14 @@ object Reminders {
                 .putExtra(EXTRA_ID, id),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        // Before a meal: one tap to the camera for the plate (the body still opens the log).
+        val snap = if (tag == MealTag.BEFORE_MEAL) PendingIntent.getActivity(
+            context, id + 50_000,
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(Alerts.EXTRA_OPEN_MEAL, "camera"),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        ) else null
         val n = NotificationCompat.Builder(context, Alerts.CH_REMINDERS)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(if (urgent) 0xFFD0263A.toInt() else 0xFF6E5BFF.toInt())
@@ -294,7 +302,10 @@ object Reminders {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
-            .addAction(R.drawable.lc_plus, "Log reading", open)
+            .apply {
+                if (snap != null) addAction(R.drawable.lc_camera, "Snap your plate", snap)
+                else addAction(R.drawable.lc_plus, "Log reading", open)
+            }
             .addAction(typeAction(context, id, tag))
             .addAction(R.drawable.lc_clock, "Snooze $SNOOZE_MIN min", snooze)
             .setAutoCancel(true)

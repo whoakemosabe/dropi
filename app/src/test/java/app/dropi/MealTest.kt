@@ -1,0 +1,86 @@
+package app.dropi
+
+import app.dropi.data.Label
+import app.dropi.data.Meal
+import app.dropi.data.MealAi
+import app.dropi.data.MealItem
+import app.dropi.data.Rise
+import app.dropi.data.Usual
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MealTest {
+    @Test
+    fun readsJsonInsideWords() {
+        val reply = """Sure! Here it is:
+            ```json
+            {"items":[{"food":"Basmati Rice","portion":"1 cup","carbs":45,"sugars":0,"fibre":1},
+                      {"food":"naan bread","portion":"1 piece","carbs":"about 40 g","sugars":3}],"rich":true}
+            ```"""
+        val m = MealAi.parse(reply, "photo")!!
+        assertEquals(listOf("basmati rice", "naan bread"), m.foods)
+        assertEquals(85, m.carbs)
+        assertEquals(3, m.sugars)
+        assertTrue(m.rich)
+        assertEquals("photo", m.source)
+    }
+
+    @Test
+    fun fallsBackToOldLines() {
+        val m = MealAi.parse("FOODS: toast; jam\nCARBS: 44", "photo")!!
+        assertEquals(listOf("toast", "jam"), m.foods)
+        assertEquals(44, m.carbs)
+        assertNull(MealAi.parse("I can't tell what this is.", "photo"))
+    }
+
+    @Test
+    fun portionsScale() {
+        val i = MealItem("rice", "1 cup", carbs = 45, sugars = 1, fibre = 2)
+        val half = i.withQty(0.5)
+        assertEquals(23, half.carbs)
+        assertEquals("½ × 1 cup", half.portionText())
+        assertEquals(90, i.withQty(2.0).carbs)
+        assertEquals("1½", Meal.qtyText(1.5))
+    }
+
+    @Test
+    fun usualReplacesGuess() {
+        val m = Meal(listOf(MealItem("naan bread", "1 piece", qty = 2.0, carbs = 80)))
+        val u = MealAi.applyUsual(m, mapOf("naan bread" to Usual("1 piece", 55)))
+        assertEquals(110, u.carbs)
+        assertTrue(u.items[0].usual)
+    }
+
+    @Test
+    fun jsonRoundTrip() {
+        val m = Meal(listOf(MealItem("rice", "1 cup", 1.5, 68, 1, null, true)), rich = true, source = "words")
+        assertEquals(m, Meal.fromJson(m.toJson()))
+        assertNull(Meal.fromJson("not json"))
+    }
+
+    @Test
+    fun readsLabels() {
+        val en = Label.read(listOf("Nutrition per 100 g per serving", "Energy 1650 kJ", "Carbohydrate 60.5 g 24.2 g", "of which sugars 22 g 8.8 g", "Fibre 7 g"))!!
+        assertEquals(60.5, en.carbs!!, 0.01)
+        assertEquals(22.0, en.sugars!!, 0.01)
+        assertEquals(7.0, en.fibre!!, 0.01)
+        val isl = Label.read(listOf("Næringargildi í 100 g", "Kolvetni 12,4 g", "þar af sykurtegundir 4,1 g"))!!
+        assertEquals(12.4, isl.carbs!!, 0.01)
+        assertEquals(4.1, isl.sugars!!, 0.01)
+        assertNull(Label.read(listOf("Best before 12.11.26")))
+        val item = Label.item("granola", 50, en)
+        assertEquals(30, item.carbs)
+        assertEquals("50 g", item.portion)
+    }
+
+    @Test
+    fun riseWords() {
+        assertEquals(Rise.GENTLE, Rise.of(1.4))
+        assertEquals(Rise.MODERATE, Rise.of(3.0))
+        assertEquals(Rise.BIG, Rise.of(4.1))
+        assertNotNull(Rise.BIG.word)
+    }
+}

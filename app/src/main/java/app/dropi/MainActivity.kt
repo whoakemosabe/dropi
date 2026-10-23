@@ -105,6 +105,30 @@ class MainActivity : ComponentActivity() {
             UpdateWatch.load(this)
             UpdateWatch.whatsNewOpen.value = true
         }
+        // A meal: the camera (reminder, shortcut, widget), words or a label (shortcuts), or the
+        // worked-out meal (its notification). Only these known actions are followed.
+        intent.getStringExtra(Alerts.EXTRA_OPEN_MEAL)?.let { a ->
+            intent.removeExtra(Alerts.EXTRA_OPEN_MEAL)
+            if (a in setOf("camera", "words", "label", "draft", "pick")) Launch.mealAction.value = a
+        }
+        // A photo shared from another app: copied in, then looked at like a meal photo.
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
+            @Suppress("DEPRECATION")
+            val src = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+            intent.action = Intent.ACTION_MAIN
+            if (src != null) {
+                val copy = try {
+                    val dir = java.io.File(cacheDir, "scans").apply { mkdirs() }
+                    val f = java.io.File(dir, "plate.jpg")
+                    contentResolver.openInputStream(src)?.use { input ->
+                        // Up to 20 MB: a photo, not anything else.
+                        f.outputStream().use { out -> input.copyTo(out, 1 shl 16) }
+                    }
+                    if (f.length() in 1..20_000_000L) androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", f) else null
+                } catch (e: Exception) { null }
+                if (copy != null) Launch.mealAction.value = "shared:$copy"
+            }
+        }
         // "On-device AI is ready" opens Ask Dropi.
         if (intent.getBooleanExtra(Alerts.EXTRA_OPEN_ASK, false)) {
             intent.removeExtra(Alerts.EXTRA_OPEN_ASK)

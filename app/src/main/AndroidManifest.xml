@@ -60,6 +60,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- A photo shared from any app becomes a meal photo (copied in, looked at on the phone). -->
+            <intent-filter android:label="@string/share_meal">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Why Dropi asks for Health Connect access: opened by Health Connect itself. -->

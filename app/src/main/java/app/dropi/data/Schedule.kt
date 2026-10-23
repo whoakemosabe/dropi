@@ -173,7 +173,8 @@ object Schedule {
     fun afterSave(oneOffs: List<OneOff>, r: Reading, afterMealOn: Boolean, afterMin: Int, now: Long): List<OneOff> {
         val kept = oneOffs.filter { it.created > r.at }.toMutableList()
         if (afterMealOn && r.tag == MealTag.BEFORE_MEAL) {
-            val at = r.at + afterMin * MIN
+            // A rich meal (high fat or protein) peaks later, so its check waits for 3 hours.
+            val at = r.at + (if (r.meal?.rich == true) maxOf(afterMin, 180) else afterMin) * MIN
             if (at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now)
         }
         return kept

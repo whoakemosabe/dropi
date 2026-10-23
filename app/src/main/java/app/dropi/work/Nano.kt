@@ -100,6 +100,30 @@ object Nano {
         }
     }
 
+    /** The model's raw reply to a photo and a prompt (meal breakdowns). */
+    suspend fun imageText(context: Context, uri: Uri, prompt: String): String? = lock.withLock {
+        if (!prepare()) return@withLock null
+        val bitmap = withContext(Dispatchers.IO) { loadScaled(context, uri, 768) } ?: return@withLock null
+        try {
+            val res = client().generateContent(generateContentRequest(ImagePart(bitmap), TextPart(prompt)) { temperature = 0.2f })
+            res.candidates.firstOrNull()?.text
+        } catch (e: Throwable) {
+            null
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    /** The model's raw reply to a text prompt (meals said in words, changes to a meal). */
+    suspend fun text(prompt: String): String? = lock.withLock {
+        if (!prepare()) return@withLock null
+        try {
+            client().generateContent(generateContentRequest(TextPart(prompt)) { temperature = 0.2f }).candidates.firstOrNull()?.text
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
     /** A short answer to a typed question, from [prompt] (question plus the facts). */
     suspend fun ask(prompt: String): String? = lock.withLock {
         if (!prepare()) return@withLock null

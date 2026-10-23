@@ -46,6 +46,8 @@ data class Reading(
     val exercise: Int? = null,
     /** What was eaten with this reading ("porridge", "banana"), lower case; for food scores. */
     val foods: List<String> = emptyList(),
+    /** The foods with their portions and numbers, when they came from the meal screen. */
+    val meal: Meal? = null,
 ) {
     val imported get() = source.isNotEmpty()
     val hasDetails get() = carbs != null || insulin != null || meds || exercise != null || foods.isNotEmpty()

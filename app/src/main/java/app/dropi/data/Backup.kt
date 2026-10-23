@@ -48,6 +48,7 @@ object Backup {
                         if (r.meds) put("meds", true)
                         r.exercise?.let { put("exercise", it) }
                         if (r.foods.isNotEmpty()) put("foods", Foods.pack(r.foods))
+                        r.meal?.let { put("meal", it.toJson()) }
                     }
             )
         }
@@ -82,6 +83,7 @@ object Backup {
                 meds = r.optBoolean("meds"),
                 exercise = if (r.has("exercise")) r.getInt("exercise") else null,
                 foods = Foods.unpack(r.optString("foods")),
+                meal = Meal.fromJson(r.optString("meal")),
             )
         }
         val t = o.optJSONObject("targets")?.let {

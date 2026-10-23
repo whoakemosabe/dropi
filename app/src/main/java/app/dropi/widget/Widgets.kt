@@ -143,6 +143,9 @@ private fun Content(context: Context, d: Data, p: Pal) {
     val log = Intent(context, MainActivity::class.java)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         .putExtra(Alerts.EXTRA_LOG_TAG, "new")
+    val snap = Intent(context, MainActivity::class.java)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        .putExtra(Alerts.EXTRA_OPEN_MEAL, "camera")
     val r = d.latest
     val status = r?.let { Glucose.status(it.mmol, it.tag, d.targets) }
 
@@ -164,6 +167,23 @@ private fun Content(context: Context, d: Data, p: Pal) {
                 )
                 Spacer(GlanceModifier.width(6.dp))
                 Text("DROPI", style = style(p.muted, 11, FontWeight.Bold), modifier = GlanceModifier.defaultWeight())
+                // A photo of the meal, one tap from the home screen.
+                Box(
+                    GlanceModifier
+                        .size(32.dp)
+                        .cornerRadius(16.dp)
+                        .background(p.brand)
+                        .clickable(actionStartActivity(snap)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        ImageProvider(R.drawable.lc_camera),
+                        contentDescription = "Snap a meal",
+                        colorFilter = ColorFilter.tint(p.white),
+                        modifier = GlanceModifier.size(17.dp),
+                    )
+                }
+                Spacer(GlanceModifier.width(8.dp))
                 Box(
                     GlanceModifier
                         .size(32.dp)

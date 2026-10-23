@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
 import app.dropi.data.Foods
-import app.dropi.data.PlateGuess
 import app.dropi.work.Ai
 import app.dropi.work.Scan
 import kotlinx.coroutines.launch
@@ -57,7 +56,7 @@ fun FoodPicker(
     foods: List<String>,
     recent: List<String>,
     onChange: (List<String>) -> Unit,
-    onGuess: (PlateGuess) -> Unit,
+    onMeal: (app.dropi.data.Meal) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -75,13 +74,14 @@ fun FoodPicker(
         working = true
         note = Ai.warmUp ?: "Looking at your plate…"
         scope.launch {
-            val g = Ai.plate(context, u)
+            val g = Ai.mealFromPhoto(context, u)?.let { app.dropi.data.MealAi.applyUsual(it, app.dropi.work.MealWork.usual(context)) }
             Scan.forgetPlate(context)
             working = false
             note = if (g == null) "Couldn't make out the meal. Add the foods yourself."
             else {
-                onGuess(g)
-                "${Ai.name}'s guess" + (g.carbs?.let { ": about $it g carbs" } ?: "") + ". Check it against the label or your usual portions."
+                onMeal(g)
+                "${Ai.name}'s guess: " + g.items.joinToString(", ") { "${Foods.display(it.name)} ${it.carbs} g" } +
+                    ". About ${g.carbs} g carbs" + (g.sugars?.let { ", $it g sugars" } ?: "") + ". Check it against the label or your usual portions."
             }
         }
     }

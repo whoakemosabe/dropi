@@ -22,6 +22,9 @@ object Alerts {
     const val CH_RECAP = "recap"
     const val CH_AI = "ai"
 
+    /** Opens the meal screen ("your lunch is worked out") or a meal action from a shortcut. */
+    const val EXTRA_OPEN_MEAL = "open_meal"
+
     /** Opens Ask Dropi (the "on-device AI is ready" notification). */
     const val EXTRA_OPEN_ASK = "open_ask"
 
@@ -33,6 +36,7 @@ object Alerts {
     const val EXTRA_LOG_TAG = "log_tag"
     private const val ID_UPDATE = 4
     private const val ID_AI_READY = 5
+    private const val ID_MEAL = 6
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
@@ -111,4 +115,30 @@ object Alerts {
             .build()
         NotificationManagerCompat.from(context).notify(ID_AI_READY, n)
     }
+
+    /** A meal photo was worked out while Dropi was closed: what it found, to check. */
+    @SuppressLint("MissingPermission")
+    fun postMealReady(context: Context, carbs: Int, foods: List<String>, peak: String?) {
+        createChannels(context)
+        if (!canNotify(context)) return
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_OPEN_MEAL, "draft")
+        val open = PendingIntent.getActivity(context, ID_MEAL, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val list = foods.take(4).joinToString(", ") { app.dropi.data.Foods.display(it) }
+        val text = list + (peak?.let { ". Meals like this usually peak around $it" } ?: "") + ". Is it right?"
+        val n = NotificationCompat.Builder(context, CH_AI)
+            .setSmallIcon(R.drawable.ic_stat_drop)
+            .setColor(0xFF6E5BFF.toInt())
+            .setContentTitle("Your meal: about $carbs g carbs")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(open)
+            .addAction(0, "Check it", open)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(ID_MEAL, n)
+    }
+
+    fun cancelMeal(context: Context) = NotificationManagerCompat.from(context).cancel(ID_MEAL)
 }

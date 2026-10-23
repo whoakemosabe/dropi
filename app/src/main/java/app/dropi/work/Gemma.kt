@@ -21,6 +21,7 @@ import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.ResponseFormat
 import com.google.ai.edge.litertlm.SamplerConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -265,11 +266,28 @@ object Gemma {
         return Plate.parse(text)
     }
 
+    /** A meal breakdown from a photo, held to the meal JSON shape. */
+    suspend fun imageJson(context: Context, uri: Uri, prompt: String, schema: String): String? {
+        val png = withContext(Dispatchers.IO) {
+            val bitmap = Nano.loadScaled(context, uri, 768) ?: return@withContext null
+            try {
+                ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+            } finally {
+                bitmap.recycle()
+            }
+        } ?: return null
+        return generate(context, 0.2, schema) { Contents.of(Content.ImageBytes(png), Content.Text(prompt)) }
+    }
+
+    /** A meal breakdown from words, held to the meal JSON shape. */
+    suspend fun textJson(context: Context, prompt: String, schema: String): String? =
+        generate(context, 0.2, schema) { Contents.of(Content.Text(prompt)) }
+
     /** A short answer to a typed question, from [prompt] (question plus the facts). */
     suspend fun ask(context: Context, prompt: String): String? =
         generate(context, 0.3) { Contents.of(Content.Text(prompt)) }?.trim()?.takeIf { it.isNotEmpty() }
 
-    private suspend fun generate(context: Context, temperature: Double, contents: () -> Contents): String? {
+    private suspend fun generate(context: Context, temperature: Double, schema: String? = null, contents: () -> Contents): String? {
         if (state != State.Ready && refresh(context) != State.Ready) return null
         val f = file(context) ?: return null
         return lock.withLock {
@@ -277,9 +295,17 @@ object Gemma {
             try {
                 withContext(Dispatchers.Default) {
                     val e = engine ?: open(context, f) ?: return@withContext null
-                    e.createConversation(
-                        ConversationConfig(samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = temperature))
-                    ).use { it.sendMessage(contents()).toString() }
+                    val sampler = SamplerConfig(topK = 40, topP = 0.95, temperature = temperature)
+                    if (schema != null) {
+                        // Held to the JSON shape where the engine supports it; plain otherwise.
+                        val held = try {
+                            e.createConversation(ConversationConfig(samplerConfig = sampler, enableResponseFormat = true)).use {
+                                it.sendMessage(contents(), responseFormat = ResponseFormat.json(schema)).toString()
+                            }
+                        } catch (t: Exception) { null }
+                        if (held != null) return@withContext held
+                    }
+                    e.createConversation(ConversationConfig(samplerConfig = sampler)).use { it.sendMessage(contents()).toString() }
                 }
             } catch (e: Throwable) {
                 // A native failure can leave the engine unusable; start fresh next time.

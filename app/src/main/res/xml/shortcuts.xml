@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: straight to a meal photo, a reading, or a meal in words. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="meal"
+        android:enabled="true"
+        android:icon="@drawable/sc_meal"
+        android:shortcutShortLabel="@string/sc_meal"
+        android:shortcutLongLabel="@string/sc_meal_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="app.dropi"
+            android:targetClass="app.dropi.MainActivity">
+            <extra android:name="open_meal" android:value="camera" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="reading"
+        android:enabled="true"
+        android:icon="@drawable/sc_reading"
+        android:shortcutShortLabel="@string/sc_reading">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="app.dropi"
+            android:targetClass="app.dropi.MainActivity">
+            <extra android:name="log_tag" android:value="new" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="words"
+        android:enabled="true"
+        android:icon="@drawable/sc_words"
+        android:shortcutShortLabel="@string/sc_words">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="app.dropi"
+            android:targetClass="app.dropi.MainActivity">
+            <extra android:name="open_meal" android:value="words" />
+        </intent>
+    </shortcut>
+</shortcuts>
