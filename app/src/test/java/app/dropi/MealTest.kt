@@ -77,6 +77,35 @@ class MealTest {
     }
 
     @Test
+    fun readsEuropeanLabels() {
+        val de = Label.read(listOf("Nährwerte pro 100 g", "Kohlenhydrate 12,4 g", "davon Zucker 3,1 g", "Ballaststoffe 2 g"))!!
+        assertEquals(12.4, de.carbs!!, 0.01)
+        assertEquals(3.1, de.sugars!!, 0.01)
+        assertEquals(2.0, de.fibre!!, 0.01)
+        // Name and values on one row, per-portion column after.
+        val fr = Label.read(listOf("Glucides 60 g dont sucres 22 g"))!!
+        assertEquals(60.0, fr.carbs!!, 0.01)
+        assertEquals(22.0, fr.sugars!!, 0.01)
+        // The unit lost by the camera, and a "per 100 g" heading on the same row.
+        val is2 = Label.read(listOf("Í 100 g: Kolvetni 54,3", "þar af sykurtegundir <0,5 g"))!!
+        assertEquals(54.3, is2.carbs!!, 0.01)
+        assertEquals(0.5, is2.sugars!!, 0.01)
+        // Value on the row below its name.
+        val nl = Label.read(listOf("Koolhydraten", "45 g", "waarvan suikers", "5 g"))!!
+        assertEquals(45.0, nl.carbs!!, 0.01)
+        assertEquals(5.0, nl.sugars!!, 0.01)
+    }
+
+    @Test
+    fun readsTheModelsLabelReply() {
+        val p = Label.parseAi("Here: {\"name\":\"Skyr\",\"carbs\":3.9,\"sugars\":3.9,\"fibre\":null}")!!
+        assertEquals(3.9, p.carbs!!, 0.01)
+        assertEquals("Skyr", p.name)
+        assertNull(p.fibre)
+        assertNull(Label.parseAi("no idea"))
+    }
+
+    @Test
     fun riseWords() {
         assertEquals(Rise.GENTLE, Rise.of(1.4))
         assertEquals(Rise.MODERATE, Rise.of(3.0))

@@ -266,7 +266,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun suggestTag(at: Long): MealTag {
         val byTime = Tagging.suggest(at, readings, zone)
         if (byTime == MealTag.AFTER_MEAL) return byTime
-        return Schedule.momentFor(at, slots, readings, zone) ?: byTime
+        return Schedule.momentFor(at, slots, readings, zone, afterMealMinutes) ?: byTime
     }
 
     /** Opens the log sheet for a new reading, with [tag] or one picked from the time of day. */
@@ -326,6 +326,22 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun changeUnit(u: GlucoseUnit) { unit = u; prefs.unit = u; Reminders.rescheduleAsync(context) }
     fun changeTheme(t: String) { theme = t; prefs.theme = t; Reminders.rescheduleAsync(context) }
     fun changeHaptics(on: Boolean) { haptics = on; prefs.haptics = on; Haptics.enabled = on }
+
+    /** Check times the person usually does at another time, not yet turned down. */
+    var dismissedMoves by mutableStateOf(prefs.dismissedMoves)
+        private set
+
+    fun moveSuggestion(now: Long): app.dropi.data.MoveSuggestion? =
+        Schedule.moves(slots, readings, now, zone).firstOrNull { "${it.slot.id}@${it.minute}" !in dismissedMoves }
+
+    fun acceptMove(m: app.dropi.data.MoveSuggestion) {
+        changeSlots(slots.map { if (it.id == m.slot.id) it.copy(minute = m.minute) else it })
+    }
+
+    fun dismissMove(m: app.dropi.data.MoveSuggestion) {
+        dismissedMoves = dismissedMoves + "${m.slot.id}@${m.minute}"
+        prefs.dismissedMoves = dismissedMoves
+    }
 
     fun changeSlots(list: List<Slot>) {
         val sorted = list.sortedBy { it.minute }

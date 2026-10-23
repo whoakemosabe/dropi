@@ -284,8 +284,9 @@ private fun WeekStat(value: String, label: String) {
  */
 @Composable
 private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
-    val checks = Schedule.today(state.slots, state.readings, now, state.zone)
-    val next = Schedule.next(state.slots, state.readings, now, state.zone)
+    val checks = Schedule.today(state.slots, state.readings, now, state.zone, state.afterMealMinutes)
+    val next = Schedule.next(state.slots, state.readings, now, state.zone, state.afterMealMinutes)
+    val move = remember(state.readings, state.slots, state.dismissedMoves) { state.moveSuggestion(now) }
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Today's checks", style = SectionLabel, modifier = Modifier.weight(1f).padding(start = 4.dp))
@@ -305,16 +306,33 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
             return@Column
         }
         DayLine(checks, now, state, fmt)
+        // Learnt from the last two weeks: a check usually done at another time.
+        if (move != null) {
+            val clock = { m: Int -> fmt.time(java.time.LocalDate.now(state.zone).atStartOfDay(state.zone).plusMinutes(m.toLong()).toInstant().toEpochMilli()) }
+            Column(
+                Modifier.fillMaxWidth().card().padding(14.dp).semantics(mergeDescendants = false) {},
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    "You usually do your ${move.slot.name.lowercase()} check at about ${clock(move.minute)} (${move.days} of the last 14 days). Move it there?",
+                    style = inter(14.sp, FontWeight.Medium).copy(lineHeight = 20.sp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Chip("Move to ${clock(move.minute)}", icon = R.drawable.lc_clock, selected = true) { state.acceptMove(move) }
+                    Chip("Keep ${clock(move.slot.minute)}") { state.dismissMove(move) }
+                }
+            }
+        }
         if (next != null) {
             val mins = (next.at - now) / 60_000
             val whenText = when {
-                next.state == CheckState.DUE -> "due now"
+                next.state == CheckState.DUE -> "due until ${fmt.time(next.until)}"
                 mins < 60 -> "in $mins min"
                 mins < 24 * 60 -> "in ${mins / 60} h ${if (mins % 60 >= 10) "${mins % 60} min" else ""}".trim()
                 else -> "tomorrow"
             }
             Text(
-                "Next: ${next.slot.name} at ${fmt.time(next.at)}, $whenText",
+                "Next: ${next.slot.name} at ${fmt.time(next.at)}" + (next.anchor?.let { " (${state.afterMealMinutes / 60} h after your ${fmt.time(it.at)} reading)" } ?: "") + ", $whenText",
                 style = inter(13.sp, FontWeight.Medium, if (next.state == CheckState.DUE) C.AccentText else C.TextSecondary),
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
@@ -332,7 +350,8 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
         val t = Instant.ofEpochMilli(at).atZone(zone)
         return t.hour + t.minute / 60f
     }
-    val hours = checks.map { hourOf(it.at) }
+    // A done check sits where the reading actually was, at its exact time; the rest at the plan.
+    val hours = checks.map { hourOf(it.reading?.at ?: it.at) }
     val from = minOf(6f, (hours.minOrNull() ?: 6f) - 1f).coerceAtLeast(0f)
     val to = maxOf(23f, (hours.maxOrNull() ?: 23f) + 1f).coerceAtMost(24f)
     val nowH = hourOf(now)
@@ -360,6 +379,13 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
         Canvas(Modifier.fillMaxWidth().height(lineY + 52.dp)) {
             val y = lineY.toPx()
             drawLine(line, Offset(pad.toPx(), y), Offset(size.width - pad.toPx(), y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            // Each open check's window: from its time until it would count as missed.
+            checks.forEach { c ->
+                if (c.reading != null) return@forEach
+                val x0 = xOf(hourOf(c.at)).toPx()
+                val x1 = xOf(hourOf(c.until)).toPx()
+                if (x1 > x0) drawLine(accent.copy(alpha = 0.28f), Offset(x0, y), Offset(x1, y), strokeWidth = 6.dp.toPx(), cap = StrokeCap.Round)
+            }
             val nx = xOf(nowH).toPx()
             if (nx > pad.toPx()) {
                 drawLine(
@@ -367,6 +393,22 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                     Offset(pad.toPx(), y), Offset(nx, y), strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round,
                 )
             }
+        }
+        // Readings that answered no check still sit on the line, at their exact time.
+        val day0 = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val answered = checks.mapNotNull { it.reading }.toSet()
+        state.readings.filter { it.date(zone) == day0 && it !in answered }.forEach { r ->
+            val x = xOf(hourOf(r.at))
+            val col = C.status(state.status(r))
+            Box(
+                Modifier
+                    .offset(x = x - 22.dp, y = lineY - 22.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .tap { state.editing = r }
+                    .semantics { contentDescription = "Extra reading at ${fmt.time(r.at)}: ${Glucose.format(r.mmol, state.unit)}" },
+                contentAlignment = Alignment.Center,
+            ) { Box(Modifier.size(10.dp).clip(CircleShape).background(col)) }
         }
         // Meals sit on the line as small squares just after their reading.
         val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
@@ -396,7 +438,7 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                     .tap { if (done != null) state.editing = done else state.startNew(c.slot.tag) }
                     .semantics {
                         contentDescription = "${c.slot.name} at ${fmt.time(c.at)}: " + when {
-                            done != null -> "${Glucose.format(done.mmol, state.unit)}, done"
+                            done != null -> "${Glucose.format(done.mmol, state.unit)}, done at ${fmt.time(done.at)}"
                             due -> "due now"
                             c.state == CheckState.MISSED -> "missed"
                             else -> "coming up"
@@ -426,12 +468,13 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                     c.state == CheckState.MISSED -> "missed"
                     else -> "later"
                 }
+                val shownAt = done?.at ?: c.at
                 if (below) {
-                    Text(fmt.time(c.at), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                    Text(fmt.time(shownAt), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
                     Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
                 } else {
                     Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
-                    Text(fmt.time(c.at), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                    Text(fmt.time(shownAt), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
                 }
             }
         }

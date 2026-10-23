@@ -183,4 +183,9 @@ class Prefs(context: Context) {
             }
             putString("usual_foods", o.toString())
         }
+
+    /** "Move bedtime to 23:10?" suggestions already turned down ("slotId@minute"). */
+    var dismissedMoves: Set<String>
+        get() = p.getStringSet("dismissed_moves", emptySet()) ?: emptySet()
+        set(v) = p.edit { putStringSet("dismissed_moves", v.toList().takeLast(50).toSet()) }
 }

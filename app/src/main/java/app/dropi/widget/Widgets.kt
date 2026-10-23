@@ -113,7 +113,7 @@ private class Data(
             val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
             return Data(
                 latest = readings.lastOrNull(),
-                next = Schedule.next(p.slots, readings, now, zone),
+                next = Schedule.next(p.slots, readings, now, zone, p.afterMealMinutes),
                 unit = p.unit,
                 targets = p.targets,
                 clock = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH),

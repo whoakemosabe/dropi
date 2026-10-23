@@ -52,6 +52,38 @@ class ScheduleTest {
     }
 
     @Test
+    fun afterMealCheckFollowsTheMeal() {
+        val withAfter = slots + Slot("after", 14 * 60, MealTag.AFTER_MEAL)
+        val lunch = r(at(12, 40), MealTag.BEFORE_MEAL)
+        val c = Schedule.today(withAfter, listOf(lunch), at(14, 20), zone).first { it.slot.id == "after" }
+        assertEquals(at(14, 40), c.at)
+        assertEquals(CheckState.UPCOMING, c.state)
+        assertEquals(lunch, c.anchor)
+        // Its own after-meal reminder covers it, so the slot doesn't remind twice.
+        assertTrue(Schedule.dueSlots(withAfter, listOf(lunch), at(14, 40), zone, 120, afterMealReminderOn = true).none { it.first.id == "after" })
+        assertTrue(Schedule.dueSlots(withAfter, listOf(lunch), at(14, 40), zone, 120, afterMealReminderOn = false).any { it.first.id == "after" })
+    }
+
+    @Test
+    fun bedtimeHasALongerWindow() {
+        assertEquals(CheckState.DUE, Schedule.today(slots, emptyList(), at(23, 50), zone)[3].state)
+        val tight = slots.map { if (it.tag == MealTag.BEDTIME) it.copy(window = 30) else it }
+        assertEquals(CheckState.MISSED, Schedule.today(tight, emptyList(), at(23, 50), zone)[3].state)
+    }
+
+    @Test
+    fun learnsUsualTimes() {
+        val late = (17..22).map { d -> r(at(23, 10, d), MealTag.BEDTIME) }
+        val m = Schedule.moves(slots, late, at(12), zone)
+        assertEquals(1, m.size)
+        assertEquals("bedtime", m[0].slot.id)
+        assertEquals(23 * 60 + 10, m[0].minute)
+        assertEquals(6, m[0].days)
+        // Close to the plan already: nothing to suggest.
+        assertTrue(Schedule.moves(slots, (17..22).map { d -> r(at(22, 10, d), MealTag.BEDTIME) }, at(12), zone).isEmpty())
+    }
+
+    @Test
     fun oneReadingAnswersOneCheck() {
         // Two checks 30 min apart, one reading between them: only the closer one is done.
         val two = listOf(Slot("a", 12 * 60, MealTag.BEFORE_MEAL), Slot("b", 12 * 60 + 30, MealTag.BEFORE_MEAL))

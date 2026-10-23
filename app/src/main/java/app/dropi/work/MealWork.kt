@@ -27,8 +27,8 @@ object MealWork {
         data class Working(val what: String) : Status
         data object Ready : Status
         data class Failed(val message: String) : Status
-        /** A label was read; how much was eaten is still needed. */
-        data class NeedsGrams(val per100: Label.Per100) : Status
+        /** A label was read (or couldn't be, [read] false: the numbers are typed); how much was eaten is still needed. */
+        data class NeedsGrams(val per100: Label.Per100, val read: Boolean = true) : Status
         /** Waiting for the person to say what they ate. */
         data object Words : Status
     }
@@ -128,19 +128,25 @@ object MealWork {
         val ctx = context.applicationContext
         val id = start(Status.Working("Reading the label…"))
         scope.launch {
-            val p = Label.read(Scan.lines(ctx, uri))
-            land(
-                id,
-                if (p == null || p.carbs == null) Draft(id, Status.Failed("Couldn't find the carbohydrate line. Hold the phone straight over the nutrition table and try again."))
-                else Draft(id, Status.NeedsGrams(p)),
-            )
+            val lines = Scan.lines(ctx, uri)
+            val found = Label.read(lines)
+            // The on-device model reads the same text when the table didn't parse cleanly, and
+            // fills in what's missing (sugars, fibre, the product's name).
+            val ai = if (lines.isNotEmpty() && Ai.usable && (found?.carbs == null || found.sugars == null || found.fibre == null)) {
+                try { Label.parseAi(Ai.text(ctx, Label.prompt(lines.joinToString("\n")))) } catch (e: Throwable) { null }
+            } else null
+            val p = when {
+                found?.carbs != null -> found.copy(sugars = found.sugars ?: ai?.sugars, fibre = found.fibre ?: ai?.fibre, name = ai?.name.orEmpty())
+                ai?.carbs != null -> ai
+                else -> null
+            }
+            land(id, Draft(id, if (p != null) Status.NeedsGrams(p) else Status.NeedsGrams(Label.Per100(null, null, null), read = false)))
         }
     }
 
-    /** How much of the labelled food was eaten. */
-    fun labelGrams(name: String, grams: Int) {
+    /** How much of the labelled food was eaten, with the per-100 g numbers as checked or typed. */
+    fun labelGrams(name: String, grams: Int, p: Label.Per100) {
         val d = draft ?: return
-        val p = (d.status as? Status.NeedsGrams)?.per100 ?: return
         val item = Label.item(name, grams, p)
         draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), false, "label"))
     }

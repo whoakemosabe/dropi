@@ -48,24 +48,21 @@ object Scan {
             suspendCancellableCoroutine { cont ->
                 recognizer.process(image)
                     .addOnSuccessListener { text ->
-                        // Rows of a label table: lines sorted by height on the photo, so a value in the
-                        // right-hand column lands next to its name.
+                        // Rows of a label table: lines grouped by height on the photo and read left to
+                        // right, so a value in the right-hand column lands next to its name. Then
+                        // the lines as ML Kit found them, as a second chance for a tilted photo.
                         val all = text.textBlocks.flatMap { it.lines }
-                        val rows = all.sortedBy { it.boundingBox?.centerY() ?: 0 }
-                        val out = ArrayList<String>()
-                        var row = StringBuilder()
-                        var rowY = Int.MIN_VALUE
-                        for (l in rows) {
+                        val rows = ArrayList<MutableList<com.google.mlkit.vision.text.Text.Line>>()
+                        for (l in all.sortedBy { it.boundingBox?.centerY() ?: 0 }) {
                             val y = l.boundingBox?.centerY() ?: 0
-                            val h = l.boundingBox?.height() ?: 20
-                            if (rowY != Int.MIN_VALUE && kotlin.math.abs(y - rowY) > h / 2) {
-                                out += row.toString(); row = StringBuilder()
-                            }
-                            if (row.isNotEmpty()) row.append(' ')
-                            row.append(l.text)
-                            rowY = y
+                            val h = (l.boundingBox?.height() ?: 20).coerceAtLeast(8)
+                            val row = rows.lastOrNull()
+                            val rowY = row?.let { r -> r.map { it.boundingBox?.centerY() ?: 0 }.average() }
+                            if (row != null && rowY != null && kotlin.math.abs(y - rowY) <= h * 0.6) row += l else rows += mutableListOf(l)
                         }
-                        if (row.isNotEmpty()) out += row.toString()
+                        val out = ArrayList<String>()
+                        rows.forEach { r -> out += r.sortedBy { it.boundingBox?.left ?: 0 }.joinToString(" ") { it.text } }
+                        all.forEach { out += it.text }
                         cont.resume(out)
                     }
                     .addOnFailureListener { cont.resume(emptyList()) }

@@ -220,7 +220,18 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
         }
         val tags = MealTag.entries.filter { it != MealTag.OTHER }
         ChoiceGrid(tags.map { Choice(it.label, it.icon()) }, tags.indexOf(s.tag), columns = 3, compact = true) {
-            onChange(s.copy(tag = tags[it]))
+            onChange(s.copy(tag = tags[it], window = if (s.window == Slot.defaultWindow(s.tag)) Slot.defaultWindow(tags[it]) else s.window))
+        }
+        Text("Still counts for", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+        val ws = Slot.WINDOWS
+        ChoiceGrid(ws.map { Choice(if (it < 60) "$it min" else if (it % 60 == 0) "${it / 60} h" else "${it / 60}½ h") }, ws.indexOf(s.window).takeIf { it >= 0 }, columns = 5, compact = true) {
+            onChange(s.copy(window = ws[it]))
+        }
+        if (s.tag == MealTag.AFTER_MEAL) {
+            Text(
+                "Follows your meal: when you log a before-meal reading, this check moves to after it.",
+                style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+            )
         }
     }
 }

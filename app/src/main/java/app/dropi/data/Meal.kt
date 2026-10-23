@@ -176,36 +176,82 @@ object MealAi {
 
 /**
  * A nutrition label's carbs, sugars and fibre per 100 g (or ml), read from the text ML Kit finds
- * on a photo of the packet. Understands English and Icelandic labels ("Kolvetni", "þar af
- * sykurtegundir", "Trefjar").
+ * on a photo of the packet. Knows the words on Icelandic, English and other European labels
+ * (EU labels all follow the same table: energy, fat, carbohydrate "of which sugars", fibre…).
  */
 object Label {
-    data class Per100(val carbs: Double?, val sugars: Double?, val fibre: Double?)
+    data class Per100(val carbs: Double?, val sugars: Double?, val fibre: Double?, val name: String = "")
 
-    private val carbWords = listOf("carbohydrate", "carbohydrates", "carbs", "kolvetni")
-    private val sugarWords = listOf("sugars", "sugar", "sykurtegundir", "sykur")
-    private val fibreWords = listOf("fibre", "fiber", "trefjar")
+    // Lower case; matched inside the line, so "kohlenhydrate" also finds "Kohlenhydrate:".
+    private val carbWords = listOf(
+        "kolvetni", "carbohydrate", "carbohydrates", "carbs", "kohlenhydrat", "glucides", "hidratos de carbono",
+        "carboidrati", "kulhydrat", "kolhydrat", "karbohydrat", "koolhydrat", "węglowodany", "weglowodany",
+        "hiilihydraat", "hidratos", "sacharidy", "uhlohydráty", "szénhidrát", "angliavandeniai", "ogļhidrāti",
+        "süsivesik", "υδατάνθρακες", "ugljikohidrati", "ogljikovi hidrati", "carbohidrați", "въглехидрати",
+    )
+    private val sugarWords = listOf(
+        "sykur", "sugar", "zucker", "sucres", "sucre", "azúcar", "azucar", "açúcar", "zuccheri", "sukker",
+        "socker", "suiker", "cukr", "sokeri", "cukry", "cukor", "šećer", "sladkor", "zaharuri", "захари", "σάκχαρα",
+    )
+    private val fibreWords = listOf(
+        "trefjar", "fibre", "fiber", "ballaststoff", "fibres", "fibra", "kostfiber", "vezel", "błonnik", "blonnik",
+        "ravintokuitu", "kuitu", "vláknina", "vlakna", "vlaknine", "fibre alimentare", "φυτικές ίνες",
+    )
 
-    /** [lines] in reading order. The first number on (or right after) a matching line is per 100 g. */
+    /** [lines] in reading order. The first amount on (or right after) a matching line is per 100 g. */
     fun read(lines: List<String>): Per100? {
-        val clean = lines.map { it.lowercase(Locale.ROOT).replace(',', '.') }
+        val clean = lines.map { normal(it) }
         fun find(words: List<String>, avoid: List<String> = emptyList()): Double? {
             for ((k, l) in clean.withIndex()) {
-                if (words.none { l.contains(it) } || avoid.any { l.contains(it) }) continue
-                val here = number(l) ?: clean.getOrNull(k + 1)?.let { if (it.any(Char::isLetter) && number(it) == null) null else number(it) }
+                val at = words.filter { l.contains(it) }.minOfOrNull { l.indexOf(it) } ?: continue
+                // "of which sugars" before the word means this row is about sugars, not carbs.
+                if (avoid.any { w -> l.indexOf(w).let { it in 0 until at } }) continue
+                val after = l.substring(words.filter { l.contains(it) }.maxOf { l.indexOf(it) + it.length })
+                val here = number(after) ?: number(l) ?: clean.getOrNull(k + 1)?.let { next ->
+                    // A value on the next row, when that row isn't another nutrient.
+                    if ((carbWords + sugarWords + fibreWords).any { next.contains(it) }) null else number(next)
+                }
                 if (here != null) return here
             }
             return null
         }
-        val carbs = find(carbWords, avoid = sugarWords)
+        val carbs = find(carbWords, avoid = sugarWords + fibreWords)
         val sugars = find(sugarWords)
         val fibre = find(fibreWords)
         if (carbs == null && sugars == null) return null
         return Per100(carbs, sugars, fibre)
     }
 
-    private fun number(l: String): Double? =
-        Regex("(\\d{1,3}(?:\\.\\d)?)\\s*g").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it <= 100.0 }
+    /** Lower case, decimal commas as points, and "per 100 g" headings taken out so 100 isn't read as a value. */
+    private fun normal(s: String) = s.lowercase(Locale.ROOT)
+        .replace(Regex("(\\d),(\\d)"), "$1.$2")
+        .replace(Regex("(per|pr\\.?|í|i|je|pour|por|w|på|pro)?\\s*100\\s*(g|ml)\\b"), " ")
+
+    /** The first amount: "12.4 g", "12.4g", "<0.5 g", or a bare "12.4" when the unit was lost. */
+    private fun number(l: String): Double? {
+        Regex("<?\\s*(\\d{1,3}(?:\\.\\d{1,2})?)\\s*g\\b").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it <= 100.0 }?.let { return it }
+        return Regex("(?<![\\d.])(\\d{1,2}(?:\\.\\d{1,2})?)(?![\\d.]|\\s*(kj|kcal|%))").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it <= 100.0 }
+    }
+
+    /** Prompt for the on-device model: the label's text in, per-100 g numbers out. */
+    fun prompt(text: String) =
+        "This is text read by a camera from a food packet's nutrition label (it may be Icelandic, English or another " +
+            "European language, with decimal commas). Find the values per 100 g or 100 ml, and the product's name if it's there. " +
+            "Reply with only JSON: {\"name\":\"granola\",\"carbs\":60.5,\"sugars\":22,\"fibre\":7}. Use null for anything missing.\n\n" +
+            text.take(1500)
+
+    /** Reads the model's reply to [prompt]. */
+    fun parseAi(reply: String?): Per100? {
+        if (reply.isNullOrBlank()) return null
+        val a = reply.indexOf('{'); val b = reply.lastIndexOf('}')
+        if (a < 0 || b <= a) return null
+        return try {
+            val o = org.json.JSONObject(reply.substring(a, b + 1))
+            fun d(k: String) = if (o.isNull(k)) null else o.optDouble(k).takeIf { !it.isNaN() && it in 0.0..100.0 }
+            val p = Per100(d("carbs"), d("sugars"), d("fibre"), o.optString("name").takeIf { it != "null" }.orEmpty().take(40))
+            if (p.carbs == null && p.sugars == null) null else p
+        } catch (e: Exception) { null }
+    }
 
     /** The item for [grams] eaten of a product with [p] per 100 g. */
     fun item(name: String, grams: Int, p: Per100): MealItem = MealItem(

@@ -158,19 +158,21 @@ private fun Tile(title: String, sub: String, icon: Int, modifier: Modifier, onCl
 @Composable
 fun MealLaunchers(state: AppState) {
     val context = LocalContext.current
-    var shot by remember { mutableStateOf<android.net.Uri?>(null) }
-    var labelShot by remember { mutableStateOf<android.net.Uri?>(null) }
+    // Saved across the camera app taking over: Android may close Dropi while the camera is open,
+    // and the photo's address must survive that or the result is lost.
+    var shot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    var labelShot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
     // What to do once the on-device model is ready (null: nothing waiting).
     var afterAi by remember { mutableStateOf<String?>(null) }
 
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = shot
-        if (ok && u != null) MealWork.fromPhoto(context, u)
+        if (ok && u != null) MealWork.fromPhoto(context, android.net.Uri.parse(u))
     }
     val labelCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = labelShot
-        if (ok && u != null) MealWork.fromLabel(context, u)
+        if (ok && u != null) MealWork.fromLabel(context, android.net.Uri.parse(u))
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) MealWork.fromPhoto(context, uri)
@@ -180,14 +182,14 @@ fun MealLaunchers(state: AppState) {
         when (action) {
             "camera" -> {
                 val u = Scan.photoUri(context, "plate.jpg")
-                shot = u
+                shot = u.toString()
                 try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
             }
             "pick" -> picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             "words" -> MealWork.words()
             "label" -> {
                 val u = Scan.photoUri(context, "label.jpg")
-                labelShot = u
+                labelShot = u.toString()
                 try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
             }
             "draft" -> if (MealWork.draft != null) MealWork.open = true

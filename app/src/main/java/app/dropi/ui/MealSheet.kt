@@ -128,7 +128,7 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
             GhostButton("Add the foods myself", Modifier.fillMaxWidth()) { MealWork.manual() }
         }
 
-        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100)
+        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read)
 
         is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d.forReading, close)
     }
@@ -180,24 +180,48 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
     PrimaryButton(button, Modifier.fillMaxWidth(), enabled = text.isNotBlank()) { onDone(text) }
 }
 
-/** After a label is read: what it is and how much was eaten. */
+/**
+ * After a label photo: the per-100 g numbers it found (or empty boxes to type them from the
+ * label when it couldn't read them), what it is, and how much was eaten.
+ */
 @Composable
-private fun LabelGrams(p: app.dropi.data.Label.Per100) {
-    var name by remember { mutableStateOf("") }
+private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean) {
+    fun fmt(d: Double?) = d?.let { Glucose.formatNumber(Math.round(it * 10) / 10.0) }.orEmpty()
+    var name by remember { mutableStateOf(found.name) }
+    var carbs by remember { mutableStateOf(fmt(found.carbs)) }
+    var sugars by remember { mutableStateOf(fmt(found.sugars)) }
     var grams by remember { mutableStateOf(100) }
+    fun num(t: String) = t.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..100.0 }
     Text(
-        "Label read: ${p.carbs?.let { Glucose.formatNumber(it) } ?: "?"} g carbs per 100 g" +
-            (p.sugars?.let { ", of which ${Glucose.formatNumber(it)} g sugars" } ?: "") + ".",
+        if (read) "Read from the label. Check the numbers match the \"per 100 g\" column."
+        else "Couldn't read the numbers clearly. Type them from the label's \"per 100 g\" column, or take the photo again straight on.",
         style = inter(15.sp, FontWeight.SemiBold).copy(lineHeight = 22.sp),
     )
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Carbs per 100 g", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+            FieldBox(carbs, "e.g. 60,5", numeric = true) { carbs = it.take(5) }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Sugars per 100 g", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+            FieldBox(sugars, "optional", numeric = true) { sugars = it.take(5) }
+        }
+    }
     FieldBox(name, "What is it? (e.g. granola)", onChange = { name = it.take(40) })
     Text("How much did you eat?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
     val options = listOf(25, 50, 100, 150)
     ChoiceGrid(options.map { Choice("$it g") }, options.indexOf(grams).takeIf { it >= 0 }, columns = 4, compact = true) { grams = options[it] }
     NumberRow("Grams eaten", grams, step = 5, max = 2000) { grams = it }
-    val carbs = Math.round((p.carbs ?: 0.0) * grams / 100.0)
-    Text("That's $carbs g carbs.", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-    PrimaryButton("Next", Modifier.fillMaxWidth()) { MealWork.labelGrams(Foods.normalize(name), grams) }
+    val c = num(carbs)
+    Text(
+        if (c != null) "That's ${Math.round(c * grams / 100.0)} g carbs." else "Type the carbs per 100 g to work it out.",
+        style = inter(15.sp, FontWeight.SemiBold),
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
+    PrimaryButton("Next", Modifier.fillMaxWidth(), enabled = c != null) {
+        MealWork.labelGrams(Foods.normalize(name), grams, found.copy(carbs = c, sugars = num(sugars)))
+    }
+    GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
 }
 
 @Composable
@@ -486,7 +510,7 @@ private fun FieldBox(value: String, hint: String, numeric: Boolean = false, onCh
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Sentences,
-                keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text,
+                keyboardType = if (numeric) KeyboardType.Decimal else KeyboardType.Text,
                 imeAction = ImeAction.Done,
             ),
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = hint },

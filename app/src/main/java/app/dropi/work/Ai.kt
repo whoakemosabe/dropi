@@ -66,6 +66,13 @@ object Ai {
         return app.dropi.data.MealAi.parse(raw, source)
     }
 
+    /** The model's plain reply to a prompt (reading a label's text). */
+    suspend fun text(context: Context, prompt: String): String? = when {
+        nano -> Nano.text(prompt)
+        Gemma.state == Gemma.State.Ready -> Gemma.ask(context, prompt)
+        else -> null
+    }
+
     suspend fun ask(context: Context, prompt: String): String? = when {
         nano -> Nano.ask(prompt)
         Gemma.state == Gemma.State.Ready -> Gemma.ask(context, prompt)

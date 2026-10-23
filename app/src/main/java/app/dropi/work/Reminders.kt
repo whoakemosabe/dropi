@@ -93,7 +93,7 @@ object Reminders {
         if (p.remindersOn) {
             val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().toString()
             val sent = p.notifiedSlots.toMutableSet()
-            Schedule.dueSlots(p.slots, readings, now, zone).forEach { (slot, at) ->
+            Schedule.dueSlots(p.slots, readings, now, zone, p.afterMealMinutes, p.afterMealOn).forEach { (slot, at) ->
                 val key = "$day@${slot.id}"
                 if (key in sent) return@forEach
                 sent += key

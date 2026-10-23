@@ -4,6 +4,7 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- Readings now tick off the right check: a reading up to 2 hours early or 2½ hours late counts, even if its moment was set differently (a bedtime check done at 21:20 counts)
-- A new reading picks the moment of the check that's due, so logging at 12:20 is "Before lunch" without choosing it
-- Reminders stay quiet once a reading has answered that check
+- Label scanning reads Icelandic and European labels (Kolvetni, Kohlenhydrate, Glucides…), decimal commas, and values on the next line. When it can't, you type the numbers from the label instead of hitting a dead end
+- The day line shows each reading at the exact time you took it, and extra readings too
+- Checks follow your life: after-meal checks are timed from your before-meal reading, and each check has a window (bedtime counts for 2 hours)
+- Dropi learns when you really check and offers to move a check time there, like "bedtime at 23:10"
