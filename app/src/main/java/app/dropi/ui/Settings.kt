@@ -187,7 +187,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             val waiting = UpdateWatch.waitingVersion
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Seven taps on the version show the hidden Developer section (demo data).
-                var taps by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+                val taps = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
                 Column(Modifier.weight(1f)) {
                     Text(
                         "Dropi ${Updater.installedVersion(context)}",
@@ -196,8 +196,8 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                             interactionSource = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null,
                         ) {
-                            taps++
-                            if (taps >= 7 && !state.devUnlocked) {
+                            taps.intValue++
+                            if (taps.intValue >= 7 && !state.devUnlocked) {
                                 state.unlockDev(true)
                                 Haptics.confirm(view)
                             }
