@@ -21,7 +21,7 @@ class TranslationTest {
     @Test
     fun everyKeyHasAnIcelandicLine() {
         val keys = keys()
-        assertTrue("found the tr() calls", keys.size > 10)
+        assertTrue("found the tr() calls", keys.size > 1000)
         val problems = keys.mapNotNull { k ->
             val isl = table[k.text]
             when {
