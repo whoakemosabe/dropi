@@ -2,7 +2,9 @@ package app.dropi.ui
 
 import android.content.Context
 import android.text.format.DateFormat
+import app.dropi.L
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.MealTag
 import java.time.Instant
 import java.time.LocalDate
@@ -10,18 +12,20 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Times the way the phone shows them (12 or 24 hour), in English like the rest of the app. */
+/** Times the way the phone shows them (12 or 24 hour), with day and month names in the app's language. */
 class Fmt(context: Context, private val zone: ZoneId) {
     /** The phone uses a 24-hour clock. */
     val is24: Boolean = DateFormat.is24HourFormat(context)
-    private val clock = DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "h:mm a", Locale.ENGLISH)
-    private val weekday = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
-    private val dayMonth = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
-    private val longDay = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)
+    private val loc = L.locale
+    private val isl = L.icelandic
+    private val clock = DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "h:mm a", if (isl) loc else Locale.ENGLISH)
+    private val weekday = DateTimeFormatter.ofPattern("EEE", loc)
+    private val dayMonth = DateTimeFormatter.ofPattern(if (isl) "EEE d. MMM" else "EEE d MMM", loc)
+    private val longDay = DateTimeFormatter.ofPattern(if (isl) "EEEE d. MMMM" else "EEEE, d MMMM", loc)
 
     fun time(at: Long): String = clock.format(Instant.ofEpochMilli(at).atZone(zone))
 
-    fun longDate(day: LocalDate): String = longDay.format(day)
+    fun longDate(day: LocalDate): String = longDay.format(day).cap()
 
     /** "14:05", "Yesterday 22:10", "Mon 08:00" or "Thu 9 Oct 08:00". */
     fun dayTime(at: Long, now: Long = System.currentTimeMillis()): String {
@@ -31,9 +35,9 @@ class Fmt(context: Context, private val zone: ZoneId) {
         val c = clock.format(t)
         return when {
             d == today -> c
-            d == today.minusDays(1) -> "Yesterday $c"
-            d.isAfter(today.minusDays(7)) -> "${weekday.format(t)} $c"
-            else -> "${dayMonth.format(t)} $c"
+            d == today.minusDays(1) -> tr("Yesterday {0}", c)
+            d.isAfter(today.minusDays(7)) -> "${weekday.format(t).cap()} $c"
+            else -> "${dayMonth.format(t).cap()} $c"
         }
     }
 
@@ -41,13 +45,24 @@ class Fmt(context: Context, private val zone: ZoneId) {
     fun ago(at: Long, now: Long = System.currentTimeMillis()): String {
         val min = (now - at) / 60_000
         return when {
-            min < 1 -> "just now"
-            min < 60 -> "$min min ago"
-            min < 12 * 60 -> "${min / 60} h ago"
+            min < 1 -> tr("just now")
+            min < 60 -> tr("{0} min ago", min)
+            min < 12 * 60 -> tr("{0} h ago", min / 60)
             else -> dayTime(at, now)
         }
     }
 }
+
+/**
+ * Day and month names in the app's language: [pattern] is the English pattern ("EEE d MMM");
+ * in Icelandic a point follows the day number ("lau. 24. okt.").
+ */
+fun dayPattern(pattern: String): DateTimeFormatter =
+    if (L.icelandic) DateTimeFormatter.ofPattern(pattern.replace(Regex("\\bd\\b"), "d.").replace(",", ""), L.locale)
+    else DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH)
+
+/** Icelandic day names are written in lower case; at the start of a label they're capitalised. */
+fun String.cap(): String = replaceFirstChar { it.titlecase(L.locale) }
 
 /** An icon for each moment. */
 fun MealTag.icon(): Int = when (this) {
@@ -57,5 +72,6 @@ fun MealTag.icon(): Int = when (this) {
     MealTag.OTHER -> R.drawable.lc_droplet
 }
 
-/** "1 reading", "3 readings". */
+/** English-only "1 reading", "3 readings". Shown text uses the translated plural function instead. */
+@Deprecated("Use the translated plural function, trn")
 fun plural(n: Int, one: String, many: String = one + "s") = "$n ${if (n == 1) one else many}"

@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        L.refresh()
         // System bar icons for the saved theme from the first frame.
         barStyle(startsDark())
         Alerts.createChannels(this)

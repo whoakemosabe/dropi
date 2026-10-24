@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Dropi</string>
+    <string name="app_name" translatable="false">Dropi</string>
     <string name="widget_name">Latest reading</string>
     <string name="widget_desc">Your latest reading, the next check, and buttons to log a reading or snap a meal</string>
     <string name="sc_meal">Snap a meal</string>

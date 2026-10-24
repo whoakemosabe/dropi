@@ -61,6 +61,11 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
 
     StickySheetBody("Settings", close) {
 
+        // Always in both languages, so it can be found from either.
+        SheetSection("Language · Tungumál") {
+            LanguagePicker(Modifier.fillMaxWidth())
+        }
+
         SheetSection("Units") {
             SlidingSegments(listOf("mmol/L", "mg/dL"), if (unit == GlucoseUnit.MMOL) 0 else 1, Modifier.fillMaxWidth()) {
                 state.changeUnit(if (it == 0) GlucoseUnit.MMOL else GlucoseUnit.MGDL)

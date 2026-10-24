@@ -32,8 +32,15 @@ object Glucose {
     fun toMgdl(mmol: Double) = mmol * MGDL_PER_MMOL
     fun toMmol(mgdl: Double) = mgdl / MGDL_PER_MMOL
 
-    /** "6.4" (mmol/L, one decimal, as meters show it) or "115" (mg/dL, whole numbers). */
-    fun format(mmol: Double, unit: GlucoseUnit): String = when (unit) {
+    /**
+     * For showing: "6.4" (mmol/L, one decimal, as meters show it; "6,4" in Icelandic) or "115"
+     * (mg/dL, whole numbers).
+     */
+    fun format(mmol: Double, unit: GlucoseUnit): String =
+        plain(mmol, unit).let { if (app.dropi.L.decimal == '.') it else it.replace('.', app.dropi.L.decimal) }
+
+    /** Always with a point, whatever the language: for CSV files and other machine-read text. */
+    fun plain(mmol: Double, unit: GlucoseUnit): String = when (unit) {
         GlucoseUnit.MMOL -> String.format(Locale.ROOT, "%.1f", (mmol * 10).roundToInt() / 10.0)
         GlucoseUnit.MGDL -> toMgdl(mmol).roundToInt().toString()
     }
@@ -43,7 +50,7 @@ object Glucose {
 
     /** A typed value in [unit] → mmol/L, or null if it isn't a number a meter could show. */
     fun parse(text: String, unit: GlucoseUnit): Double? {
-        val v = text.trim().toDoubleOrNull() ?: return null
+        val v = text.trim().replace(',', '.').toDoubleOrNull() ?: return null
         val mmol = if (unit == GlucoseUnit.MMOL) v else toMmol(v)
         // A tiny tolerance so "33.3" and "600" (mg/dL) both count as in range.
         return mmol.takeIf { it >= MIN_MMOL - 0.001 && it <= MAX_MMOL + 0.001 }
@@ -57,8 +64,9 @@ object Glucose {
      * up to three digits and no point. Returns the new text, or the old one if the key isn't allowed.
      */
     fun type(current: String, key: Char, unit: GlucoseUnit): String {
+        @Suppress("NAME_SHADOWING") val current = current.replace(',', '.')
         if (key == '⌫') return current.dropLast(1)
-        if (key == '.') {
+        if (key == '.' || key == ',') {
             if (unit == GlucoseUnit.MGDL || current.contains('.')) return current
             return if (current.isEmpty()) "0." else "$current."
         }

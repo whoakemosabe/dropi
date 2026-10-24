@@ -233,7 +233,10 @@ object MealLink {
 /** Grams to one decimal, and written without a trailing ".0" ("12", "12.5"). */
 object Grams {
     fun round(v: Double): Double = Math.round(v * 10) / 10.0
-    fun text(v: Double): String = round(v).let { if (it % 1.0 == 0.0) it.toLong().toString() else String.format(Locale.ROOT, "%.1f", it) }
+    /** For showing: "12.5" ("12,5" in Icelandic), "12". */
+    fun text(v: Double): String = plain(v).let { if (app.dropi.L.decimal == '.') it else it.replace('.', app.dropi.L.decimal) }
+    /** Always with a point: for CSV files, prompts and JSON. */
+    fun plain(v: Double): String = round(v).let { if (it % 1.0 == 0.0) it.toLong().toString() else String.format(Locale.ROOT, "%.1f", it) }
     fun text(v: Double?, missing: String): String = v?.let { text(it) } ?: missing
     /** "12,5" or "12.5" typed in a box. */
     fun parse(s: String): Double? = s.trim().replace(',', '.').toDoubleOrNull()?.takeIf { !it.isNaN() && it >= 0 }

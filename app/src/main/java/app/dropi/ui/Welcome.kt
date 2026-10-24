@@ -178,6 +178,9 @@ fun WelcomeFlow(state: AppState) {
                         when (s) {
                             Step.WELCOME -> {
                                 Badge(R.drawable.lc_droplet, big = true)
+                                // First choice: the language, written in both so either reader finds theirs.
+                                Text("Language · Tungumál", style = SectionLabel)
+                                LanguagePicker(Modifier.fillMaxWidth(), height = 52.dp)
                                 Text("Welcome to Dropi", style = heading(36.sp).copy(lineHeight = 40.sp))
                                 Text(
                                     "Your blood sugar, logged in seconds. Reminders at your check times, trends that " +

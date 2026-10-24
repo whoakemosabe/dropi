@@ -1,0 +1,9 @@
+<resources>
+    <string name="widget_name">Nýjasta mæling</string>
+    <string name="widget_desc">Nýjasta mælingin þín, næsta mæling og hnappar til að skrá mælingu eða mynda máltíð</string>
+    <string name="sc_meal">Mynda máltíð</string>
+    <string name="sc_meal_long">Taktu mynd af máltíðinni þinni</string>
+    <string name="sc_reading">Skrá mælingu</string>
+    <string name="sc_words">Segðu hvað þú borðaðir</string>
+    <string name="share_meal">Skrá sem máltíð</string>
+</resources>

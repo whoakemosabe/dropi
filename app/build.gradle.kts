@@ -62,6 +62,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // English and Icelandic: lists Dropi in the phone's Settings › Apps › Dropi › Language
+    // (Android 13+). Icelandic text itself is in assets/i18n/is.tsv (see L.kt).
+    androidResources {
+        generateLocaleConfig = true
+    }
     buildFeatures {
         compose = true
         buildConfig = true

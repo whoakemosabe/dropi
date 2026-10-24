@@ -1,11 +1,15 @@
 package app.dropi.data
 
+import app.dropi.tr
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** The moment a reading was taken. Saved by name in the database, so names never change. */
-enum class MealTag(val label: String, val short: String) {
+/**
+ * The moment a reading was taken. Saved by name in the database, so names never change.
+ * [en]/[enShort] are the English words (CSV files); [label]/[short] are in the app's language.
+ */
+enum class MealTag(val en: String, val enShort: String) {
     FASTING("Fasting (on waking)", "Waking"),
     BEFORE_MEAL("Before eating", "Before"),
     AFTER_MEAL("After eating", "After"),
@@ -13,16 +17,39 @@ enum class MealTag(val label: String, val short: String) {
     OVERNIGHT("Overnight", "Night"),
     OTHER("Other", "Other");
 
+    val label: String get() = when (this) {
+        FASTING -> tr("Fasting (on waking)")
+        BEFORE_MEAL -> tr("Before eating")
+        AFTER_MEAL -> tr("After eating")
+        BEDTIME -> tr("Bedtime")
+        OVERNIGHT -> tr("Overnight")
+        OTHER -> tr("Other")
+    }
+    val short: String get() = when (this) {
+        FASTING -> tr("Waking")
+        BEFORE_MEAL -> tr("Before")
+        AFTER_MEAL -> tr("After")
+        BEDTIME -> tr("Bedtime")
+        OVERNIGHT -> tr("Night")
+        OTHER -> tr("Other")
+    }
+
     companion object {
         fun fromKey(k: String?) = entries.firstOrNull { it.name == k } ?: OTHER
     }
 }
 
 /** What kind of insulin was taken; logged as given, never suggested. */
-enum class InsulinKind(val label: String) {
+enum class InsulinKind(val en: String) {
     RAPID("Rapid"),
     LONG("Long"),
     MIXED("Mixed");
+
+    val label: String get() = when (this) {
+        RAPID -> tr("Rapid")
+        LONG -> tr("Long")
+        MIXED -> tr("Mixed")
+    }
 
     companion object {
         fun fromKey(k: String?) = entries.firstOrNull { it.name == k }

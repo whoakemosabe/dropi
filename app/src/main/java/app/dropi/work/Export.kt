@@ -43,18 +43,18 @@ object Export {
             val t = Instant.ofEpochMilli(at).atZone(zone)
             sb.append(t.toLocalDate()).append(',').append(time.format(t)).append(',')
             if (x is Reading) {
-                sb.append(Glucose.format(x.mmol, GlucoseUnit.MMOL)).append(',')
-                    .append(Glucose.format(x.mmol, GlucoseUnit.MGDL)).append(',')
-                    .append(x.tag.label).append(',')
+                sb.append(Glucose.plain(x.mmol, GlucoseUnit.MMOL)).append(',')
+                    .append(Glucose.plain(x.mmol, GlucoseUnit.MGDL)).append(',')
+                    .append(x.tag.en).append(',')
                     .append(x.carbs?.toString() ?: "").append(',')
                     .append(x.insulin?.let { Glucose.formatNumber(it) } ?: "").append(',')
-                    .append(x.insulinKind?.label ?: "").append(',')
+                    .append(x.insulinKind?.en ?: "").append(',')
                     .append(if (x.meds) "yes" else "").append(',')
                     .append(x.exercise?.toString() ?: "").append(',')
                     .append(quote(x.foods.joinToString("; ") { app.dropi.data.Foods.display(it) })).append(',')
                     .append(quote(x.note)).append('\n')
             } else if (x is app.dropi.data.MealEntry) {
-                sb.append(",,").append(quote(x.name)).append(',').append(app.dropi.data.Grams.text(x.carbs)).append(",,,,,")
+                sb.append(",,").append(quote(x.name)).append(',').append(app.dropi.data.Grams.plain(x.carbs)).append(",,,,,")
                     .append(quote(x.meal.items.joinToString("; ") { "${app.dropi.data.Foods.display(it.name)} (${it.portionText()})" })).append(",\n")
             }
         }
