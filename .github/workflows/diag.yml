@@ -23,6 +23,8 @@ jobs:
           adb shell pm grant app.dropi android.permission.POST_NOTIFICATIONS || true
           shot() { adb shell am start -S -n app.dropi/.MainActivity --es shot_tab $1 --es shot_theme $2 $3 >/dev/null; sleep $4; adb exec-out screencap -p > $RUNNER_TEMP/shots/$5.png; }
           shot TODAY dark "" 22 today-dark
+          adb logcat -d | grep -E "app.dropi|AndroidRuntime|FATAL|Compose|E/" | tail -150 > $RUNNER_TEMP/shots/log.txt
+          adb shell uiautomator dump /sdcard/u.xml >/dev/null; adb shell cat /sdcard/u.xml | head -c 6000 >> $RUNNER_TEMP/shots/log.txt
           shot TODAY dark "" 6 today-dark2
           shot TRENDS dark "" 8 trends-dark
           shot TRENDS dark "--ez shot_more true" 8 trends-more
@@ -50,6 +52,6 @@ jobs:
         if: always()
         run: |
           cd $GITHUB_WORKSPACE && git checkout -- . && git clean -fdq
-          mkdir -p shots && cp $RUNNER_TEMP/shots/*.png shots/ || true
+          mkdir -p shots && cp $RUNNER_TEMP/shots/* shots/ || true
           git config user.name ci && git config user.email ci@users.noreply.github.com
           git add shots && git commit -qm "shots [skip ci]" && git push origin HEAD:diag-mlkit
