@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.Foods
 import app.dropi.work.Ai
 import app.dropi.work.MealWork
@@ -68,21 +69,21 @@ fun AddPanel(state: AppState) {
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SheetTitle("Add", close)
+            SheetTitle(tr("Add"), close)
             fun go(action: String) {
                 state.addOpen = false
                 Launch.mealAction.value = action
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Tile("Reading", "Type or scan your meter", R.drawable.lc_droplet, Modifier.weight(1f)) {
+                Tile(tr("Reading"), tr("Type or scan your meter"), R.drawable.lc_droplet, Modifier.weight(1f)) {
                     state.addOpen = false
                     state.startNew()
                 }
-                Tile("Snap a meal", "Photo of your plate", R.drawable.lc_camera, Modifier.weight(1f)) { go("camera") }
+                Tile(tr("Snap a meal"), tr("Photo of your plate"), R.drawable.lc_camera, Modifier.weight(1f)) { go("camera") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Tile("Say what you ate", "Speak or type it", R.drawable.lc_mic, Modifier.weight(1f)) { go("words") }
-                Tile("Scan a label", "Exact carbs from a packet", R.drawable.lc_scan_text, Modifier.weight(1f)) { go("label") }
+                Tile(tr("Say what you ate"), tr("Speak or type it"), R.drawable.lc_mic, Modifier.weight(1f)) { go("words") }
+                Tile(tr("Scan a label"), tr("Exact carbs from a packet"), R.drawable.lc_scan_text, Modifier.weight(1f)) { go("label") }
             }
             Row(
                 Modifier
@@ -97,7 +98,7 @@ fun AddPanel(state: AppState) {
             ) {
                 Ic(R.drawable.lc_scan_barcode, C.AccentText, 20.dp)
                 Spacer(Modifier.width(12.dp))
-                Text("Scan a packet's barcode", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                Text(tr("Scan a packet's barcode"), style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
                 Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
             }
             Row(
@@ -113,12 +114,12 @@ fun AddPanel(state: AppState) {
             ) {
                 Ic(R.drawable.lc_image, C.AccentText, 20.dp)
                 Spacer(Modifier.width(12.dp))
-                Text("Pick a photo you already took", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                Text(tr("Pick a photo you already took"), style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
                 Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
             }
             val again = state.recentMeals
             if (again.isNotEmpty()) {
-                Text("Again", style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                Text(tr("Again"), style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(start = 4.dp, top = 4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     again.forEach { m ->
                         val label = m.items.take(2).joinToString(" & ") { Foods.display(it.name) } +
@@ -131,7 +132,7 @@ fun AddPanel(state: AppState) {
                                 .clip(RoundedCornerShape(50))
                                 .background(C.SurfaceLight)
                                 .border(1.dp, C.GlassBorder, RoundedCornerShape(50))
-                                .semantics { role = Role.Button; contentDescription = "Log again: $label carbs" }
+                                .semantics { role = Role.Button; contentDescription = tr("Log again: {0} carbs", label) }
                                 .tap {
                                     state.addOpen = false
                                     MealWork.again(m)
@@ -232,7 +233,7 @@ fun MealLaunchers(state: AppState) {
                 // A file per photo, so a second photo never replaces one still being looked at.
                 val u = Scan.photoUri(context, "plate-${System.currentTimeMillis()}.jpg")
                 shot = u.toString()
-                try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
+                try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = tr("No camera app found.") }
             }
             "pick" -> picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             "label-pick" -> labelPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -241,22 +242,22 @@ fun MealLaunchers(state: AppState) {
             "label" -> {
                 val u = Scan.photoUri(context, "label.jpg")
                 labelShot = u.toString()
-                try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
+                try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = tr("No camera app found.") }
             }
             "barcode" -> {
                 val u = Scan.photoUri(context, "barcode.jpg")
                 labelShot = u.toString()
-                try { barcodeCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
+                try { barcodeCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = tr("No camera app found.") }
             }
             "meter" -> {
                 val u = Scan.photoUri(context, "meter.jpg")
                 meterShot = u.toString()
                 try { meterCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) {
-                    state.meterScan = AppState.MeterScan(problem = "No camera app found.")
+                    state.meterScan = AppState.MeterScan(problem = tr("No camera app found."))
                 }
             }
             "draft" -> if (MealWork.draft != null) MealWork.open = true
-                else state.mealNote = "That meal was lost when Android closed Dropi. Please log it again."
+                else state.mealNote = tr("That meal was lost when Android closed Dropi. Please log it again.")
             else -> if (action.startsWith("shared:")) MealWork.fromPhoto(context, android.net.Uri.parse(action.removePrefix("shared:")))
         }
     }
@@ -277,8 +278,8 @@ fun MealLaunchers(state: AppState) {
 
     afterAi?.let { pending ->
         AiNeededDialog(
-            when (pending) { "words" -> "Saying what you ate"; else -> "Meal photos" },
-            when (pending) { "words" -> "Say it"; else -> "Take a photo" },
+            when (pending) { "words" -> tr("Saying what you ate"); else -> tr("Meal photos") },
+            when (pending) { "words" -> tr("Say it"); else -> tr("Take a photo") },
             onDismiss = { afterAi = null },
             readyIcon = if (pending == "words") R.drawable.lc_mic else R.drawable.lc_camera,
         ) {

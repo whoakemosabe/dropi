@@ -1,5 +1,6 @@
 package app.dropi.data
 
+import app.dropi.tr
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -130,13 +131,23 @@ data class Targets(
     }
 }
 
-enum class Status(val label: String) {
+/** [en] is the English word; [label] is in the app's language. */
+enum class Status(val en: String) {
     URGENT_LOW("Urgent low"),
     LOW("Low"),
     BELOW_TARGET("Below target"),
     IN_RANGE("In range"),
     HIGH("Above target"),
     VERY_HIGH("Very high");
+
+    val label: String get() = when (this) {
+        URGENT_LOW -> tr("Urgent low")
+        LOW -> tr("Low")
+        BELOW_TARGET -> tr("Below target")
+        IN_RANGE -> tr("In range")
+        HIGH -> tr("Above target")
+        VERY_HIGH -> tr("Very high")
+    }
 
     val isLow get() = this == URGENT_LOW || this == LOW
 }

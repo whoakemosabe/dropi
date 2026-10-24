@@ -55,6 +55,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.dropi.R
+import app.dropi.L
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.InsulinKind
 import java.util.Locale
 
@@ -70,15 +73,16 @@ data class Details(
     val meal: app.dropi.data.Meal? = null,
 ) {
     fun summary(): String = listOfNotNull(
-        foods.takeIf { it.isNotEmpty() }?.let { f -> if (f.size <= 2) f.joinToString(", ") { app.dropi.data.Foods.display(it) } else "${f.size} foods" },
-        carbs?.let { "$it g" },
-        insulin?.let { "${fmt(it)} u" },
-        if (meds) "Tablets" else null,
-        exercise?.let { "$it min" },
+        foods.takeIf { it.isNotEmpty() }?.let { f -> if (f.size <= 2) f.joinToString(", ") { app.dropi.data.Foods.display(it) } else trn(f.size, "{0} food", "{0} foods") },
+        carbs?.let { tr("{0} g", it) },
+        insulin?.let { tr("{0} u", fmt(it)) },
+        if (meds) tr("Tablets") else null,
+        exercise?.let { tr("{0} min", it) },
     ).joinToString(" · ")
 
     companion object {
-        fun fmt(d: Double) = if (d % 1.0 == 0.0) d.toInt().toString() else String.format(Locale.ROOT, "%.1f", d)
+        /** "4" or "4.5" ("4,5" in Icelandic), for showing. */
+        fun fmt(d: Double) = if (d % 1.0 == 0.0) d.toInt().toString() else String.format(Locale.ROOT, "%.1f", d).replace('.', L.decimal)
     }
 }
 
@@ -109,17 +113,17 @@ fun DetailsDialog(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Details", style = heading(20.sp))
+            Text(tr("Details"), style = heading(20.sp))
             Text(
-                "All optional. Meals are logged on their own with the + button, at the time you ate.",
+                tr("All optional. Meals are logged on their own with the + button, at the time you ate."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
             )
 
-            Stepper("Carbs", d.carbs?.let { "$it g" }, R.drawable.lc_utensils,
+            Stepper(tr("Carbs"), d.carbs?.let { tr("{0} g", it) }, R.drawable.lc_utensils,
                 onMinus = { d = d.copy(carbs = d.carbs?.let { (it - 5).takeIf { v -> v > 0 } }) },
                 onPlus = { d = d.copy(carbs = ((d.carbs ?: 0) + 5).coerceAtMost(400)) },
             )
-            Stepper("Insulin", d.insulin?.let { "${Details.fmt(it)} units" }, R.drawable.lc_droplet,
+            Stepper(tr("Insulin"), d.insulin?.let { u -> trn(if (u % 1.0 == 0.0) u.toInt() else 2, "{1} unit", "{1} units", Details.fmt(u)) }, R.drawable.lc_droplet,
                 onMinus = { d = d.copy(insulin = d.insulin?.let { (it - 0.5).takeIf { v -> v > 0.01 } }) },
                 onPlus = { d = d.copy(insulin = ((d.insulin ?: 0.0) + 0.5).coerceAtMost(150.0), kind = d.kind ?: InsulinKind.RAPID) },
             )
@@ -129,7 +133,7 @@ fun DetailsDialog(
                     d = d.copy(kind = kinds[it])
                 }
             }
-            Stepper("Exercise", d.exercise?.let { "$it min" }, R.drawable.lc_flame,
+            Stepper(tr("Exercise"), d.exercise?.let { tr("{0} min", it) }, R.drawable.lc_flame,
                 onMinus = { d = d.copy(exercise = d.exercise?.let { (it - 15).takeIf { v -> v > 0 } }) },
                 onPlus = { d = d.copy(exercise = ((d.exercise ?: 0) + 15).coerceAtMost(600)) },
             )
@@ -137,8 +141,8 @@ fun DetailsDialog(
                 Ic(R.drawable.lc_check, C.TextMuted, 18.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Took my tablets", style = inter(15.sp, FontWeight.SemiBold))
-                    Text("Diabetes medicine other than insulin", style = inter(13.sp, color = C.TextMuted))
+                    Text(tr("Took my tablets"), style = inter(15.sp, FontWeight.SemiBold))
+                    Text(tr("Diabetes medicine other than insulin"), style = inter(13.sp, color = C.TextMuted))
                 }
                 Switch(
                     checked = d.meds,
@@ -154,7 +158,7 @@ fun DetailsDialog(
                     .background(C.SurfaceLight)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
-                if (note.isEmpty()) Text("Note: how you feel, anything unusual…", style = inter(15.sp, color = C.TextMuted))
+                if (note.isEmpty()) Text(tr("Note: how you feel, anything unusual…"), style = inter(15.sp, color = C.TextMuted))
                 BasicTextField(
                     value = note,
                     onValueChange = { note = it.take(200) },
@@ -167,11 +171,11 @@ fun DetailsDialog(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton("Clear all", Modifier.weight(1f)) {
+                GhostButton(tr("Clear all"), Modifier.weight(1f)) {
                     d = Details()
                     note = ""
                 }
-                PrimaryButton("Done", Modifier.weight(1f)) { onSave(d, note.trim()) }
+                PrimaryButton(tr("Done"), Modifier.weight(1f)) { onSave(d, note.trim()) }
             }
         }
     }
@@ -185,11 +189,11 @@ private fun Stepper(label: String, value: String?, icon: Int, onMinus: () -> Uni
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, style = inter(15.sp, FontWeight.SemiBold))
-            Text(value ?: "Not logged", style = inter(13.sp, FontWeight.Medium, if (value != null) C.Text else C.TextMuted))
+            Text(value ?: tr("Not logged"), style = inter(13.sp, FontWeight.Medium, if (value != null) C.Text else C.TextMuted))
         }
-        RoundButton("−", "Less $label", enabled = value != null, action = onMinus)
+        RoundButton("−", tr("Less {0}", label), enabled = value != null, action = onMinus)
         Spacer(Modifier.width(8.dp))
-        RoundButton("+", "More $label", enabled = true, action = onPlus)
+        RoundButton("+", tr("More {0}", label), enabled = true, action = onPlus)
     }
 }
 

@@ -788,22 +788,181 @@ Remove the latest result	Fjarlægja nýjustu niðurstöðuna
 Lab A1C result	HbA1c úr blóðprufu
 Test date	Dagsetning blóðprufu
 Save	Vista
-before breakfast	fyrir morgunmat
-before lunch	fyrir hádegismat
-before dinner	fyrir kvöldmat
-before snack	fyrir millimál
-before {0}	fyrir {0}
-{0} after breakfast	{0} eftir morgunmat
-{0} after lunch	{0} eftir hádegismat
-{0} after dinner	{0} eftir kvöldmat
-{0} after snack	{0} eftir millimál
-{0} after {1}	{0} eftir {1}
-Gentle rise	Lítil hækkun
-Moderate rise	Miðlungs hækkun
+A meal isn't finished	Máltíð er ekki kláruð
+A meal isn't saved yet	Máltíð er ekki vistuð enn
+Couldn't sync with Health Connect	Tókst ekki að samstilla við Health Connect
+Dropi lets you know when it's done.	Dropi lætur þig vita þegar það er klárt.
+Get medical help if you're vomiting, very thirsty and drowsy, or it keeps rising.	Leitaðu læknisaðstoðar ef þú kastar upp, finnur fyrir miklum þorsta og syfju, eða ef blóðsykurinn heldur áfram að hækka.
+I'll remind you at {0}.	Ég minni þig á kl. {0}.
+If you feel confused, very drowsy or can't swallow safely, call 112 now. Don't drive.	Ef þú finnur fyrir ringlun eða mikilli syfju, eða getur ekki kyngt örugglega, hringdu strax í 112. Ekki keyra.
+No meals yet. Log one with a photo, in words or from a label. It's saved at the time you ate, and joined to the readings before and after it.	Engar máltíðir enn. Skráðu máltíð með mynd, í orðum eða af næringartöflu. Hún er vistuð á þeim tíma sem þú borðaðir og tengd mælingunum fyrir og eftir.
+Once you're back above it, have a snack or your meal if it's more than an hour away.	Þegar gildið er aftur komið yfir það skaltu fá þér millimál, eða máltíðina ef meira en klukkustund er í hana.
+Scan a packet's barcode	Skanna strikamerki á umbúðum
+Today's checks	Mælingar dagsins
+About {0} g carbs. Not saved yet.	U.þ.b. {0} g kolvetni. Ekki vistað enn.
+Above target	Yfir markmiði
+Add a reading or meal	Bæta við mælingu eða máltíð
+Add its foods and save it.	Bættu við matvörunum og vistaðu.
+After a few weeks of meals with readings before and after, this shows what makes a difference for you: fibre, fat and protein, fast or slow carbs, a walk after, veg first, sugary drinks and alcohol.	Eftir nokkurra vikna máltíðir með mælingum fyrir og eftir sýnir þetta hvað skiptir máli hjá þér: trefjar, fita og prótein, hröð eða hæg kolvetni, gönguferð eftir mat, grænmeti fyrst, sykraðir drykkir og áfengi.
+After-eating check at about {0}	Mæling eftir mat um kl. {0}
+Again	Aftur
+All optional. Meals are logged on their own with the + button, at the time you ate.	Allt valfrjálst. Máltíðir eru skráðar sér með + hnappnum, á þeim tíma sem þú borðaðir.
+All	Allar
+Barcode	Strikamerki
+Before: your {0} reading ({1})	Fyrir: mælingin þín kl. {0} ({1})
+Below target	Undir markmiði
 Big rise	Mikil hækkun
-Gentle	Lítil
-Moderate	Miðlungs
 Big	Mikil
+Brought in {0} reading	{0} mæling sótt
+Brought in {0} readings	{0} mælingar sóttar
+Check times and reminders	Mælingartímar og áminningar
+Clear all	Hreinsa allt
+Copy details	Afrita upplýsingar
+Demo data	Prufugögn
+Diabetes medicine other than insulin	Sykursýkislyf önnur en insúlín
+Discard	Henda
+Dismiss	Loka
+Drink some water and check again in a couple of hours.	Drekktu vatn og mældu aftur eftir um það bil tvo tíma.
+Dropi crashed last time	Dropi hrundi síðast
+Dropi is a log, not a medical device. Your readings stay on this phone.	Dropi er dagbók, ekki lækningatæki. Mælingarnar þínar haldast í þessum síma.
+Eaten today	Borðað í dag
+Everything else, one tap away	Allt annað, með einu ýti
+Exact carbs from a packet	Nákvæm kolvetni af umbúðum
+Exercise	Hreyfing
+Extra reading at {0}: {1}	Aukamæling kl. {0}: {1}
+From your own log. Patterns, not advice.	Úr þinni eigin skráningu. Mynstur, ekki ráðgjöf.
+General guidance only. Follow the plan you agreed with your care team.	Aðeins almennar leiðbeiningar. Fylgdu áætluninni sem þú gerðir með heilbrigðisteyminu þínu.
+Gentle rise	Lítil hækkun
+Gentle	Lítil
+Got it	Skilið
+If you use insulin, your care plan may ask you to check for ketones, especially if you feel sick.	Ef þú notar insúlín gæti meðferðaráætlunin þín sagt þér að mæla ketóna, sérstaklega ef þér líður illa.
+Insulin	Insúlín
+Keep {0}	Halda kl. {0}
+Label	Tafla
+Leave	Hætta
+Less {0}	{0}: minna
+Log again: {0} carbs	Skrá aftur: {0} kolvetni
+Made-up readings. Your real log is safe.	Tilbúnar mælingar. Raunverulega skráningin þín er örugg.
+Meal photos	Myndir af máltíðum
+Meals today: {0}. Opens Meals.	Máltíðir í dag: {0}. Opnar Máltíðir.
+Moderate rise	Meðalhækkun
+Moderate	Meðal
+More {0}	{0}: meira
+More	Meira
+Move to {0}	Færa á kl. {0}
+Next: {0} at {1} ({2}), {3}	Næst: {0} kl. {1} ({2}), {3}
+Next: {0} at {1}, {2}	Næst: {0} kl. {1}, {2}
+No after-eating reading	Engin mæling eftir mat
+No camera app found.	Ekkert myndavélarforrit fannst.
+No check times yet. Plan a few and Dropi can remind you.	Engir mælingartímar enn. Settu nokkra og Dropi getur minnt þig á þá.
+No reading before it, so no rise to show	Engin mæling á undan, svo engin hækkun til að sýna
+No {0} readings yet.	Engar mælingar „{0}“ enn.
+No readings yet.	Engar mælingar enn.
+Not logged	Ekki skráð
+Note: how you feel, anything unusual…	Athugasemd: hvernig þér líður, eitthvað óvenjulegt…
+Nothing logged yet today.	Ekkert skráð enn í dag.
+Peaked {0} ({1}) at {2}	Toppur {0} ({1}) kl. {2}
+Photo of your plate	Mynd af disknum
+Pick a photo you already took	Velja mynd sem þú tókst áður
+Pick up where you left off.	Haltu áfram þar sem frá var horfið.
+Plan check times	Setja mælingartíma
+Reading deleted	Mælingu eytt
+Remind me to re-check in 15 min	Minntu mig á að mæla aftur eftir 15 mín.
+Reminders are off. Tap Edit to turn them on.	Slökkt er á áminningum. Ýttu á Breyta til að kveikja á þeim.
+Report for your care team	Skýrsla fyrir heilbrigðisteymið
+Say what you ate, or add the foods yourself.	Segðu hvað þú borðaðir, eða bættu matvörunum við handvirkt.
+Saying what you ate	Að segja hvað þú borðaðir
+Scan a label	Skanna næringartöflu
+See all readings	Sjá allar mælingar
+See this week in Trends	Sjá vikuna í Þróun
+Speak or type it	Talaðu eða skrifaðu
+Still under {0}? Repeat both steps.	Enn undir {0}? Endurtaktu bæði skrefin.
+Sugars	Sykurtegundir
+Tablets	Töflur
+Take 15 g of fast-acting sugar now: 4 glucose tablets, or about 150 ml of fruit juice or regular soft drink.	Taktu strax 15 g af hraðvirkum sykri: 4 þrúgusykurstöflur, eða um 150 ml af ávaxtasafa eða venjulegum (ekki sykurlausum) gosdrykk.
+Take a photo	Taka mynd
+Tap + to log your first one.	Ýttu á + til að skrá fyrstu mælinguna.
+That meal was lost when Android closed Dropi. Please log it again.	Máltíðin tapaðist þegar Android lokaði Dropa. Skráðu hana aftur.
+This week: about {0} g carbs a day, down from {1} g the week before.	Þessa viku: u.þ.b. {0} g kolvetni á dag, minna en {1} g vikuna á undan.
+This week: about {0} g carbs a day, the same as the week before.	Þessa viku: u.þ.b. {0} g kolvetni á dag, jafnmikið og vikuna á undan.
+This week: about {0} g carbs a day, up from {1} g the week before.	Þessa viku: u.þ.b. {0} g kolvetni á dag, meira en {1} g vikuna á undan.
+This week: about {0} g carbs a day.	Þessa viku: u.þ.b. {0} g kolvetni á dag.
+Took my tablets	Tók töflurnar mínar
+Trends	Þróun
+Type it	Skrifa
+Type or scan your meter	Skrifaðu eða skannaðu mælinn
+Undo	Afturkalla
+Up to date	Allt samstillt
+Wait 15 minutes, then check again.	Bíddu í 15 mínútur og mældu svo aftur.
+What you ate, and what it did	Hvað þú borðaðir og hvaða áhrif það hafði
+What your meals show	Hvað máltíðirnar sýna
+Working out your meal…	Er að greina máltíðina…
+You usually do your {0} check at about {1} ({2} of the last 14 days). Move it there?	Mælingin „{0}“ er yfirleitt gerð um kl. {1} hjá þér ({2} af síðustu 14 dögum). Færa hana þangað?
+Your meal is ready to check	Máltíðin þín er tilbúin til yfirferðar
+Your readings will appear here. Tap + to add your first one.	Mælingarnar þínar birtast hér. Ýttu á + til að bæta við fyrstu mælingunni.
+Your week	Vikan þín
+after your breakfast at {0}	eftir morgunmatinn kl. {0}
+after your dinner at {0}	eftir kvöldmatinn kl. {0}
+after your lunch at {0}	eftir hádegismatinn kl. {0}
+after your snack at {0}	eftir millimálið kl. {0}
+after your {0} at {1}	eftir „{0}“ kl. {1}
+before breakfast	fyrir morgunmat
+before dinner	fyrir kvöldmat
+before lunch	fyrir hádegismat
+before snack	fyrir millimál
+before {0}	fyrir „{0}“
+coming up	framundan
+days logged	dagar skráðir
+due now	á dagskrá núna
+due until {0}	á dagskrá til kl. {0}
+due	núna
+in {0} h {1} min	eftir {0} klst. {1} mín.
+in {0} h	eftir {0} klst.
+in {0} min	eftir {0} mín.
+later	síðar
+lows	lág gildi
+missed	misst af
+tablets	töflur
+tomorrow	á morgun
+{0} after breakfast	{0} eftir morgunmat
+{0} after dinner	{0} eftir kvöldmat
+{0} after lunch	{0} eftir hádegismat
+{0} after snack	{0} eftir millimál
+{0} after {1}	{0} eftir „{1}“
+{0} at {1}: {2}	{0} kl. {1}: {2}
+{0} at {1}: {2}, {3} grams of carbs.	{0} kl. {1}: {2}, {3} grömm af kolvetnum.
+{0} changed	Breytt: {0}
+{0} deleted	Eytt: {0}
+{0} food	{0} matvara
+{0} foods	{0} matvörur
+{0} g carbs	{0} g kolvetni
+{0} g	{0} g
+{0} grams {1}	{1}: {0} grömm
+{0} h after your {1} reading	{0} klst. eftir mælinguna kl. {1}
+{0} logged	Skráð: {0}
+{0} min exercise	{0} mín. hreyfing
+{0} not known	{0}: óþekkt
+{0} reading in total	{0} mæling alls
+{0} reading today, averaging {1}, and {2} in range.	{0} mæling í dag, meðaltal {1}, og {2} innan marka.
+{0} reading today, averaging {1}.	{0} mæling í dag, meðaltal {1}.
+1 reading today, {0}, and {1} in range.	1 mæling í dag, {0}, og {1} innan marka.
+1 reading today, {0}.	1 mæling í dag, {0}.
+{0} reading today.	{0} mæling í dag.
+{0} reading · avg {1}	{0} mæling · meðaltal {1}
+{0} readings in total	{0} mælingar alls
+{0} readings today, averaging {1}, and {2} in range.	{0} mælingar í dag, meðaltal {1}, og {2} innan marka.
+{0} readings today, averaging {1}.	{0} mælingar í dag, meðaltal {1}.
+{0} readings today.	{0} mælingar í dag.
+{0} readings · avg {1}	{0} mælingar · meðaltal {1}
+{0} u {1}	{0} ein. {1}
+{0} u	{0} ein.
+{0}, done at {1}	{0}, lokið kl. {1}
+{0} day logging streak	{0} dagur í röð með skráningu
+{0}-day logging streak	{0} dagar í röð með skráningu
+{1} unit	{1} eining
+{1} units	{1} einingar
+low reading	lágt gildi
+low readings	lág gildi
 Fast carbs	Hröð kolvetni
 Medium carbs	Miðlungshröð kolvetni
 Slow carbs	Hæg kolvetni
@@ -822,7 +981,6 @@ fat and protein push the peak later	fita og prótein seinka toppnum
 some fat and protein slow it a little	smá fita og prótein hægja aðeins á
 your past meals with {0} and {1}	fyrri máltíðir þínar með {0} og {1}
 your past meals with {0}	fyrri máltíðir þínar með {0}
-{0} g carbs	{0} g kolvetni
 {0} g sugars	{0} g sykurtegundir
 {0} g fibre	{0} g trefjar
 Meals with 8 g or more fibre rise {1} less for you ({0} meal).	Hjá þér hækka máltíðir með 8 g eða meira af trefjum blóðsykurinn um {1} minna ({0} máltíð).
@@ -853,7 +1011,6 @@ After an evening with alcohol, your fasting reading is {1} higher ({0} morning).
 After an evening with alcohol, your fasting reading is {1} higher ({0} mornings).	Eftir kvöld með áfengi er fastandi mælingin þín {1} hærri ({0} morgnar).
 Looking at your plate…	Skoða diskinn þinn…
 Couldn't make out the meal. Say what you ate instead, or add the foods yourself.	Náði ekki að greina máltíðina. Segðu frekar hvað þú borðaðir eða bættu matvörunum við handvirkt.
-Working out your meal…	Reikna út máltíðina þína…
 Couldn't work that out. Try naming each food, like "2 slices of toast and jam".	Náði ekki að lesa úr þessu. Prófaðu að nefna hverja matvöru, t.d. „2 ristaðar brauðsneiðar og sulta“.
 Changing it…	Breyti…
 Reading the label…	Les næringartöfluna…
@@ -869,4 +1026,3 @@ Couldn't open the photo.	Náði ekki að opna myndina.
 No text found on the photo.	Enginn texti fannst á myndinni.
 The text reader failed: {0}	Textalesturinn mistókst: {0}
 The text reader failed.	Textalesturinn mistókst.
-Dropi lets you know when it's done.	Dropi lætur þig vita þegar þetta er tilbúið.

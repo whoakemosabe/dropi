@@ -1,5 +1,6 @@
 package app.dropi.data
 
+import app.dropi.tr
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -24,17 +25,28 @@ data class Slot(
     val hour get() = minute / 60
     val min get() = minute % 60
 
-    /** "Fasting", "Before lunch", "After dinner", "Bedtime"… */
+    /**
+     * "Fasting", "Before lunch", "After dinner", "Bedtime"… in the app's language. Worked out from
+     * the time and moment each time (never saved), so it can be translated freely.
+     */
     val name: String
         get() {
-            fun meal() = when (hour) {
-                in 4..10 -> "breakfast"
-                in 11..15 -> "lunch"
-                else -> "dinner"
+            val meal = when (hour) {
+                in 4..10 -> 0
+                in 11..15 -> 1
+                else -> 2
             }
             return when (tag) {
-                MealTag.BEFORE_MEAL -> "Before ${meal()}"
-                MealTag.AFTER_MEAL -> "After ${meal()}"
+                MealTag.BEFORE_MEAL -> when (meal) {
+                    0 -> tr("Before breakfast")
+                    1 -> tr("Before lunch")
+                    else -> tr("Before dinner")
+                }
+                MealTag.AFTER_MEAL -> when (meal) {
+                    0 -> tr("After breakfast")
+                    1 -> tr("After lunch")
+                    else -> tr("After dinner")
+                }
                 else -> tag.label
             }
         }
@@ -55,6 +67,7 @@ data class OneOff(
     /** The meal an after-meal reminder belongs to, so moving or deleting the meal moves or removes it. */
     val mealId: Long? = null,
 ) {
+    /** Saved by name. [title] is English only; the notification picks its translated title itself. */
     enum class Kind(val title: String) {
         AFTER_MEAL("Time for your after-eating check"),
         RECHECK("Re-check your low"),

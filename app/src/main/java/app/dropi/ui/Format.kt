@@ -64,6 +64,57 @@ fun dayPattern(pattern: String): DateTimeFormatter =
 /** Icelandic day names are written in lower case; at the start of a label they're capitalised. */
 fun String.cap(): String = replaceFirstChar { it.titlecase(L.locale) }
 
+/**
+ * A meal's name as shown. The default names ("Breakfast", "Lunch", "Dinner", "Snack") are saved
+ * in English on each meal, so only those are translated here; a person's own name is shown as typed.
+ */
+fun mealName(name: String): String = when (name) {
+    "Breakfast" -> tr("Breakfast")
+    "Lunch" -> tr("Lunch")
+    "Dinner" -> tr("Dinner")
+    "Snack" -> tr("Snack")
+    else -> name
+}
+
+/** "before breakfast": a reading taken just before a meal (whole phrases, for Icelandic case). */
+fun beforeMealText(name: String): String = when (name) {
+    "Breakfast" -> tr("before breakfast")
+    "Lunch" -> tr("before lunch")
+    "Dinner" -> tr("before dinner")
+    "Snack" -> tr("before snack")
+    else -> tr("before {0}", name.lowercase(L.locale))
+}
+
+/** "2 h after breakfast": [gap] is the time since the meal ("2 h", "45 min"). */
+fun afterMealText(gap: String, name: String): String = when (name) {
+    "Breakfast" -> tr("{0} after breakfast", gap)
+    "Lunch" -> tr("{0} after lunch", gap)
+    "Dinner" -> tr("{0} after dinner", gap)
+    "Snack" -> tr("{0} after snack", gap)
+    else -> tr("{0} after {1}", gap, name.lowercase(L.locale))
+}
+
+/** "after your breakfast at 08:10", for the next check that follows a meal. */
+fun afterYourMealText(name: String, time: String): String = when (name) {
+    "Breakfast" -> tr("after your breakfast at {0}", time)
+    "Lunch" -> tr("after your lunch at {0}", time)
+    "Dinner" -> tr("after your dinner at {0}", time)
+    "Snack" -> tr("after your snack at {0}", time)
+    else -> tr("after your {0} at {1}", name.lowercase(L.locale), time)
+}
+
+/** A time gap in minutes as "45 min", "2 h" or "1 h 20 min" (rounded to the hour within 10 minutes). */
+fun gapText(mins: Int): String {
+    val h = mins / 60
+    val rest = mins % 60
+    return when {
+        h == 0 -> tr("{0} min", mins)
+        rest < 10 -> tr("{0} h", h)
+        rest > 50 -> tr("{0} h", h + 1)
+        else -> tr("{0} h {1} min", h, rest)
+    }
+}
+
 /** An icon for each moment. */
 fun MealTag.icon(): Int = when (this) {
     MealTag.FASTING -> R.drawable.lc_sun

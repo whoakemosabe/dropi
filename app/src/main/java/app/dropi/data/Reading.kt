@@ -1,5 +1,6 @@
 package app.dropi.data
 
+import app.dropi.L
 import app.dropi.tr
 import java.time.Instant
 import java.time.LocalDate
@@ -79,13 +80,24 @@ data class Reading(
     val imported get() = source.isNotEmpty()
     val hasDetails get() = carbs != null || insulin != null || meds || exercise != null || foods.isNotEmpty()
 
-    /** "45 g carbs · 4 u rapid · tablets · 30 min exercise", or "" with none. */
-    fun detailsText(): String = listOfNotNull(
+    /**
+     * "45 g carbs · 4 u rapid · tablets · 30 min exercise", or "" with none. In the app's language;
+     * [english] gives the English words with a decimal point (for prompts to the AI model).
+     */
+    fun detailsText(english: Boolean = false): String = listOfNotNull(
         foods.takeIf { it.isNotEmpty() }?.joinToString(", ") { Foods.display(it) },
-        carbs?.let { "$it g carbs" },
-        insulin?.let { u -> "${trim(u)} u" + (insulinKind?.let { " ${it.label.lowercase()}" } ?: "") },
-        if (meds) "tablets" else null,
-        exercise?.let { "$it min exercise" },
+        carbs?.let { if (english) "$it g carbs" else tr("{0} g carbs", it) },
+        insulin?.let { u ->
+            val n = trim(u).let { if (english) it else it.replace('.', L.decimal) }
+            val kind = insulinKind
+            when {
+                english -> "$n u" + (kind?.let { " ${it.en.lowercase()}" } ?: "")
+                kind == null -> tr("{0} u", n)
+                else -> tr("{0} u {1}", n, kind.label.lowercase(L.locale))
+            }
+        },
+        if (meds) (if (english) "tablets" else tr("tablets")) else null,
+        exercise?.let { if (english) "$it min exercise" else tr("{0} min exercise", it) },
     ).joinToString(" · ")
 
     private fun trim(d: Double) = if (d % 1.0 == 0.0) d.toInt().toString() else java.lang.String.format(java.util.Locale.ROOT, "%.1f", d)

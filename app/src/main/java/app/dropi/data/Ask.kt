@@ -188,7 +188,7 @@ object Ask {
         sb.append("Latest readings:\n")
         c.readings.sortedByDescending { it.at }.take(12).forEach { x ->
             sb.append("- ${fmt.format(Instant.ofEpochMilli(x.at).atZone(c.zone))} ${x.tag.en} ${c.p(x.mmol)}")
-            val d = x.detailsText()
+            val d = x.detailsText(english = true)
             if (d.isNotEmpty()) sb.append(" ($d)")
             sb.append('\n')
         }

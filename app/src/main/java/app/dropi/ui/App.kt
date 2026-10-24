@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.MealTag
 import app.dropi.work.UpdateUi
 import app.dropi.work.UpdateWatch
@@ -155,11 +156,11 @@ fun DropiRoot(state: AppState) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (deletedMeal != null) "${deletedMeal.name} deleted" else "Reading deleted",
+                    if (deletedMeal != null) tr("{0} deleted", mealName(deletedMeal.name)) else tr("Reading deleted"),
                     style = inter(15.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "Undo",
+                    tr("Undo"),
                     style = inter(15.sp, FontWeight.Bold, C.Bg),
                     modifier = Modifier
                         .heightIn(min = 48.dp)
@@ -291,11 +292,11 @@ private fun TopBar(state: AppState) {
     val (title, sub) = when (state.tab) {
         Tab.TODAY -> "Dropi" to fmt.longDate(today)
         Tab.TRENDS -> {
-            val df = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
-            "Trends" to "${df.format(today.minusDays((state.trendsDays - 1).toLong()))} – ${df.format(today)}"
+            val df = dayPattern("d MMM")
+            tr("Trends") to "${df.format(today.minusDays((state.trendsDays - 1).toLong()))} – ${df.format(today)}"
         }
-        Tab.MEALS -> "Meals" to "What you ate, and what it did"
-        Tab.MORE -> "More" to "Everything else, one tap away"
+        Tab.MEALS -> tr("Meals") to tr("What you ate, and what it did")
+        Tab.MORE -> tr("More") to tr("Everything else, one tap away")
     }
     Row(
         Modifier
@@ -324,7 +325,7 @@ private fun TopBar(state: AppState) {
                 .background(C.SurfaceLight.copy(alpha = 0.8f))
                 .tap(press) { state.settingsOpen = true },
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_settings, C.TextSecondary, 20.dp, contentDescription = "Settings") }
+        ) { Ic(R.drawable.lc_settings, C.TextSecondary, 20.dp, contentDescription = tr("Settings")) }
     }
 }
 
@@ -353,14 +354,14 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Wing(left = true, backdrop = backdrop, modifier = Modifier.weight(1f)) {
-                TabItem("Today", R.drawable.lc_droplet, state.tab == Tab.TODAY, Modifier.weight(1f)) { go(Tab.TODAY) }
-                TabItem("Trends", R.drawable.lc_chart, state.tab == Tab.TRENDS, Modifier.weight(1f)) { go(Tab.TRENDS) }
+                TabItem(tr("Today"), R.drawable.lc_droplet, state.tab == Tab.TODAY, Modifier.weight(1f)) { go(Tab.TODAY) }
+                TabItem(tr("Trends"), R.drawable.lc_chart, state.tab == Tab.TRENDS, Modifier.weight(1f)) { go(Tab.TRENDS) }
             }
             // Room for the orb between the wings' curved inner edges.
             Spacer(Modifier.width(ORB_GAP))
             Wing(left = false, backdrop = backdrop, modifier = Modifier.weight(1f)) {
-                TabItem("Meals", R.drawable.lc_utensils, state.tab == Tab.MEALS, Modifier.weight(1f)) { go(Tab.MEALS) }
-                TabItem("More", R.drawable.lc_layout_grid, state.tab == Tab.MORE, Modifier.weight(1f)) { go(Tab.MORE) }
+                TabItem(tr("Meals"), R.drawable.lc_utensils, state.tab == Tab.MEALS, Modifier.weight(1f)) { go(Tab.MEALS) }
+                TabItem(tr("More"), R.drawable.lc_layout_grid, state.tab == Tab.MORE, Modifier.weight(1f)) { go(Tab.MORE) }
             }
         }
         // The halo, then the + itself.
@@ -381,7 +382,7 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 .background(Brush.linearGradient(C.Aurora))
                 .tap(plus) { state.addOpen = true },
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = "Add a reading or meal") }
+        ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = tr("Add a reading or meal")) }
     }
 }
 

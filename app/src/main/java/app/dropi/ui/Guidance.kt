@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
 import app.dropi.data.Reading
@@ -44,15 +45,15 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
     val value = "${Glucose.format(r.mmol, unit)} ${unit.label}"
     val lowLine = "${Glucose.format(Glucose.LOW, unit)} ${unit.label}"
     val steps: List<String> = if (low) listOfNotNull(
-        "Take 15 g of fast-acting sugar now: 4 glucose tablets, or about 150 ml of fruit juice or regular soft drink.",
-        "Wait 15 minutes, then check again.",
-        "Still under $lowLine? Repeat both steps.",
-        "Once you're back above it, have a snack or your meal if it's more than an hour away.",
-        if (status == Status.URGENT_LOW) "If you feel confused, very drowsy or can't swallow safely, call 112 now. Don't drive." else null,
+        tr("Take 15 g of fast-acting sugar now: 4 glucose tablets, or about 150 ml of fruit juice or regular soft drink."),
+        tr("Wait 15 minutes, then check again."),
+        tr("Still under {0}? Repeat both steps.", lowLine),
+        tr("Once you're back above it, have a snack or your meal if it's more than an hour away."),
+        if (status == Status.URGENT_LOW) tr("If you feel confused, very drowsy or can't swallow safely, call 112 now. Don't drive.") else null,
     ) else listOf(
-        "Drink some water and check again in a couple of hours.",
-        "If you use insulin, your care plan may ask you to check for ketones, especially if you feel sick.",
-        "Get medical help if you're vomiting, very thirsty and drowsy, or it keeps rising.",
+        tr("Drink some water and check again in a couple of hours."),
+        tr("If you use insulin, your care plan may ask you to check for ketones, especially if you feel sick."),
+        tr("Get medical help if you're vomiting, very thirsty and drowsy, or it keeps rising."),
     )
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -88,25 +89,25 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                 }
             }
             Text(
-                "General guidance only. Follow the plan you agreed with your care team.",
+                tr("General guidance only. Follow the plan you agreed with your care team."),
                 style = inter(13.sp, color = C.TextMuted),
             )
             if (low && onRecheck != null) {
                 val at = recheckAt
                 if (at == null) {
-                    PrimaryButton("Remind me to re-check in 15 min", Modifier.fillMaxWidth(), icon = R.drawable.lc_clock) {
+                    PrimaryButton(tr("Remind me to re-check in 15 min"), Modifier.fillMaxWidth(), icon = R.drawable.lc_clock) {
                         recheckAt = onRecheck()
                     }
-                    GhostButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+                    GhostButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
                 } else {
                     Text(
-                        "I'll remind you at ${Fmt(context, java.time.ZoneId.systemDefault()).time(at)}.",
+                        tr("I'll remind you at {0}.", Fmt(context, java.time.ZoneId.systemDefault()).time(at)),
                         style = inter(13.sp, FontWeight.SemiBold, C.Text),
                     )
-                    PrimaryButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+                    PrimaryButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
                 }
             } else {
-                PrimaryButton("Got it", Modifier.fillMaxWidth()) { onClose() }
+                PrimaryButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
             }
         }
     }

@@ -32,12 +32,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.dropi.L
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.Glucose
 import app.dropi.data.MealTag
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @Composable
 fun HistorySheet(state: AppState) {
@@ -57,7 +58,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
     val all = state.history
     val shown = remember(all, filter) { all.filter { filter == null || it.tag == filter }.reversed() }
     val byDay = remember(shown) { shown.groupBy { it.date(state.zone) } }
-    val dayName = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.ENGLISH)
+    val dayName = remember { dayPattern("EEEE d MMMM yyyy") }
     val backdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
     var headerPx by remember { mutableIntStateOf(0) }
@@ -73,7 +74,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
             if (shown.isEmpty()) {
                 item(key = "empty") {
                     Text(
-                        if (all.isEmpty()) "No readings yet." else "No ${filter?.label?.lowercase()} readings yet.",
+                        if (all.isEmpty()) tr("No readings yet.") else tr("No {0} readings yet.", filter?.label?.lowercase(L.locale).orEmpty()),
                         style = inter(15.sp, color = C.TextSecondary),
                         modifier = Modifier.padding(vertical = 24.dp),
                     )
@@ -83,9 +84,9 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                 item(key = "d$day") {
                     val avg = rs.map { it.mmol }.average()
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp, start = 4.dp), verticalAlignment = Alignment.Bottom) {
-                        Text(dayName.format(day), style = inter(13.sp, FontWeight.Bold, C.Text), modifier = Modifier.weight(1f))
+                        Text(dayName.format(day).cap(), style = inter(13.sp, FontWeight.Bold, C.Text), modifier = Modifier.weight(1f))
                         Text(
-                            "${plural(rs.size, "reading")} · avg ${Glucose.format(avg, state.unit)}",
+                            trn(rs.size, "{0} reading · avg {1}", "{0} readings · avg {1}", Glucose.format(avg, state.unit)),
                             style = inter(13.sp, color = C.TextMuted),
                         )
                     }
@@ -101,15 +102,15 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                 .onSizeChanged { headerPx = it.height }
                 .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
         ) {
-            SheetTitle("All readings", close)
+            SheetTitle(tr("All readings"), close)
             Text(
-                "${plural(all.size, "reading")} in total",
+                trn(all.size, "{0} reading in total", "{0} readings in total"),
                 style = inter(13.sp, color = C.TextMuted),
                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
             )
             val options = listOf<MealTag?>(null) + MealTag.entries
             ChoiceGrid(
-                options.map { if (it == null) Choice("All") else Choice(it.short) },
+                options.map { if (it == null) Choice(tr("All")) else Choice(it.short) },
                 options.indexOf(filter),
                 columns = 4,
                 compact = true,

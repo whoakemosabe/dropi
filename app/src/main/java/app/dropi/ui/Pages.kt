@@ -38,11 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.work.MealWork
 import java.time.Instant
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Meals: ways to log one, how foods move the person's numbers, and every meal of the last two
@@ -60,7 +59,7 @@ fun MealsPage(state: AppState) {
             .groupBy { Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() }
             .toSortedMap(compareByDescending { it })
     }
-    val dayName = remember { DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH) }
+    val dayName = remember { dayPattern("EEEE d MMMM") }
 
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
@@ -71,12 +70,12 @@ fun MealsPage(state: AppState) {
         item(key = "log") {
             // One big way in (the camera), then the other four as a compact row.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                PrimaryButton("Snap a meal", Modifier.fillMaxWidth(), icon = R.drawable.lc_camera) { Launch.mealAction.value = "camera" }
+                PrimaryButton(tr("Snap a meal"), Modifier.fillMaxWidth(), icon = R.drawable.lc_camera) { Launch.mealAction.value = "camera" }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiniTile("Say it", R.drawable.lc_mic, Modifier.weight(1f)) { Launch.mealAction.value = "words" }
-                    MiniTile("Barcode", R.drawable.lc_scan_barcode, Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
-                    MiniTile("Label", R.drawable.lc_scan_text, Modifier.weight(1f)) { Launch.mealAction.value = "label" }
-                    MiniTile("Type it", R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
+                    MiniTile(tr("Say it"), R.drawable.lc_mic, Modifier.weight(1f)) { Launch.mealAction.value = "words" }
+                    MiniTile(tr("Barcode"), R.drawable.lc_scan_barcode, Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
+                    MiniTile(tr("Label"), R.drawable.lc_scan_text, Modifier.weight(1f)) { Launch.mealAction.value = "label" }
+                    MiniTile(tr("Type it"), R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
                 }
             }
         }
@@ -86,8 +85,7 @@ fun MealsPage(state: AppState) {
         if (byDay.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    "No meals yet. Log one with a photo, in words or from a label. It's saved at the time you ate, " +
-                        "and joined to the readings before and after it.",
+                    tr("No meals yet. Log one with a photo, in words or from a label. It's saved at the time you ate, and joined to the readings before and after it."),
                     style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
                     modifier = Modifier.fillMaxWidth().card().padding(16.dp),
                 )
@@ -96,11 +94,11 @@ fun MealsPage(state: AppState) {
         byDay.forEach { (day, meals) ->
             item(key = "day-$day") {
                 val title = when (day) {
-                    today -> "Today"
-                    today.minusDays(1) -> "Yesterday"
-                    else -> dayName.format(day)
+                    today -> tr("Today")
+                    today.minusDays(1) -> tr("Yesterday")
+                    else -> dayName.format(day).cap()
                 }
-                MealsCard(state, meals.sortedByDescending { it.at }, now, fmt, "$title · ${app.dropi.data.Grams.text(meals.sumOf { it.carbs })} g carbs")
+                MealsCard(state, meals.sortedByDescending { it.at }, now, fmt, "$title · " + tr("{0} g carbs", app.dropi.data.Grams.text(meals.sumOf { it.carbs })))
                 if (day != today) {
                     Text(
                         app.dropi.data.DayTotals.text(app.dropi.data.DayTotals.of(day, meals)),
@@ -120,31 +118,31 @@ private fun TotalsCard(state: AppState, today: LocalDate) {
     val t = app.dropi.data.DayTotals.of(today, todays)
     val (week, last) = remember(state.meals, today) { app.dropi.data.DayTotals.weekCarbs(state.meals, today, state.zone) }
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Eaten today", style = SectionLabel)
+        Text(tr("Eaten today"), style = SectionLabel)
         if (todays.isEmpty()) {
-            Text("Nothing logged yet today.", style = inter(15.sp, color = C.TextSecondary))
+            Text(tr("Nothing logged yet today."), style = inter(15.sp, color = C.TextSecondary))
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("Carbs" to t.carbs, "Sugars" to t.sugars, "Fibre" to t.fibre, "Protein" to t.protein, "Fat" to t.fat).forEach { (label, v) ->
+                listOf(tr("Carbs") to t.carbs, tr("Sugars") to t.sugars, tr("Fibre") to t.fibre, tr("Protein") to t.protein, tr("Fat") to t.fat).forEach { (label, v) ->
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.semantics(mergeDescendants = true) {},
                     ) {
                         val shown = v?.let { app.dropi.data.Grams.text(it) }
-                        Text(shown ?: "–", style = numeral(22.sp), modifier = Modifier.semantics { contentDescription = if (shown == null) "$label not known" else "$shown grams $label" })
-                        Text(if (v == null) label else "$label g", style = inter(13.sp, color = C.TextMuted))
+                        Text(shown ?: "–", style = numeral(22.sp), modifier = Modifier.semantics { contentDescription = if (shown == null) tr("{0} not known", label) else tr("{0} grams {1}", shown, label) })
+                        Text(if (v == null) label else tr("{0} g", label), style = inter(13.sp, color = C.TextMuted))
                     }
                 }
             }
         }
         if (week != null) {
-            val trend = when {
-                last == null -> ""
-                week < last -> ", down from $last g the week before"
-                week > last -> ", up from $last g the week before"
-                else -> ", the same as the week before"
+            val line = when {
+                last == null -> tr("This week: about {0} g carbs a day.", week)
+                week < last -> tr("This week: about {0} g carbs a day, down from {1} g the week before.", week, last)
+                week > last -> tr("This week: about {0} g carbs a day, up from {1} g the week before.", week, last)
+                else -> tr("This week: about {0} g carbs a day, the same as the week before.", week)
             }
-            Text("This week: about $week g carbs a day$trend.", style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
+            Text(line, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
         }
     }
 }
@@ -156,11 +154,10 @@ private fun PatternsCard(state: AppState) {
         app.dropi.data.MealPatterns.fromMeasured(state.measured, state.readings, state.meals, state.unit)
     }
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("What your meals show", style = SectionLabel)
+        Text(tr("What your meals show"), style = SectionLabel)
         if (patterns.isEmpty()) {
             Text(
-                "After a few weeks of meals with readings before and after, this shows what makes a difference for you: " +
-                    "fibre, fat and protein, fast or slow carbs, a walk after, veg first, sugary drinks and alcohol.",
+                tr("After a few weeks of meals with readings before and after, this shows what makes a difference for you: fibre, fat and protein, fast or slow carbs, a walk after, veg first, sugary drinks and alcohol."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
             )
         }
@@ -174,7 +171,7 @@ private fun PatternsCard(state: AppState) {
                 Text(p.text, style = inter(15.sp).copy(lineHeight = 20.sp))
             }
         }
-        if (patterns.isNotEmpty()) Text("From your own log. Patterns, not advice.", style = inter(13.sp, color = C.TextMuted))
+        if (patterns.isNotEmpty()) Text(tr("From your own log. Patterns, not advice."), style = inter(13.sp, color = C.TextMuted))
     }
 }
 
@@ -183,15 +180,15 @@ private fun PatternsCard(state: AppState) {
 fun MorePage(state: AppState) {
     val bars = WindowInsets.systemBars.asPaddingValues()
     val items = listOf(
-        Triple("All readings", R.drawable.lc_history) { state.openHistory() },
-        Triple("Report for your care team", R.drawable.lc_file_text) { state.exportOpen = true },
-        Triple("Ask Dropi", R.drawable.lc_message_circle) { state.askOpen = true },
-        Triple("Check times and reminders", R.drawable.lc_clock) { state.scheduleOpen = true },
-        Triple("Live sensor", R.drawable.lc_activity) { state.liveOpen = true },
-        Triple("Backup", R.drawable.lc_archive) { state.backupOpen = true },
-        Triple("Settings", R.drawable.lc_settings) { state.settingsOpen = true },
-        Triple("What's changed", R.drawable.lc_sparkles) { state.changelogOpen = true },
-        Triple("Report a problem", R.drawable.lc_circle_alert) { state.reportOpen = true },
+        Triple(tr("All readings"), R.drawable.lc_history) { state.openHistory() },
+        Triple(tr("Report for your care team"), R.drawable.lc_file_text) { state.exportOpen = true },
+        Triple(tr("Ask Dropi"), R.drawable.lc_message_circle) { state.askOpen = true },
+        Triple(tr("Check times and reminders"), R.drawable.lc_clock) { state.scheduleOpen = true },
+        Triple(tr("Live sensor"), R.drawable.lc_activity) { state.liveOpen = true },
+        Triple(tr("Backup"), R.drawable.lc_archive) { state.backupOpen = true },
+        Triple(tr("Settings"), R.drawable.lc_settings) { state.settingsOpen = true },
+        Triple(tr("What's changed"), R.drawable.lc_sparkles) { state.changelogOpen = true },
+        Triple(tr("Report a problem"), R.drawable.lc_circle_alert) { state.reportOpen = true },
     )
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
@@ -208,7 +205,7 @@ fun MorePage(state: AppState) {
         }
         item(key = "note") {
             Text(
-                "Dropi is a log, not a medical device. Your readings stay on this phone.",
+                tr("Dropi is a log, not a medical device. Your readings stay on this phone."),
                 style = inter(13.sp, color = C.TextMuted),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
             )
@@ -279,14 +276,14 @@ fun MealDraftCard() {
     if (d.forMeal != null && d.meal == d.forMeal.meal) return
     if (d.status is MealWork.Status.Ready && d.meal?.items.isNullOrEmpty()) return
     val (title, sub) = when (val s = d.status) {
-        is MealWork.Status.Working -> "Working out your meal…" to "Dropi lets you know when it's done."
+        is MealWork.Status.Working -> tr("Working out your meal…") to tr("Dropi lets you know when it's done.")
         is MealWork.Status.Ready -> {
             val m = d.meal
-            if (m == null || m.items.isEmpty()) "A meal isn't saved yet" to "Add its foods and save it."
-            else "Your meal is ready to check" to "About ${app.dropi.data.Grams.text(m.carbs)} g carbs. Not saved yet."
+            if (m == null || m.items.isEmpty()) tr("A meal isn't saved yet") to tr("Add its foods and save it.")
+            else tr("Your meal is ready to check") to tr("About {0} g carbs. Not saved yet.", app.dropi.data.Grams.text(m.carbs))
         }
-        is MealWork.Status.Failed -> "Couldn't make out your meal" to "Say what you ate, or add the foods yourself."
-        else -> "A meal isn't finished" to "Pick up where you left off."
+        is MealWork.Status.Failed -> tr("Couldn't make out your meal") to tr("Say what you ate, or add the foods yourself.")
+        else -> tr("A meal isn't finished") to tr("Pick up where you left off.")
     }
     Row(
         Modifier
@@ -306,14 +303,14 @@ fun MealDraftCard() {
         }
         if (d.status !is MealWork.Status.Working) {
             Text(
-                "Discard",
+                tr("Discard"),
                 style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
                 modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).semantics { role = Role.Button }
                     .tap { MealWork.discard() }.padding(horizontal = 12.dp, vertical = 16.dp),
             )
         }
         Text(
-            "Open",
+            tr("Open"),
             style = inter(15.sp, FontWeight.Bold, C.OnAccent),
             modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).background(C.Accent).semantics { role = Role.Button }
                 .tap { MealWork.open = true }.padding(horizontal = 16.dp, vertical = 16.dp),

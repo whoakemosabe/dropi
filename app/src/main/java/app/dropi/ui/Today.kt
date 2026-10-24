@@ -68,7 +68,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.dropi.L
 import app.dropi.R
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.Check
 import app.dropi.data.CheckState
 import app.dropi.data.Glucose
@@ -137,13 +140,13 @@ fun TodayPage(state: AppState) {
         // Meals: one line here; the Meals page has the full cards.
         if (meals.isNotEmpty()) item(key = "meals") { MealsLine(state, meals, fmt) }
         item(key = "today-label") {
-            Text("Today", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+            Text(tr("Today"), style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
         if (todays.isEmpty()) {
             item(key = "today-empty") {
                 Text(
-                    if (all.isEmpty()) "Your readings will appear here. Tap + to add your first one."
-                    else "Nothing logged yet today.",
+                    if (all.isEmpty()) tr("Your readings will appear here. Tap + to add your first one.")
+                    else tr("Nothing logged yet today."),
                     style = inter(15.sp, color = C.TextSecondary),
                     modifier = Modifier.fillMaxWidth().card().padding(16.dp),
                 )
@@ -153,12 +156,12 @@ fun TodayPage(state: AppState) {
         }
         if (all.isNotEmpty()) {
             item(key = "history") {
-                GhostButton("See all readings", Modifier.fillMaxWidth(), color = C.AccentText) { state.openHistory() }
+                GhostButton(tr("See all readings"), Modifier.fillMaxWidth(), color = C.AccentText) { state.openHistory() }
             }
         }
         item(key = "footer") {
             Text(
-                "Dropi is a log, not a medical device. Follow the plan you agreed with your care team.",
+                tr("Dropi is a log, not a medical device. Follow the plan you agreed with your care team."),
                 style = inter(13.sp, color = C.TextMuted),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
             )
@@ -179,8 +182,8 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
             Spacer(Modifier.height(24.dp))
             Ic(R.drawable.lc_droplet, C.AccentText, 36.dp)
             Spacer(Modifier.height(12.dp))
-            Text("No readings yet", style = heading(30.sp))
-            Text("Tap + to log your first one.", style = inter(15.sp, FontWeight.Medium, C.TextSecondary))
+            Text(tr("No readings yet"), style = heading(30.sp))
+            Text(tr("Tap + to log your first one."), style = inter(15.sp, FontWeight.Medium, C.TextSecondary))
             Spacer(Modifier.height(24.dp))
             return@Column
         }
@@ -198,10 +201,11 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
             modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
         )
         Text(
-            "${state.unit.label} · ${status.label.lowercase()}",
+            "${state.unit.label} · ${status.label.lowercase(L.locale)}",
             style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary),
         )
         if (streak >= 2) {
+            // Never 1 here; the singular form is for 21, 31… in Icelandic.
             Spacer(Modifier.height(8.dp))
             Row(
                 Modifier.clip(RoundedCornerShape(50)).background(C.High.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 4.dp),
@@ -209,7 +213,7 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
             ) {
                 Ic(R.drawable.lc_flame, C.High, 13.dp)
                 Spacer(Modifier.width(4.dp))
-                Text("$streak-day logging streak", style = inter(13.sp, FontWeight.SemiBold, C.High))
+                Text(trn(streak, "{0} day logging streak", "{0}-day logging streak"), style = inter(13.sp, FontWeight.SemiBold, C.High))
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -217,26 +221,45 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
     }
 }
 
+/**
+ * Appends [text], lighting each of [values] in [style] where it first appears (in whatever order
+ * the translation puts them).
+ */
+private fun androidx.compose.ui.text.AnnotatedString.Builder.appendLit(text: String, values: List<String>, style: SpanStyle) {
+    var rest = text
+    var left = values.filter { it.isNotEmpty() }
+    while (true) {
+        val hit = left.map { it to rest.indexOf(it) }.filter { it.second >= 0 }.minByOrNull { it.second } ?: break
+        append(rest.substring(0, hit.second))
+        withStyle(style) { append(hit.first) }
+        rest = rest.substring(hit.second + hit.first.length)
+        left = left - hit.first
+    }
+    append(rest)
+}
+
 /** Today in one sentence, with the numbers lit in aurora mint (and lows in their own colour). */
 @Composable
 private fun DaySentence(state: AppState, s: app.dropi.data.Summary) {
     if (s.count == 0) return
     val mint = SpanStyle(color = C.Text, fontWeight = FontWeight.ExtraBold)
+    // Whole sentences per case (so Icelandic word order works); the values are lit where they land.
+    val avg = s.average?.let { Glucose.format(it, state.unit) }
+    val pct = s.inRangePct?.let { "$it%" }
+    // One reading has no average to speak of; the singular forms are still used for 21, 31… in Icelandic.
+    val sentence = when {
+        s.count == 1 && avg != null && pct != null -> tr("1 reading today, {0}, and {1} in range.", avg, pct)
+        s.count == 1 && avg != null -> tr("1 reading today, {0}.", avg)
+        avg != null && pct != null -> trn(s.count, "{0} reading today, averaging {1}, and {2} in range.", "{0} readings today, averaging {1}, and {2} in range.", avg, pct)
+        avg != null -> trn(s.count, "{0} reading today, averaging {1}.", "{0} readings today, averaging {1}.", avg)
+        else -> trn(s.count, "{0} reading today.", "{0} readings today.")
+    }
+    val lit = listOfNotNull(avg, pct)
     val text = buildAnnotatedString {
-        append(if (s.count == 1) "1 reading today" else "${s.count} readings today")
-        s.average?.let {
-            append(if (s.count == 1) ", " else ", averaging ")
-            withStyle(mint) { append(Glucose.format(it, state.unit)) }
-        }
-        s.inRangePct?.let {
-            append(", and ")
-            withStyle(mint) { append("$it%") }
-            append(" in range")
-        }
-        append(".")
+        appendLit(sentence, lit, mint)
         if (s.lows > 0) {
             append(" ")
-            withStyle(SpanStyle(color = C.Low)) { append(if (s.lows == 1) "1 low." else "${s.lows} lows.") }
+            withStyle(SpanStyle(color = C.Low)) { append(trn(s.lows, "{0} low.", "{0} lows.")) }
         }
     }
     Text(text, style = heading(21.sp, C.TextSecondary).copy(lineHeight = 28.sp), modifier = Modifier.padding(horizontal = 4.dp))
@@ -257,13 +280,13 @@ private fun WeekCard(state: AppState, today: java.time.LocalDate) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Your week", style = SectionLabel)
+        Text(tr("Your week"), style = SectionLabel)
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            WeekStat(r.bands?.let { "${Math.round(it.inRange)}%" } ?: "—", "in range")
-            WeekStat(if (r.lows == 0) "0" else "${r.lows}", if (r.lows == 1) "low" else "lows")
-            WeekStat("${r.daysLogged}/7", "days logged")
+            WeekStat(r.bands?.let { "${Math.round(it.inRange)}%" } ?: "—", tr("in range"))
+            WeekStat("${r.lows}", trn(r.lows, "low reading", "low readings"))
+            WeekStat("${r.daysLogged}/7", tr("days logged"))
         }
-        Text("See this week in Trends", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
+        Text(tr("See this week in Trends"), style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
     }
 }
 
@@ -286,9 +309,9 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
     val move = remember(state.readings, state.slots, state.dismissedMoves) { state.moveSuggestion(now) }
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Today's checks", style = SectionLabel, modifier = Modifier.weight(1f).padding(start = 4.dp))
+            Text(tr("Today's checks"), style = SectionLabel, modifier = Modifier.weight(1f).padding(start = 4.dp))
             Text(
-                "Edit",
+                tr("Edit"),
                 style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
                 modifier = Modifier
                     .minimumInteractiveComponentSize()
@@ -298,8 +321,8 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
             )
         }
         if (checks.isEmpty()) {
-            Text("No check times yet. Plan a few and Dropi can remind you.", style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.padding(horizontal = 4.dp))
-            Chip("Plan check times", icon = R.drawable.lc_clock, selected = true) { state.scheduleOpen = true }
+            Text(tr("No check times yet. Plan a few and Dropi can remind you."), style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.padding(horizontal = 4.dp))
+            Chip(tr("Plan check times"), icon = R.drawable.lc_clock, selected = true) { state.scheduleOpen = true }
             return@Column
         }
         DayLine(checks, now, state, fmt)
@@ -311,32 +334,34 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "You usually do your ${move.slot.name.lowercase()} check at about ${clock(move.minute)} (${move.days} of the last 14 days). Move it there?",
+                    tr("You usually do your {0} check at about {1} ({2} of the last 14 days). Move it there?", move.slot.name.lowercase(L.locale), clock(move.minute), move.days),
                     style = inter(15.sp, FontWeight.Medium).copy(lineHeight = 20.sp),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Chip("Move to ${clock(move.minute)}", icon = R.drawable.lc_clock, selected = true) { state.acceptMove(move) }
-                    Chip("Keep ${clock(move.slot.minute)}") { state.dismissMove(move) }
+                    Chip(tr("Move to {0}", clock(move.minute)), icon = R.drawable.lc_clock, selected = true) { state.acceptMove(move) }
+                    Chip(tr("Keep {0}", clock(move.slot.minute))) { state.dismissMove(move) }
                 }
             }
         }
         if (next != null) {
             val mins = (next.at - now) / 60_000
             val whenText = when {
-                next.state == CheckState.DUE -> "due until ${fmt.time(next.until)}"
-                mins < 60 -> "in $mins min"
-                mins < 24 * 60 -> "in ${mins / 60} h ${if (mins % 60 >= 10) "${mins % 60} min" else ""}".trim()
-                else -> "tomorrow"
+                next.state == CheckState.DUE -> tr("due until {0}", fmt.time(next.until))
+                mins < 60 -> tr("in {0} min", mins)
+                mins < 24 * 60 -> if (mins % 60 >= 10) tr("in {0} h {1} min", mins / 60, mins % 60) else tr("in {0} h", mins / 60)
+                else -> tr("tomorrow")
             }
+            val why = next.meal?.let { afterYourMealText(it.name, fmt.time(it.at)) }
+                ?: next.anchor?.let { tr("{0} h after your {1} reading", state.afterMealMinutes / 60, fmt.time(it.at)) }
             Text(
-                "Next: ${next.slot.name} at ${fmt.time(next.at)}" + (next.meal?.let { " (after your ${it.name.lowercase()} at ${fmt.time(it.at)})" }
-                    ?: next.anchor?.let { " (${state.afterMealMinutes / 60} h after your ${fmt.time(it.at)} reading)" } ?: "") + ", $whenText",
+                if (why != null) tr("Next: {0} at {1} ({2}), {3}", next.slot.name, fmt.time(next.at), why, whenText)
+                else tr("Next: {0} at {1}, {2}", next.slot.name, fmt.time(next.at), whenText),
                 style = inter(13.sp, FontWeight.Medium, if (next.state == CheckState.DUE) C.AccentText else C.TextSecondary),
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
         if (!state.remindersOn) {
-            Text("Reminders are off. Tap Edit to turn them on.", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(horizontal = 4.dp))
+            Text(tr("Reminders are off. Tap Edit to turn them on."), style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(horizontal = 4.dp))
         }
     }
 }
@@ -419,7 +444,7 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                     .size(44.dp)
                     .clip(CircleShape)
                     .tap { state.editing = r }
-                    .semantics { contentDescription = "Extra reading at ${fmt.time(r.at)}: ${Glucose.format(r.mmol, state.unit)}" },
+                    .semantics { contentDescription = tr("Extra reading at {0}: {1}", fmt.time(r.at), Glucose.format(r.mmol, state.unit)) },
                 contentAlignment = Alignment.Center,
             ) { Box(Modifier.size(10.dp).clip(CircleShape).background(col)) }
         }
@@ -431,7 +456,7 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 Modifier
                     .offset(x = x - 6.dp, y = lineY - 6.dp + 9.dp)
                     .size(12.dp)
-                    .semantics { contentDescription = "${m.name} at ${fmt.time(m.at)}: ${m.foods.joinToString(", ")}" },
+                    .semantics { contentDescription = tr("{0} at {1}: {2}", mealName(m.name), fmt.time(m.at), m.foods.joinToString(", ")) },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -453,12 +478,13 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                     .clip(CircleShape)
                     .tap { if (done != null) state.editing = done else state.startNew(c.slot.tag) }
                     .semantics {
-                        contentDescription = "${c.slot.name} at ${fmt.time(c.at)}: " + when {
-                            done != null -> "${Glucose.format(done.mmol, state.unit)}, done at ${fmt.time(done.at)}"
-                            due -> "due now"
-                            c.state == CheckState.MISSED -> "missed"
-                            else -> "coming up"
+                        val how = when {
+                            done != null -> tr("{0}, done at {1}", Glucose.format(done.mmol, state.unit), fmt.time(done.at))
+                            due -> tr("due now")
+                            c.state == CheckState.MISSED -> tr("missed")
+                            else -> tr("coming up")
                         }
+                        contentDescription = tr("{0} at {1}: {2}", c.slot.name, fmt.time(c.at), how)
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -480,9 +506,9 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
             ) {
                 val value = when {
                     done != null -> Glucose.format(done.mmol, state.unit)
-                    due -> "due"
-                    c.state == CheckState.MISSED -> "missed"
-                    else -> "later"
+                    due -> tr("due")
+                    c.state == CheckState.MISSED -> tr("missed")
+                    else -> tr("later")
                 }
                 val shownAt = done?.at ?: c.at
                 if (below) {
@@ -521,14 +547,15 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
     val before = app.dropi.data.MealLink.before(m, state.readings)
     val foods = m.meal.items.joinToString(", ") { app.dropi.data.Foods.display(it.name) }
     val time = if (dayTimes) fmt.dayTime(m.at, now) else fmt.time(m.at)
-    val from = before?.let { "Before: your ${fmt.time(it.at)} reading (${Glucose.format(it.mmol, state.unit)})" }
-        ?: "No reading before it, so no rise to show"
+    val name = mealName(m.name)
+    val from = before?.let { tr("Before: your {0} reading ({1})", fmt.time(it.at), Glucose.format(it.mmol, state.unit)) }
+        ?: tr("No reading before it, so no rise to show")
     val gap = app.dropi.data.Schedule.gapFor(m, state.afterMealMinutes)
     val result = when {
-        out != null -> "Peaked ${Glucose.format(out.peak, state.unit)} (${app.dropi.data.Foods.delta(out.rise, state.unit)}) at ${fmt.time(out.peakAt)}"
+        out != null -> tr("Peaked {0} ({1}) at {2}", Glucose.format(out.peak, state.unit), app.dropi.data.Foods.delta(out.rise, state.unit), fmt.time(out.peakAt))
         before == null -> null
-        now - m.at < 4 * 3_600_000L -> "After-eating check at about ${fmt.time(m.at + gap * 60_000L)}"
-        else -> "No after-eating reading"
+        now - m.at < 4 * 3_600_000L -> tr("After-eating check at about {0}", fmt.time(m.at + gap * 60_000L))
+        else -> tr("No after-eating reading")
     }
     Row(
         Modifier
@@ -536,8 +563,8 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
             .heightIn(min = 64.dp)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
-                contentDescription = "${m.name} at $time: $foods, ${app.dropi.data.Grams.text(m.carbs)} grams of carbs. $from." +
-                    (result?.let { " $it" } ?: "") + (rise?.let { ", ${it.word.lowercase()}" } ?: "")
+                contentDescription = tr("{0} at {1}: {2}, {3} grams of carbs.", name, time, foods, app.dropi.data.Grams.text(m.carbs)) + " $from." +
+                    (result?.let { " $it" } ?: "") + (rise?.let { ", ${riseWord(it).lowercase(L.locale)}" } ?: "")
             }
             .tap { app.dropi.work.MealWork.edit(m) }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -548,7 +575,7 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${m.name} · $time · ${app.dropi.data.Grams.text(m.carbs)} g carbs", style = inter(15.sp, FontWeight.SemiBold))
+            Text("$name · $time · " + tr("{0} g carbs", app.dropi.data.Grams.text(m.carbs)), style = inter(15.sp, FontWeight.SemiBold))
             Text(foods, style = inter(13.sp, color = C.TextSecondary), maxLines = 2)
             Text(from, style = inter(13.sp, color = C.TextMuted))
             if (result != null) Text(result, style = inter(13.sp, color = C.TextMuted))
@@ -560,11 +587,25 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(riseColor(rise)))
                     Spacer(Modifier.width(4.dp))
-                    Text(rise.word.removeSuffix(" rise"), style = inter(13.sp, FontWeight.SemiBold))
+                    Text(riseShort(rise), style = inter(13.sp, FontWeight.SemiBold))
                 }
             }
         }
     }
+}
+
+/** A rise in words ("Gentle rise"), in the app's language. Rise.word stays English. */
+private fun riseWord(r: app.dropi.data.Rise): String = when (r) {
+    app.dropi.data.Rise.GENTLE -> tr("Gentle rise")
+    app.dropi.data.Rise.MODERATE -> tr("Moderate rise")
+    app.dropi.data.Rise.BIG -> tr("Big rise")
+}
+
+/** The short word under a meal's rise ("Gentle"). */
+private fun riseShort(r: app.dropi.data.Rise): String = when (r) {
+    app.dropi.data.Rise.GENTLE -> tr("Gentle")
+    app.dropi.data.Rise.MODERATE -> tr("Moderate")
+    app.dropi.data.Rise.BIG -> tr("Big")
 }
 
 /** While demo data is on: says so plainly, with the way back. */
@@ -582,11 +623,11 @@ private fun DemoBanner(state: AppState) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Demo data", style = inter(15.sp, FontWeight.Bold))
-            Text("Made-up readings. Your real log is safe.", style = inter(13.sp, color = C.TextSecondary))
+            Text(tr("Demo data"), style = inter(15.sp, FontWeight.Bold))
+            Text(tr("Made-up readings. Your real log is safe."), style = inter(13.sp, color = C.TextSecondary))
         }
         Text(
-            "Leave",
+            tr("Leave"),
             style = inter(13.sp, FontWeight.Bold, C.Text),
             modifier = Modifier
                 .heightIn(min = 44.dp)
@@ -638,7 +679,7 @@ fun ReadingRow(state: AppState, r: Reading, time: String) {
             .fillMaxWidth()
             .tap { state.editing = r }
             .semantics(mergeDescendants = true) {
-                contentDescription = "${r.tag.label}, $time" + (link?.let { ", $it" } ?: "") + ", ${Glucose.format(r.mmol, state.unit)}, ${status.label}"
+                contentDescription = listOfNotNull(r.tag.label, time, link, Glucose.format(r.mmol, state.unit), status.label).joinToString(", ")
             }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -676,7 +717,7 @@ fun CrashCard(state: AppState) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Dropi crashed last time", style = inter(15.sp, FontWeight.Bold, C.Low))
+        Text(tr("Dropi crashed last time"), style = inter(15.sp, FontWeight.Bold, C.Low))
         Text(
             text.lines().filter { it.isNotBlank() }.take(8).joinToString("\n"),
             style = androidx.compose.ui.text.TextStyle(
@@ -689,11 +730,11 @@ fun CrashCard(state: AppState) {
             overflow = TextOverflow.Ellipsis,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("Copy details", icon = R.drawable.lc_bookmark) {
+            Chip(tr("Copy details"), icon = R.drawable.lc_bookmark) {
                 val cm = context.getSystemService(android.content.ClipboardManager::class.java)
                 cm?.setPrimaryClip(android.content.ClipData.newPlainText("Dropi crash", text))
             }
-            Chip("Dismiss") { state.dismissCrash() }
+            Chip(tr("Dismiss")) { state.dismissCrash() }
         }
     }
 }
@@ -702,12 +743,12 @@ fun CrashCard(state: AppState) {
 /** Today's meals in one tappable line ("Breakfast 08:10 · 45 g  ·  Lunch 12:30 · 60 g"), opening the Meals page. */
 @Composable
 private fun MealsLine(state: AppState, meals: List<app.dropi.data.MealEntry>, fmt: Fmt) {
-    val text = meals.sortedBy { it.at }.joinToString("  ·  ") { "${it.name} ${fmt.time(it.at)} · ${app.dropi.data.Grams.text(it.meal.carbs)} g" }
+    val text = meals.sortedBy { it.at }.joinToString("  ·  ") { "${mealName(it.name)} ${fmt.time(it.at)} · ${app.dropi.data.Grams.text(it.meal.carbs)} g" }
     Row(
         Modifier
             .fillMaxWidth()
             .card()
-            .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = "Meals today: $text. Opens Meals." }
+            .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = tr("Meals today: {0}. Opens Meals.", text) }
             .tap { state.tab = Tab.MEALS }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

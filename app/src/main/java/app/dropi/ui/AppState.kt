@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.dropi.CrashLog
 import app.dropi.Prefs
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.Db
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
@@ -335,7 +337,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             val now = System.currentTimeMillis()
             prefs.oneOffs = Schedule.afterMeal(prefs.oneOffs, saved.at, Schedule.gapFor(saved, prefs.afterMealMinutes), prefs.afterMealOn, now, saved.id)
             Reminders.rescheduleAsync(context)
-            mealNote = if (id == 0L) "${saved.name} logged" else "${saved.name} changed"
+            mealNote = if (id == 0L) tr("{0} logged", mealName(saved.name)) else tr("{0} changed", mealName(saved.name))
         }
     }
 
@@ -377,8 +379,15 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         get() = meals.asReversed().map { it.meal }.filter { it.items.isNotEmpty() }
             .distinctBy { m -> m.foods.sorted().joinToString("|") }.take(3)
 
-    /** What a reading was taken around: "before breakfast", "2 h after lunch". */
-    fun linkText(r: Reading): String? = MealLink.text(r, meals, readings)
+    /**
+     * What a reading was taken around: "before breakfast", "2 h after lunch", in the app's
+     * language (the same links as [MealLink.text], which stays English).
+     */
+    fun linkText(r: Reading): String? {
+        MealLink.mealAfter(r, meals, readings)?.let { return beforeMealText(it.name) }
+        MealLink.mealBefore(r, meals)?.let { m -> return afterMealText(gapText(((r.at - m.at) / 60_000L).toInt()), m.name) }
+        return null
+    }
 
     fun askCtx() = Ask.Ctx(readings, sensor, unit, targets, LocalDate.now(zone), zone, meals, measured)
 
@@ -502,9 +511,9 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             val added = HealthSync.pull(context)
             HealthSync.push(context, readings)
             if (added > 0) reload()
-            healthNote = if (added > 0) "Brought in $added ${if (added == 1) "reading" else "readings"}" else "Up to date"
+            healthNote = if (added > 0) trn(added, "Brought in {0} reading", "Brought in {0} readings") else tr("Up to date")
         } catch (e: Exception) {
-            healthNote = "Couldn't sync with Health Connect"
+            healthNote = tr("Couldn't sync with Health Connect")
         }
     }
 
