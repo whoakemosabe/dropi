@@ -23,7 +23,7 @@ android {
         versionName = "1.0.$runNumber"
         // 64-bit ARM only: every phone Dropi runs on, and the only one the Gemma engine supports.
         // Leaves out LiteRT-LM's other native builds, which would otherwise double the APK.
-        ndk { abiFilters += "arm64-v8a" }
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     signingConfigs {

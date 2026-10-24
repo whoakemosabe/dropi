@@ -43,9 +43,20 @@ class MainActivity : ComponentActivity() {
         // the photo just taken.
         val replayed = savedInstanceState != null || (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
         if (!replayed) handleIntent(intent)
+        val shotTab = intent.getStringExtra("shot_tab")
+        val shotMeal = intent.getBooleanExtra("shot_meal", false)
+        val shotMore = intent.getBooleanExtra("shot_more", false)
+        if (shotTab != null) getSharedPreferences("dropi", MODE_PRIVATE).edit()
+            .putBoolean("onboarded", true).putString("theme", intent.getStringExtra("shot_theme") ?: "dark").commit()
         setContent {
             val scope = rememberCoroutineScope()
             val s = remember { AppState(this, scope) }
+            if (shotTab != null) LaunchedEffect(Unit) {
+                if (!s.demo) { s.loadDemo(); kotlinx.coroutines.delay(4000) }
+                s.tab = app.dropi.ui.Tab.valueOf(shotTab)
+                s.trendsMore = shotMore
+                if (shotMeal) { kotlinx.coroutines.delay(1500); s.meals.maxByOrNull { it.at }?.let { app.dropi.work.MealWork.edit(it) } }
+            }
             // Theme: follow the phone, or Dark / Light. Set before anything reads the palette.
             val systemDark = isSystemInDarkTheme()
             val dark = when (s.theme) {
