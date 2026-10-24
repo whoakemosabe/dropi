@@ -124,7 +124,7 @@ object MealCurve {
         val reasons = ArrayList<String>()
         var rise = meal.carbs * (perGram ?: DEFAULT_PER_GRAM)
         var peak = 60
-        val drinkOnly = meal.items.all { it.sugaryDrink || it.carbs == 0 } && meal.hasSugaryDrink
+        val drinkOnly = meal.items.all { it.sugaryDrink || it.carbs == 0.0 } && meal.hasSugaryDrink
         when (meal.speed) {
             Gi.Speed.FAST -> { rise *= 1.15; peak = 45; reasons += "fast carbs" }
             Gi.Speed.SLOW -> { rise *= 0.85; peak = 75; reasons += "slow carbs" }
@@ -135,11 +135,11 @@ object MealCurve {
             peak = if (drinkOnly) 35 else minOf(peak, 50)
             reasons += "a sugary drink hits fast"
         }
-        if ((meal.fibre ?: 0) >= 10) { rise *= 0.9; reasons += "fibre softens it" }
+        if ((meal.fibre ?: 0.0) >= 10) { rise *= 0.9; reasons += "fibre softens it" }
         if ("veg_first" in meal.tags) { rise *= 0.9; reasons += "veg first" }
         if ("walk_after" in meal.tags) { rise *= 0.85; reasons += "a walk after" }
-        val fat = meal.fat ?: 0
-        val protein = meal.protein ?: 0
+        val fat = meal.fat ?: 0.0
+        val protein = meal.protein ?: 0.0
         var tail = 90
         when {
             meal.slowDigesting -> { peak += 45; tail += 60; rise *= 0.9; reasons += "fat and protein push the peak later" }
@@ -194,7 +194,7 @@ object MealPatterns {
             if (abs(diff) < 0.8) return
             out += Pattern(say(diff < 0, d(diff), yes.size), diff < 0)
         }
-        compareRise(ms.filter { (it.e.meal.fibre ?: 0) >= 8 }, ms.filter { (it.e.meal.fibre ?: 0) < 8 }) { less, diff, n ->
+        compareRise(ms.filter { (it.e.meal.fibre ?: 0.0) >= 8 }, ms.filter { (it.e.meal.fibre ?: 0.0) < 8 }) { less, diff, n ->
             "Meals with 8 g or more fibre rise $diff ${if (less) "less" else "more"} for you ($n meals)."
         }
         compareRise(ms.filter { "walk_after" in it.e.meal.tags }, ms.filter { "walk_after" !in it.e.meal.tags }) { less, diff, n ->
@@ -240,11 +240,11 @@ object MealPatterns {
 
 /** What was eaten each day: carbs, sugars, fibre, protein and fat added up. */
 object DayTotals {
-    data class Totals(val day: LocalDate, val meals: Int, val carbs: Int, val sugars: Int?, val fibre: Int?, val protein: Int?, val fat: Int?)
+    data class Totals(val day: LocalDate, val meals: Int, val carbs: Double, val sugars: Double?, val fibre: Double?, val protein: Double?, val fat: Double?)
 
     fun of(day: LocalDate, meals: List<MealEntry>): Totals {
-        fun sum(f: (Meal) -> Int?): Int? = meals.mapNotNull { f(it.meal) }.takeIf { it.isNotEmpty() }?.sum()
-        return Totals(day, meals.size, meals.sumOf { it.carbs }, sum { it.sugars }, sum { it.fibre }, sum { it.protein }, sum { it.fat })
+        fun sum(f: (Meal) -> Double?): Double? = meals.mapNotNull { f(it.meal) }.takeIf { it.isNotEmpty() }?.let { Grams.round(it.sum()) }
+        return Totals(day, meals.size, Grams.round(meals.sumOf { it.carbs }), sum { it.sugars }, sum { it.fibre }, sum { it.protein }, sum { it.fat })
     }
 
     fun byDay(meals: List<MealEntry>, zone: ZoneId): Map<LocalDate, Totals> =
@@ -255,14 +255,64 @@ object DayTotals {
         val days = byDay(meals, zone)
         fun avg(from: Long, to: Long): Int? {
             val ds = (from..to).mapNotNull { days[today.minusDays(it)] }
-            return if (ds.size < 3) null else (ds.sumOf { it.carbs }.toDouble() / ds.size).roundToInt()
+            return if (ds.size < 3) null else (ds.sumOf { it.carbs } / ds.size).roundToInt()
         }
         return avg(0, 6) to avg(7, 13)
     }
 
     /** "142 g carbs · 38 g sugars · 22 g fibre · 85 g protein · 60 g fat" (missing ones left out). */
     fun text(t: Totals): String = listOfNotNull(
-        "${t.carbs} g carbs", t.sugars?.let { "$it g sugars" }, t.fibre?.let { "$it g fibre" },
-        t.protein?.let { "$it g protein" }, t.fat?.let { "$it g fat" },
+        "${Grams.text(t.carbs)} g carbs", t.sugars?.let { "${Grams.text(it)} g sugars" }, t.fibre?.let { "${Grams.text(it)} g fibre" },
+        t.protein?.let { "${Grams.text(it)} g protein" }, t.fat?.let { "${Grams.text(it)} g fat" },
     ).joinToString(" · ")
+}
+
+/**
+ * Everyday foods with their numbers for one usual portion, so a food added by hand gets its
+ * nutrition straight away (the on-device model fills in anything not here). Typical values,
+ * carbs counted the European way (without fibre).
+ */
+object Basics {
+    private val table: List<MealItem> = listOf(
+        MealItem("egg", "1 egg", carbs = 0.4, sugars = 0.4, fibre = 0.0, protein = 6.3, fat = 5.0),
+        MealItem("bacon", "2 slices", carbs = 0.3, sugars = 0.0, fibre = 0.0, protein = 6.0, fat = 7.0),
+        MealItem("sausage", "1 sausage", carbs = 2.0, sugars = 0.5, fibre = 0.2, protein = 7.0, fat = 13.0),
+        MealItem("ham", "2 slices", carbs = 1.0, sugars = 0.8, fibre = 0.0, protein = 10.0, fat = 3.0),
+        MealItem("chicken", "1 breast", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 31.0, fat = 4.0),
+        MealItem("salmon", "1 fillet", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 25.0, fat = 13.0),
+        MealItem("cod", "1 fillet", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 23.0, fat = 1.0),
+        MealItem("tuna", "1 can", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 25.0, fat = 1.0),
+        MealItem("lamb", "1 portion", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 25.0, fat = 18.0),
+        MealItem("beef", "1 portion", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 26.0, fat = 15.0),
+        MealItem("cheese", "1 slice", carbs = 0.1, sugars = 0.1, fibre = 0.0, protein = 5.0, fat = 6.0),
+        MealItem("butter", "1 tsp", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 0.1, fat = 4.1),
+        MealItem("avocado", "½ avocado", carbs = 1.9, sugars = 0.2, fibre = 4.6, protein = 1.4, fat = 10.5),
+        MealItem("skyr", "1 cup", carbs = 6.8, sugars = 6.8, fibre = 0.0, protein = 19.0, fat = 0.3),
+        MealItem("greek yogurt", "1 cup", carbs = 7.0, sugars = 7.0, fibre = 0.0, protein = 15.0, fat = 10.0),
+        MealItem("milk", "1 glass", carbs = 11.8, sugars = 11.8, fibre = 0.0, protein = 8.0, fat = 8.0),
+        MealItem("banana", "1 medium", carbs = 23.0, sugars = 12.0, fibre = 2.6, protein = 1.3, fat = 0.4),
+        MealItem("apple", "1 medium", carbs = 19.0, sugars = 14.0, fibre = 3.3, protein = 0.4, fat = 0.3),
+        MealItem("orange", "1 medium", carbs = 12.0, sugars = 9.0, fibre = 3.0, protein = 1.2, fat = 0.2),
+        MealItem("rye bread", "1 slice", carbs = 22.0, sugars = 8.0, fibre = 3.0, protein = 3.0, fat = 1.0),
+        MealItem("rúgbrauð", "1 slice", carbs = 22.0, sugars = 8.0, fibre = 3.0, protein = 3.0, fat = 1.0),
+        MealItem("toast", "1 slice", carbs = 13.0, sugars = 1.5, fibre = 1.0, protein = 3.0, fat = 1.0),
+        MealItem("bread", "1 slice", carbs = 13.0, sugars = 1.5, fibre = 1.0, protein = 3.0, fat = 1.0),
+        MealItem("porridge", "1 bowl", carbs = 27.0, sugars = 1.0, fibre = 4.0, protein = 5.0, fat = 3.0),
+        MealItem("oatmeal", "1 bowl", carbs = 27.0, sugars = 1.0, fibre = 4.0, protein = 5.0, fat = 3.0),
+        MealItem("rice", "1 cup", carbs = 45.0, sugars = 0.1, fibre = 0.6, protein = 4.3, fat = 0.4),
+        MealItem("pasta", "1 cup", carbs = 43.0, sugars = 0.8, fibre = 2.5, protein = 8.0, fat = 1.3),
+        MealItem("potato", "1 medium", carbs = 30.0, sugars = 1.3, fibre = 2.2, protein = 3.0, fat = 0.2),
+        MealItem("orange juice", "1 glass", carbs = 26.0, sugars = 21.0, fibre = 0.5, protein = 1.7, fat = 0.5),
+        MealItem("cola", "1 can", carbs = 35.0, sugars = 35.0, fibre = 0.0, protein = 0.0, fat = 0.0, drink = true),
+        MealItem("coffee", "1 cup", carbs = 0.0, sugars = 0.0, fibre = 0.0, protein = 0.3, fat = 0.0, drink = true),
+        MealItem("tomato", "1 medium", carbs = 3.5, sugars = 2.6, fibre = 1.5, protein = 1.1, fat = 0.2),
+        MealItem("cucumber", "½ cucumber", carbs = 3.6, sugars = 1.7, fibre = 0.5, protein = 0.7, fat = 0.1),
+        MealItem("salad", "1 bowl", carbs = 3.0, sugars = 2.0, fibre = 2.0, protein = 1.5, fat = 0.3),
+    ).sortedByDescending { it.name.length }
+
+    /** The basic food named in [name] ("hard boiled egg" → egg), at its usual portion, or null. */
+    fun find(name: String): MealItem? {
+        val n = " " + name.lowercase(Locale.ROOT) + " "
+        return table.firstOrNull { b -> Regex("(?<![\\p{L}])${Regex.escape(b.name)}(e?s)?(?![\\p{L}])").containsMatchIn(n) }
+    }
 }

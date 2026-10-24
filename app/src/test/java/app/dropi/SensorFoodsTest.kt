@@ -65,7 +65,7 @@ class SensorFoodsTest {
 
     private fun meal(at: Long, vararg foods: String) = app.dropi.data.MealEntry(
         at = at, name = "Lunch",
-        meal = app.dropi.data.Meal(foods.map { app.dropi.data.MealItem(it, "1 portion", carbs = 20) }),
+        meal = app.dropi.data.Meal(foods.map { app.dropi.data.MealItem(it, "1 portion", carbs = 20.0) }),
     )
 
     @Test

@@ -22,8 +22,8 @@ class MealTest {
             ```"""
         val m = MealAi.parse(reply, "photo")!!
         assertEquals(listOf("basmati rice", "naan bread"), m.foods)
-        assertEquals(85, m.carbs)
-        assertEquals(3, m.sugars)
+        assertEquals(85.0, m.carbs, 0.01)
+        assertEquals(3.0, m.sugars!!, 0.01)
         assertTrue(m.rich)
         assertEquals("photo", m.source)
     }
@@ -32,31 +32,31 @@ class MealTest {
     fun fallsBackToOldLines() {
         val m = MealAi.parse("FOODS: toast; jam\nCARBS: 44", "photo")!!
         assertEquals(listOf("toast", "jam"), m.foods)
-        assertEquals(44, m.carbs)
+        assertEquals(44.0, m.carbs, 0.01)
         assertNull(MealAi.parse("I can't tell what this is.", "photo"))
     }
 
     @Test
     fun portionsScale() {
-        val i = MealItem("rice", "1 cup", carbs = 45, sugars = 1, fibre = 2)
+        val i = MealItem("rice", "1 cup", carbs = 45.0, sugars = 1.0, fibre = 2.0)
         val half = i.withQty(0.5)
-        assertEquals(23, half.carbs)
+        assertEquals(22.5, half.carbs, 0.01)
         assertEquals("½ × 1 cup", half.portionText())
-        assertEquals(90, i.withQty(2.0).carbs)
+        assertEquals(90.0, i.withQty(2.0).carbs, 0.01)
         assertEquals("1½", Meal.qtyText(1.5))
     }
 
     @Test
     fun usualReplacesGuess() {
-        val m = Meal(listOf(MealItem("naan bread", "1 piece", qty = 2.0, carbs = 80)))
-        val u = MealAi.applyUsual(m, mapOf("naan bread" to Usual("1 piece", 55)))
-        assertEquals(110, u.carbs)
+        val m = Meal(listOf(MealItem("naan bread", "1 piece", qty = 2.0, carbs = 80.0)))
+        val u = MealAi.applyUsual(m, mapOf("naan bread" to Usual("1 piece", 55.0)))
+        assertEquals(110.0, u.carbs, 0.01)
         assertTrue(u.items[0].usual)
     }
 
     @Test
     fun jsonRoundTrip() {
-        val m = Meal(listOf(MealItem("rice", "1 cup", 1.5, 68, 1, null, true)), rich = true, source = "words")
+        val m = Meal(listOf(MealItem("rice", "1 cup", 1.5, 68.0, 1.0, null, true)), rich = true, source = "words")
         assertEquals(m, Meal.fromJson(m.toJson()))
         assertNull(Meal.fromJson("not json"))
     }
@@ -72,7 +72,7 @@ class MealTest {
         assertEquals(4.1, isl.sugars!!, 0.01)
         assertNull(Label.read(listOf("Best before 12.11.26")))
         val item = Label.item("granola", 50, en)
-        assertEquals(30, item.carbs)
+        assertEquals(30.3, item.carbs, 0.01)
         assertEquals("50 g", item.portion)
     }
 

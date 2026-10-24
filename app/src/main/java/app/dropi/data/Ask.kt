@@ -143,8 +143,8 @@ object Ask {
         if (c.meals.isNotEmpty()) {
             sb.append("Latest meals:\n")
             c.meals.sortedByDescending { it.at }.take(6).forEach { m ->
-                val extra = listOfNotNull(m.meal.protein?.let { "$it g protein" }, m.meal.fat?.let { "$it g fat" }, m.meal.speed?.word?.lowercase())
-                sb.append("- ${fmt.format(Instant.ofEpochMilli(m.at).atZone(c.zone))} ${m.name}: ${m.foods.joinToString(", ")}, ${m.carbs} g carbs")
+                val extra = listOfNotNull(m.meal.protein?.let { "${Grams.text(it)} g protein" }, m.meal.fat?.let { "${Grams.text(it)} g fat" }, m.meal.speed?.word?.lowercase())
+                sb.append("- ${fmt.format(Instant.ofEpochMilli(m.at).atZone(c.zone))} ${m.name}: ${m.foods.joinToString(", ")}, ${Grams.text(m.carbs)} g carbs")
                 if (extra.isNotEmpty()) sb.append(", ").append(extra.joinToString(", "))
                 if (m.meal.tags.isNotEmpty()) sb.append(" (").append(m.meal.tags.joinToString(", ") { MealTags.label(it).lowercase() }).append(")")
                 sb.append('\n')

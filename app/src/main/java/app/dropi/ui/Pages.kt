@@ -99,7 +99,7 @@ fun MealsPage(state: AppState) {
                     today.minusDays(1) -> "Yesterday"
                     else -> dayName.format(day)
                 }
-                MealsCard(state, meals.sortedByDescending { it.at }, now, fmt, "$title · ${meals.sumOf { it.carbs }} g carbs")
+                MealsCard(state, meals.sortedByDescending { it.at }, now, fmt, "$title · ${app.dropi.data.Grams.text(meals.sumOf { it.carbs })} g carbs")
                 if (day != today) {
                     Text(
                         app.dropi.data.DayTotals.text(app.dropi.data.DayTotals.of(day, meals)),
@@ -129,7 +129,8 @@ private fun TotalsCard(state: AppState, today: LocalDate) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.semantics(mergeDescendants = true) {},
                     ) {
-                        Text(v?.toString() ?: "–", style = numeral(22.sp), modifier = Modifier.semantics { contentDescription = if (v == null) "$label not known" else "$v grams $label" })
+                        val shown = v?.let { app.dropi.data.Grams.text(it) }
+                        Text(shown ?: "–", style = numeral(22.sp), modifier = Modifier.semantics { contentDescription = if (shown == null) "$label not known" else "$shown grams $label" })
                         Text(if (v == null) label else "$label g", style = inter(11.sp, color = C.TextMuted))
                     }
                 }

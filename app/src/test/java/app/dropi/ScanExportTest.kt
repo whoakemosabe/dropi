@@ -39,7 +39,7 @@ class ScanExportTest {
         val at = LocalDateTime.of(2026, 10, 23, 7, 30).atZone(zone).toInstant().toEpochMilli()
         val breakfast = app.dropi.data.MealEntry(
             at = at + 40 * 60_000L, name = "Breakfast",
-            meal = app.dropi.data.Meal(listOf(app.dropi.data.MealItem("toast", "2 slices", carbs = 30))),
+            meal = app.dropi.data.Meal(listOf(app.dropi.data.MealItem("toast", "2 slices", carbs = 30.0))),
         )
         val csv = Export.csv(
             listOf(Reading(1, at, 5.5, MealTag.FASTING, "toast, jam", carbs = 45, insulin = 4.5, insulinKind = app.dropi.data.InsulinKind.RAPID)),

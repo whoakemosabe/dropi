@@ -53,7 +53,12 @@ object Ai {
             Gemma.state == Gemma.State.Ready -> Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, app.dropi.data.MealAi.SCHEMA)
             else -> null
         }
-        return app.dropi.data.MealAi.parse(raw, "photo")
+        app.dropi.data.MealAi.parse(raw, "photo")?.let { return it }
+        // The held-to-shape reply didn't come out usable: ask again without holding it.
+        if (!nano && Gemma.state == Gemma.State.Ready) {
+            return app.dropi.data.MealAi.parse(Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, null), "photo")
+        }
+        return null
     }
 
     /** A meal breakdown from a prompt in words (a description, or a change to a meal). */
@@ -63,7 +68,11 @@ object Ai {
             Gemma.state == Gemma.State.Ready -> Gemma.textJson(context, prompt, app.dropi.data.MealAi.SCHEMA)
             else -> null
         }
-        return app.dropi.data.MealAi.parse(raw, source)
+        app.dropi.data.MealAi.parse(raw, source)?.let { return it }
+        if (!nano && Gemma.state == Gemma.State.Ready) {
+            return app.dropi.data.MealAi.parse(Gemma.textJson(context, prompt, null), source)
+        }
+        return null
     }
 
     /** The model's plain reply to a prompt (reading a label's text). */

@@ -32,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -243,7 +244,7 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: S
     val c = num(carbs)
     val checked = found.copy(carbs = c, sugars = num(sugars), fibre = num(fibre), protein = num(protein), fat = num(fat))
     Text(
-        if (c != null) "That's ${Math.round((checked.netCarbs ?: c) * grams / 100.0)} g carbs." else "Type the carbs per 100 g to work it out.",
+        if (c != null) "That's ${app.dropi.data.Grams.text((checked.netCarbs ?: c) * grams / 100.0)} g carbs." else "Type the carbs per 100 g to work it out.",
         style = inter(15.sp, FontWeight.SemiBold),
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
@@ -383,16 +384,16 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         Modifier.fillMaxWidth().semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         verticalAlignment = Alignment.Bottom,
     ) {
-        Text("${meal.carbs}", style = numeral(44.sp))
+        Text(app.dropi.data.Grams.text(meal.carbs), style = numeral(44.sp))
         Spacer(Modifier.width(6.dp))
         Column(Modifier.padding(bottom = 4.dp)) {
             Text("g carbs", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
-            val parts = listOfNotNull(meal.sugars?.let { "$it g sugars" }, meal.fibre?.let { "$it g fibre" })
+            val parts = listOfNotNull(meal.sugars?.let { "${app.dropi.data.Grams.text(it)} g sugars" }, meal.fibre?.let { "${app.dropi.data.Grams.text(it)} g fibre" })
             if (parts.isNotEmpty()) Text("of which " + parts.joinToString(" · "), style = inter(13.sp, color = C.TextSecondary))
         }
     }
     val more = listOfNotNull(
-        meal.protein?.let { "$it g protein" }, meal.fat?.let { "$it g fat" },
+        meal.protein?.let { "${app.dropi.data.Grams.text(it)} g protein" }, meal.fat?.let { "${app.dropi.data.Grams.text(it)} g fat" },
         meal.speed?.let { "${it.word} (GI about ${meal.gi})" },
         meal.load?.let { "load ${kotlin.math.round(it).toInt()}" },
     )
@@ -484,7 +485,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         when {
             meal.items.isEmpty() -> "Add a food first"
             old != null -> "Save changes"
-            else -> "Save ${name.lowercase()} · ${meal.carbs} g carbs"
+            else -> "Save ${name.lowercase()} · ${app.dropi.data.Grams.text(meal.carbs)} g carbs"
         },
         Modifier.fillMaxWidth(),
         icon = R.drawable.lc_check,
@@ -515,14 +516,16 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         }
     }
     if (adding) {
-        FoodEditDialog(MealItem("", "1 portion", carbs = 0), isNew = true, score = null, unit = unit, remembered = false,
+        FoodEditDialog(MealItem("", "1 portion", carbs = 0.0), isNew = true, score = null, unit = unit, remembered = false,
             onDismiss = { adding = false }, onRemove = { adding = false },
         ) { item, remember ->
-            val withUsual = usual[item.key]?.takeIf { item.carbs == 0 }?.let { u ->
+            val withUsual = usual[item.key]?.takeIf { item.carbs == 0.0 }?.let { u ->
                 item.copy(portion = u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein ?: item.protein, fat = u.fat ?: item.fat, usual = true)
             } ?: item
             if (remember) MealWork.remember(context, withUsual)
             MealWork.update(meal.copy(items = meal.items + withUsual.copy(usual = remember || withUsual.usual)))
+            // Nothing typed and no usual amount: look its numbers up.
+            if (!withUsual.usual) MealWork.fillIn(context, withUsual)
             adding = false
         }
     }
@@ -560,10 +563,11 @@ private fun MealWhen(
 private fun FoodRow(item: MealItem, score: Foods.Score?, unit: app.dropi.data.GlucoseUnit, onClick: () -> Unit) {
     val rise = score?.takeIf { it.ranked }?.let { Rise.of(it.rise) }
     val spoken = buildString {
-        append("${Foods.display(item.name)}, ${item.portionText()}, ${item.carbs} grams of carbs")
-        item.sugars?.let { append(", $it grams sugars") }
-        item.protein?.let { append(", $it grams protein") }
-        item.fat?.let { append(", $it grams fat") }
+        append("${Foods.display(item.name)}, ${item.portionText()}, ${app.dropi.data.Grams.text(item.carbs)} grams of carbs")
+        item.sugars?.let { append(", ${app.dropi.data.Grams.text(it)} grams sugars") }
+        item.protein?.let { append(", ${app.dropi.data.Grams.text(it)} grams protein") }
+        item.fat?.let { append(", ${app.dropi.data.Grams.text(it)} grams fat") }
+        if (item.key in MealWork.filling) append(", looking up its numbers")
         item.giValue?.takeIf { item.carbs > 0 }?.let { append(", ${app.dropi.data.Gi.speed(it).word.lowercase()}") }
         if (item.sugaryDrink) append(", sugary drink")
         if (item.usual) append(", your usual amount")
@@ -605,16 +609,17 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, unit: app.dropi.data.Gl
             }
             val facts = listOfNotNull(
                 if (item.sugaryDrink) "Sugary drink" else item.giValue?.takeIf { item.carbs > 0 }?.let { app.dropi.data.Gi.speed(it).word },
-                item.protein?.let { "$it g protein" }, item.fat?.let { "$it g fat" },
+                item.protein?.let { "${app.dropi.data.Grams.text(it)} g protein" }, item.fat?.let { "${app.dropi.data.Grams.text(it)} g fat" },
             )
+            if (item.key in MealWork.filling) Text("Looking up its numbers…", style = inter(12.sp, FontWeight.SemiBold, C.AccentText))
             if (facts.isNotEmpty()) Text(facts.joinToString(" · "), style = inter(12.sp, color = C.TextMuted))
         }
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("${item.carbs}", style = numeral(22.sp))
+                Text(app.dropi.data.Grams.text(item.carbs), style = numeral(22.sp))
                 Text(" g", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(bottom = 3.dp))
             }
-            item.sugars?.let { Text("$it g sugars", style = inter(11.sp, color = C.TextMuted)) }
+            item.sugars?.let { Text("${app.dropi.data.Grams.text(it)} g sugars", style = inter(11.sp, color = C.TextMuted)) }
         }
     }
 }
@@ -721,6 +726,56 @@ private fun NumberRow(label: String, value: Int, step: Int, max: Int, onChange: 
     }
 }
 
+/**
+ * A number in grams that takes decimals ("12,5" or "12.5"), with − and + either side. Empty
+ * means not known (null), except where the caller treats it as 0.
+ */
+@Composable
+private fun DecimalRow(label: String, value: Double?, step: Double, max: Double, onChange: (Double?) -> Unit) {
+    var text by remember { mutableStateOf(value?.let { app.dropi.data.Grams.text(it) }.orEmpty()) }
+    // Steppers change the value from outside: show it.
+    LaunchedEffect(value) {
+        val typed = app.dropi.data.Grams.parse(text)
+        if (typed != value) text = value?.let { app.dropi.data.Grams.text(it) }.orEmpty()
+    }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        StepButton(R.drawable.lc_minus, "${app.dropi.data.Grams.text(step)} less") {
+            onChange(app.dropi.data.Grams.round(((value ?: 0.0) - step).coerceAtLeast(0.0)))
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            BasicTextField(
+                value = text,
+                onValueChange = { v ->
+                    // Digits and one decimal mark, one place after it.
+                    val cleaned = v.filter { it.isDigit() || it == ',' || it == '.' }
+                    val mark = cleaned.indexOfFirst { it == ',' || it == '.' }
+                    val t = if (mark < 0) cleaned.take(4)
+                    else cleaned.substring(0, mark).take(4) + cleaned[mark] + cleaned.substring(mark + 1).filter(Char::isDigit).take(1)
+                    text = t
+                    if (t.isEmpty()) onChange(null)
+                    else app.dropi.data.Grams.parse(t)?.let { onChange(it.coerceAtMost(max)) }
+                },
+                textStyle = numeral(34.sp).copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                cursorBrush = SolidColor(C.AccentText),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.Center) {
+                        if (text.isEmpty()) Text("–", style = numeral(34.sp, C.TextMuted))
+                        inner()
+                    }
+                },
+                modifier = Modifier.widthIn(min = 80.dp).semantics {
+                    contentDescription = "$label, ${value?.let { app.dropi.data.Grams.text(it) } ?: "not set"}. Edit to type a number, decimals allowed"
+                },
+            )
+        }
+        StepButton(R.drawable.lc_plus, "${app.dropi.data.Grams.text(step)} more") {
+            onChange(app.dropi.data.Grams.round(((value ?: 0.0) + step).coerceAtMost(max)))
+        }
+    }
+}
+
 @Composable
 private fun StepButton(icon: Int, label: String, onClick: () -> Unit) {
     val view = LocalView.current
@@ -777,22 +832,24 @@ private fun FoodEditDialog(
             }
 
             Text("Carbs (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            NumberRow("Carbs in grams", item.carbs, step = 5, max = 400) { item = item.copy(carbs = it) }
-            val parts = listOfNotNull(item.sugars?.let { "$it g sugars" }, item.fibre?.let { "$it g fibre" })
-            if (parts.isNotEmpty()) Text("of which " + parts.joinToString(" · "), style = inter(13.sp, color = C.TextSecondary), modifier = Modifier.align(Alignment.CenterHorizontally))
+            DecimalRow("Carbs in grams", item.carbs, step = 5.0, max = 400.0) { item = item.copy(carbs = it ?: 0.0) }
             if (!isNew && initial.carbs != item.carbs) {
-                Text("Guessed ${initial.carbs} g. You changed it to ${item.carbs} g.", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text("Guessed ${app.dropi.data.Grams.text(initial.carbs)} g. You changed it to ${app.dropi.data.Grams.text(item.carbs)} g.", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.align(Alignment.CenterHorizontally))
             }
+            Text("of which sugars (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+            DecimalRow("Sugars in grams", item.sugars, step = 1.0, max = 400.0) { item = item.copy(sugars = it) }
+            Text("Fibre (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+            DecimalRow("Fibre in grams", item.fibre, step = 1.0, max = 200.0) { item = item.copy(fibre = it) }
             Text("Protein (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            NumberRow("Protein in grams", item.protein ?: 0, step = 5, max = 300) { item = item.copy(protein = it) }
+            DecimalRow("Protein in grams", item.protein, step = 1.0, max = 300.0) { item = item.copy(protein = it) }
             Text("Fat (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            NumberRow("Fat in grams", item.fat ?: 0, step = 5, max = 300) { item = item.copy(fat = it) }
+            DecimalRow("Fat in grams", item.fat, step = 1.0, max = 300.0) { item = item.copy(fat = it) }
             Text("Fat and protein don't raise blood sugar much, but they make the rise come later.", style = inter(12.sp, color = C.TextMuted))
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Remember as my ${name.ifBlank { "food" }.lowercase()}", style = inter(15.sp, FontWeight.SemiBold))
-                    Text("Next time it starts at ${Math.round(item.carbs / item.qty.coerceAtLeast(0.1))} g for $portion", style = inter(12.sp, color = C.TextMuted))
+                    Text("Next time it starts at ${app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1))} g for $portion", style = inter(12.sp, color = C.TextMuted))
                 }
                 Switch(checked = keep, onCheckedChange = { Haptics.toggle(view, it); keep = it }, colors = dropiSwitchColors(),
                     modifier = Modifier.semantics { contentDescription = "Remember this amount" })

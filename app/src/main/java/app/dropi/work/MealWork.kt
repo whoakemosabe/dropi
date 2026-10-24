@@ -55,6 +55,14 @@ object MealWork {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var counter = 0L
 
+    /** Background work that keeps going when the person leaves the app (see [MealService]). */
+    private fun job(ctx: Context, block: suspend () -> Unit) {
+        MealService.hold(ctx)
+        scope.launch {
+            try { block() } finally { MealService.release(ctx) }
+        }
+    }
+
     private fun start(status: Status, meal: Meal? = null, photo: Uri? = null): Long {
         val id = ++counter
         draft = Draft(id, status, meal, photo)
@@ -75,8 +83,8 @@ object MealWork {
     fun remember(context: Context, item: MealItem) {
         val p = Prefs(context)
         val per = if (item.qty > 0) 1.0 / item.qty else 1.0
-        fun s(v: Int?) = v?.let { Math.round(it * per).toInt() }
-        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, Math.round(item.carbs * per).toInt(), s(item.sugars), s(item.protein), s(item.fat)))
+        fun s(v: Double?) = v?.let { app.dropi.data.Grams.round(it * per) }
+        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, app.dropi.data.Grams.round(item.carbs * per), s(item.sugars), s(item.protein), s(item.fat)))
     }
 
     fun forget(context: Context, food: String) {
@@ -89,7 +97,7 @@ object MealWork {
         val ctx = context.applicationContext
         Alerts.cancelMeal(ctx)
         val id = start(Status.Working("Looking at your plate…"), photo = uri)
-        scope.launch {
+        job(ctx) {
             val meal = try { Ai.mealFromPhoto(ctx, uri) } catch (e: Throwable) { null }
             try { File(File(ctx.cacheDir, "scans"), "plate.jpg").delete() } catch (e: Exception) { }
             finish(ctx, id, meal, "Couldn't make out the meal. Say what you ate instead, or add the foods yourself.")
@@ -106,7 +114,7 @@ object MealWork {
         if (text.isBlank()) return
         val ctx = context.applicationContext
         val id = start(Status.Working("Working out your meal…"))
-        scope.launch {
+        job(ctx) {
             val meal = try { Ai.mealFromWords(ctx, MealAi.words(text), "words") } catch (e: Throwable) { null }
                 ?.let { m -> m.copy(tags = (m.tags + MealTags.fromWords(text)).distinct()) }
             finish(ctx, id, meal, "Couldn't work that out. Try naming each food, like \"2 slices of toast and jam\".")
@@ -120,11 +128,45 @@ object MealWork {
         val ctx = context.applicationContext
         val id = ++counter
         draft = draft!!.copy(id = id, status = Status.Working("Changing it…"), meal = current)
-        scope.launch {
+        job(ctx) {
             val meal = try { Ai.mealFromWords(ctx, MealAi.change(current, text), current.source) } catch (e: Throwable) { null }
                 ?.let { m -> m.copy(tags = (current.tags + m.tags + MealTags.fromWords(text)).distinct()) }
             if (meal == null) land(id, Draft(id, Status.Ready, current, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()).also { failedChange = true })
             else finish(ctx, id, meal.copy(rich = meal.rich || current.rich), "")
+        }
+    }
+
+    /** Foods added by hand whose numbers are being looked up. */
+    var filling by mutableStateOf(setOf<String>())
+        private set
+
+    /**
+     * A food added by hand with no numbers: they come from the built-in basics (eggs, bacon,
+     * bread…) straight away, else the on-device model works them out from its name and portion.
+     */
+    fun fillIn(context: Context, item: MealItem) {
+        if (item.carbs > 0 || item.protein != null || item.fat != null) return
+        fun put(found: MealItem) {
+            val d = draft ?: return
+            val m = d.meal ?: return
+            val portion = if (item.portion == "1 portion") found.portion else item.portion
+            val filled = item.copy(
+                portion = portion, carbs = found.carbs, sugars = found.sugars, fibre = found.fibre,
+                protein = found.protein, fat = found.fat, gi = found.gi, drink = found.drink || item.drink,
+            ).let { if (item.qty != 1.0) it.copy(qty = 1.0).withQty(item.qty) else it }
+            draft = d.copy(meal = m.copy(items = m.items.map { if (it.key == item.key && it.carbs == 0.0 && it.protein == null) filled else it }))
+        }
+        val basic = app.dropi.data.Basics.find(item.name)
+        // A portion that isn't the basic's own ("3 slices" of bacon) goes to the model when it can.
+        if (basic != null && (item.portion == "1 portion" || item.portion == basic.portion || !Ai.usable)) { put(basic); return }
+        if (!Ai.usable) return
+        val ctx = context.applicationContext
+        filling = filling + item.key
+        job(ctx) {
+            val m = try { Ai.mealFromWords(ctx, MealAi.words("${item.portion} of ${item.name}"), "typed") } catch (e: Throwable) { null }
+            val found = m?.items?.firstOrNull() ?: basic
+            if (found != null) put(found)
+            filling = filling - item.key
         }
     }
 
@@ -135,7 +177,7 @@ object MealWork {
     fun fromLabel(context: Context, uri: Uri) {
         val ctx = context.applicationContext
         val id = start(Status.Working("Reading the label…"))
-        scope.launch {
+        job(ctx) {
             val lines = Scan.lines(ctx, uri)
             val found = Label.read(lines)
             // The on-device model reads the same text when the table didn't parse cleanly, and
@@ -160,7 +202,7 @@ object MealWork {
     fun labelGrams(name: String, grams: Int, p: Label.Per100) {
         val d = draft ?: return
         val item = Label.item(name, grams, p)
-        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), (item.fat ?: 0) >= 25 || (item.protein ?: 0) >= 40, "label"))
+        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), (item.fat ?: 0.0) >= 25 || (item.protein ?: 0.0) >= 40, "label"))
     }
 
     /** A meal logged before, again. */
@@ -196,11 +238,12 @@ object MealWork {
         if (draft?.id != id) return
         if (meal == null) {
             land(id, Draft(id, Status.Failed(failed)))
+            if (!open) Alerts.postMealFailed(ctx)
             return
         }
         val withUsual = MealAi.applyUsual(meal, usual(ctx))
         land(id, Draft(id, Status.Ready, withUsual, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()))
         // Worked out while the screen was closed: a notification to come back and check it.
-        if (!open) Alerts.postMealReady(ctx, withUsual.carbs, withUsual.foods, null)
+        if (!open) Alerts.postMealReady(ctx, app.dropi.data.Grams.text(withUsual.carbs), withUsual.foods, null)
     }
 }

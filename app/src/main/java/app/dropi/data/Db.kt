@@ -87,9 +87,9 @@ class Db private constructor(context: Context, name: String) :
                 val foods = Foods.unpack(c.getString(2))
                 if (foods.isEmpty()) continue
                 val meal = Meal.fromJson(c.getString(3)) ?: run {
-                    val carbs = if (c.isNull(4)) 0 else c.getInt(4)
-                    val each = carbs / foods.size
-                    Meal(foods.mapIndexed { i, f -> MealItem(f, "1 portion", carbs = if (i == 0) carbs - each * (foods.size - 1) else each) }, false, "typed")
+                    val carbs = if (c.isNull(4)) 0.0 else c.getInt(4).toDouble()
+                    val each = Grams.round(carbs / foods.size)
+                    Meal(foods.mapIndexed { i, f -> MealItem(f, "1 portion", carbs = if (i == 0) Grams.round(carbs - each * (foods.size - 1)) else each) }, false, "typed")
                 }
                 val id = c.getLong(0)
                 val at = c.getLong(1)

@@ -66,7 +66,7 @@ object Analytics {
     fun carbPairs(readings: List<Reading>, meals: List<MealEntry> = emptyList()): List<Pair<Int, Double>> {
         val sorted = readings.sortedBy { it.at }
         return sorted.filter { it.tag == MealTag.AFTER_MEAL }.mapNotNull { after ->
-            val own = after.carbs ?: MealLink.mealBefore(after, meals)?.carbs
+            val own = after.carbs ?: MealLink.mealBefore(after, meals)?.carbs?.let { Math.round(it).toInt() }
             val carbs = own ?: sorted.lastOrNull {
                 it.tag == MealTag.BEFORE_MEAL && it.at < after.at && after.at - it.at <= 3 * 3_600_000L && it.carbs != null
             }?.carbs

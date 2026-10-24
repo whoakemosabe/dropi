@@ -54,7 +54,7 @@ object Export {
                     .append(quote(x.foods.joinToString("; ") { app.dropi.data.Foods.display(it) })).append(',')
                     .append(quote(x.note)).append('\n')
             } else if (x is app.dropi.data.MealEntry) {
-                sb.append(",,").append(quote(x.name)).append(',').append(x.carbs).append(",,,,,")
+                sb.append(",,").append(quote(x.name)).append(',').append(app.dropi.data.Grams.text(x.carbs)).append(",,,,,")
                     .append(quote(x.meal.items.joinToString("; ") { "${app.dropi.data.Foods.display(it.name)} (${it.portionText()})" })).append(",\n")
             }
         }

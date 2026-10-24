@@ -103,7 +103,7 @@ fun AddPanel(state: AppState) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     again.forEach { m ->
                         val label = m.items.take(2).joinToString(" & ") { Foods.display(it.name) } +
-                            (if (m.items.size > 2) " +${m.items.size - 2}" else "") + " · ${m.carbs} g"
+                            (if (m.items.size > 2) " +${m.items.size - 2}" else "") + " · ${app.dropi.data.Grams.text(m.carbs)} g"
                         Text(
                             label,
                             style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary),

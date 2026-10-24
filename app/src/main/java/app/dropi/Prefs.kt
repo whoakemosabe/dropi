@@ -173,8 +173,8 @@ class Prefs(context: Context) {
             val o = org.json.JSONObject(p.getString("usual_foods", null) ?: "{}")
             o.keys().asSequence().associateWith { k ->
                 val u = o.getJSONObject(k)
-                fun n(k: String) = if (u.has(k)) u.optInt(k) else null
-                app.dropi.data.Usual(u.optString("portion", "1 portion"), u.optInt("carbs"), n("sugars"), n("protein"), n("fat"))
+                fun n(k: String) = if (u.has(k)) u.optDouble(k).takeIf { !it.isNaN() } else null
+                app.dropi.data.Usual(u.optString("portion", "1 portion"), u.optDouble("carbs", 0.0), n("sugars"), n("protein"), n("fat"))
             }
         } catch (e: Exception) { emptyMap() }
         set(v) = p.edit {

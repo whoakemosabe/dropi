@@ -542,7 +542,7 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
             .heightIn(min = 64.dp)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
-                contentDescription = "${m.name} at $time: $foods, ${m.carbs} grams of carbs. $from." +
+                contentDescription = "${m.name} at $time: $foods, ${app.dropi.data.Grams.text(m.carbs)} grams of carbs. $from." +
                     (result?.let { " $it" } ?: "") + (rise?.let { ", ${it.word.lowercase()}" } ?: "")
             }
             .tap { app.dropi.work.MealWork.edit(m) }
@@ -554,7 +554,7 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("${m.name} · $time · ${m.carbs} g carbs", style = inter(15.sp, FontWeight.SemiBold))
+            Text("${m.name} · $time · ${app.dropi.data.Grams.text(m.carbs)} g carbs", style = inter(15.sp, FontWeight.SemiBold))
             Text(foods, style = inter(13.sp, color = C.TextSecondary), maxLines = 2)
             Text(from, style = inter(12.sp, color = C.TextMuted))
             if (result != null) Text(result, style = inter(12.sp, color = C.TextMuted))

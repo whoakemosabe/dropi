@@ -4,6 +4,8 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- Fixed: label and meter scans read nothing. The text reader now comes inside Dropi instead of waiting on a Google download that never arrived
-- Big phone photos are shrunk before reading, and a scan still lands if the camera app says "cancelled" or Android closed Dropi meanwhile
-- When a scan can't read something, it says why
+- Fixed: meal photos stopped working after the last update. Dropi also asks again in a simpler way if the first answer doesn't come out right
+- Meals keep being worked out when you leave the app, and you get a notification when it's done (or if it couldn't be made out)
+- Photos now list foods with no carbs too, like eggs, bacon and meat
+- A food you add yourself gets its carbs, protein and fat filled in for you
+- All nutrition numbers take decimals, and you can change sugars and fibre too

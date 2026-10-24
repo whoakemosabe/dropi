@@ -267,7 +267,7 @@ object Gemma {
     }
 
     /** A meal breakdown from a photo, held to the meal JSON shape. */
-    suspend fun imageJson(context: Context, uri: Uri, prompt: String, schema: String): String? {
+    suspend fun imageJson(context: Context, uri: Uri, prompt: String, schema: String?): String? {
         val png = withContext(Dispatchers.IO) {
             val bitmap = Nano.loadScaled(context, uri, 768) ?: return@withContext null
             try {
@@ -280,7 +280,7 @@ object Gemma {
     }
 
     /** A meal breakdown from words, held to the meal JSON shape. */
-    suspend fun textJson(context: Context, prompt: String, schema: String): String? =
+    suspend fun textJson(context: Context, prompt: String, schema: String?): String? =
         generate(context, 0.2, schema) { Contents.of(Content.Text(prompt)) }
 
     /** A short answer to a typed question, from [prompt] (question plus the facts). */
@@ -302,7 +302,7 @@ object Gemma {
                             e.createConversation(ConversationConfig(samplerConfig = sampler, enableResponseFormat = true)).use {
                                 it.sendMessage(contents(), responseFormat = ResponseFormat.json(schema)).toString()
                             }
-                        } catch (t: Exception) { null }
+                        } catch (t: Throwable) { null }
                         if (held != null) return@withContext held
                     }
                     e.createConversation(ConversationConfig(samplerConfig = sampler)).use { it.sendMessage(contents()).toString() }

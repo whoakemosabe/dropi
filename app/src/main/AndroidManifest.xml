@@ -5,6 +5,8 @@
     <!-- The network is only for checking GitHub for updates and, if asked for in Settings, the
          one-time on-device AI model download from Hugging Face. Readings never leave the phone. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Android 16: the live sensor value can show as a Live Update chip in the status bar. -->
@@ -102,6 +104,12 @@
 
         <!-- The on-device AI model finished downloading (sent by Android's download manager). It
              only starts a check of Dropi's own file; nothing in the broadcast is used. -->
+        <!-- Keeps a meal photo or description being worked out when the person leaves the app. -->
+        <service
+            android:name=".work.MealService"
+            android:exported="false"
+            android:foregroundServiceType="shortService" />
+
         <receiver
             android:name=".work.GemmaDownloadReceiver"
             android:exported="true"

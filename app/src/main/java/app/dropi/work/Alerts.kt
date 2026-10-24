@@ -57,7 +57,7 @@ object Alerts {
         )
         nm.createNotificationChannel(
             NotificationChannel(CH_AI, "On-device AI", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "When the on-device AI model has finished downloading"
+                description = "On-device AI: the model download, and meals worked out while Dropi was closed"
             }
         )
     }
@@ -118,7 +118,7 @@ object Alerts {
 
     /** A meal photo was worked out while Dropi was closed: what it found, to check. */
     @SuppressLint("MissingPermission")
-    fun postMealReady(context: Context, carbs: Int, foods: List<String>, peak: String?) {
+    fun postMealReady(context: Context, carbs: String, foods: List<String>, peak: String?) {
         createChannels(context)
         if (!canNotify(context)) return
         val intent = Intent(context, MainActivity::class.java)
@@ -135,6 +135,25 @@ object Alerts {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .addAction(0, "Check it", open)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(ID_MEAL, n)
+    }
+
+    /** Worked on while the screen was closed, and it couldn't be made out. */
+    fun postMealFailed(context: Context) {
+        createChannels(context)
+        if (!canNotify(context)) return
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_OPEN_MEAL, "draft")
+        val open = PendingIntent.getActivity(context, ID_MEAL, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val n = NotificationCompat.Builder(context, CH_AI)
+            .setSmallIcon(R.drawable.ic_stat_drop)
+            .setColor(0xFF6E5BFF.toInt())
+            .setContentTitle("Couldn't make out your meal")
+            .setContentText("Tap to say what you ate, or add the foods yourself.")
+            .setContentIntent(open)
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(ID_MEAL, n)

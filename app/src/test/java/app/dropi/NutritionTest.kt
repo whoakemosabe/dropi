@@ -23,8 +23,8 @@ class NutritionTest {
         assertEquals(50, Gi.lookup("orange juice"))
         assertEquals(Gi.Speed.SLOW, Gi.speed(32))
         assertEquals(Gi.Speed.FAST, Gi.speed(78))
-        assertTrue(MealItem("orange juice", "1 glass", carbs = 26, sugars = 21).sugaryDrink)
-        assertFalse(MealItem("pepsi max", "1 can", carbs = 0, sugars = 0).sugaryDrink)
+        assertTrue(MealItem("orange juice", "1 glass", carbs = 26.0, sugars = 21.0).sugaryDrink)
+        assertFalse(MealItem("pepsi max", "1 can", carbs = 0.0, sugars = 0.0).sugaryDrink)
     }
 
     @Test
@@ -40,8 +40,8 @@ class NutritionTest {
                {"food":"cola","portion":"1 can","carbs":35,"sugars":35,"drink":true}],"rich":false,"tags":["alcohol","nonsense"]}""",
             "photo",
         )!!
-        assertEquals(30, m.protein)
-        assertEquals(33, m.fat)
+        assertEquals(30.0, m.protein!!, 0.01)
+        assertEquals(33.0, m.fat!!, 0.01)
         assertTrue(m.rich) // 33 g fat
         assertTrue(m.hasSugaryDrink)
         assertEquals(listOf("alcohol"), m.tags)
@@ -58,13 +58,13 @@ class NutritionTest {
         val us = Label.read(listOf("Nutrition Facts", "Total Fat 8g", "Total Carbohydrate 37g", "Dietary Fiber 4g", "Total Sugars 12g", "Protein 3g"))!!
         assertTrue(us.us)
         assertEquals(33.0, us.netCarbs!!, 0.01)
-        assertEquals(30, Label.item("cereal", 90, us).carbs)
+        assertEquals(29.7, Label.item("cereal", 90, us).carbs, 0.01)
     }
 
     @Test
     fun curveShapes() {
-        val toast = Meal(listOf(MealItem("white bread", "2 slices", carbs = 30), MealItem("jam", "1 spoon", carbs = 13)))
-        val pizza = Meal(listOf(MealItem("pizza", "3 slices", carbs = 90, protein = 30, fat = 33)))
+        val toast = Meal(listOf(MealItem("white bread", "2 slices", carbs = 30.0), MealItem("jam", "1 spoon", carbs = 13.0)))
+        val pizza = Meal(listOf(MealItem("pizza", "3 slices", carbs = 90.0, protein = 30.0, fat = 33.0)))
         val t = MealCurve.predict(toast, null, null)!!
         val p = MealCurve.predict(pizza, null, null)!!
         assertTrue(p.peakMin > t.peakMin + 30)
@@ -80,8 +80,29 @@ class NutritionTest {
     @Test
     fun afterCheckGapFollowsFatAndProtein() {
         fun e(m: Meal) = MealEntry(at = 0, name = "Dinner", meal = m)
-        assertEquals(120, Schedule.gapFor(e(Meal(listOf(MealItem("rice", "1 cup", carbs = 45)))), 120))
-        assertEquals(150, Schedule.gapFor(e(Meal(listOf(MealItem("chicken wrap", "1", carbs = 38, protein = 26, fat = 12)))), 120))
-        assertEquals(180, Schedule.gapFor(e(Meal(listOf(MealItem("pizza", "3 slices", carbs = 90, fat = 33)))), 120))
+        assertEquals(120, Schedule.gapFor(e(Meal(listOf(MealItem("rice", "1 cup", carbs = 45.0)))), 120))
+        assertEquals(150, Schedule.gapFor(e(Meal(listOf(MealItem("chicken wrap", "1", carbs = 38.0, protein = 26.0, fat = 12.0)))), 120))
+        assertEquals(180, Schedule.gapFor(e(Meal(listOf(MealItem("pizza", "3 slices", carbs = 90.0, fat = 33.0)))), 120))
+    }
+}
+
+class BasicsAndGramsTest {
+    @Test
+    fun basicsFindEverydayFoods() {
+        val egg = app.dropi.data.Basics.find("hard boiled eggs")!!
+        assertEquals("egg", egg.name)
+        assertTrue(egg.protein!! > 5)
+        assertEquals(null, app.dropi.data.Basics.find("eggplant"))
+        assertEquals("bacon", app.dropi.data.Basics.find("Bacon")!!.name)
+    }
+
+    @Test
+    fun gramsKeepOneDecimal() {
+        assertEquals("12.5", app.dropi.data.Grams.text(12.46))
+        assertEquals("12", app.dropi.data.Grams.text(12.0))
+        assertEquals(12.5, app.dropi.data.Grams.parse("12,5")!!, 1e-9)
+        val m = MealAi.parse("""{"items":[{"food":"egg","portion":"1 egg","carbs":0.6,"protein":6.3,"fat":5.3,"gi":0}]}""", "words")!!
+        assertEquals(6.3, m.protein!!, 1e-9)
+        assertEquals(null, m.items[0].gi)
     }
 }

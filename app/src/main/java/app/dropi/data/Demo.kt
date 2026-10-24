@@ -26,26 +26,26 @@ object Demo {
         "pasta" to (13 to 2), "tomato sauce" to (2 to 3), "lamb" to (28 to 20), "potatoes" to (4 to 0), "salmon" to (25 to 14),
         "brown rice" to (5 to 2), "pizza" to (30 to 33), "chicken" to (31 to 4), "vegetables" to (3 to 1),
     )
-    private fun withPf(items: List<MealItem>) = items.map { i -> pf[i.name]?.let { (p, f) -> i.copy(protein = p, fat = f) } ?: i }
+    private fun withPf(items: List<MealItem>) = items.map { i -> pf[i.name]?.let { (p, f) -> i.copy(protein = p.toDouble(), fat = f.toDouble()) } ?: i }
 
     private val breakfasts = listOf(
-        Dish(listOf(MealItem("porridge", "1 bowl", carbs = 30, sugars = 1, fibre = 4), MealItem("banana", "1 medium", carbs = 23, sugars = 12, fibre = 3)), false, 2.4),
-        Dish(listOf(MealItem("skyr", "1 cup", carbs = 12, sugars = 11), MealItem("granola", "40 g", carbs = 26, sugars = 9, fibre = 3)), false, 2.0),
-        Dish(listOf(MealItem("toast", "2 slices", carbs = 30, sugars = 3, fibre = 2), MealItem("jam", "1 spoon", carbs = 13, sugars = 12)), false, 2.9),
-        Dish(listOf(MealItem("eggs", "2 eggs", carbs = 1), MealItem("rye bread", "1 slice", carbs = 15, sugars = 1, fibre = 3)), true, 1.2),
+        Dish(listOf(MealItem("porridge", "1 bowl", carbs = 30.0, sugars = 1.0, fibre = 4.0), MealItem("banana", "1 medium", carbs = 23.0, sugars = 12.0, fibre = 3.0)), false, 2.4),
+        Dish(listOf(MealItem("skyr", "1 cup", carbs = 12.0, sugars = 11.0), MealItem("granola", "40 g", carbs = 26.0, sugars = 9.0, fibre = 3.0)), false, 2.0),
+        Dish(listOf(MealItem("toast", "2 slices", carbs = 30.0, sugars = 3.0, fibre = 2.0), MealItem("jam", "1 spoon", carbs = 13.0, sugars = 12.0)), false, 2.9),
+        Dish(listOf(MealItem("eggs", "2 eggs", carbs = 1.0), MealItem("rye bread", "1 slice", carbs = 15.0, sugars = 1.0, fibre = 3.0)), true, 1.2),
     )
     private val lunches = listOf(
-        Dish(listOf(MealItem("basmati rice", "1 cup", carbs = 45, sugars = 0, fibre = 1), MealItem("chicken curry", "1 bowl", carbs = 8, sugars = 4), MealItem("naan bread", "1 piece", carbs = 40, sugars = 3, fibre = 2)), true, 4.1),
-        Dish(listOf(MealItem("fish soup", "1 bowl", carbs = 14, sugars = 4, fibre = 1), MealItem("rye bread", "1 slice", carbs = 15, sugars = 1, fibre = 3)), false, 1.6),
-        Dish(listOf(MealItem("chicken wrap", "1 wrap", carbs = 38, sugars = 3, fibre = 3), MealItem("apple", "1 medium", carbs = 21, sugars = 16, fibre = 4)), false, 2.6),
-        Dish(listOf(MealItem("salad", "1 bowl", carbs = 9, sugars = 4, fibre = 4), MealItem("hummus", "2 spoons", carbs = 6, fibre = 2)), false, 0.9),
+        Dish(listOf(MealItem("basmati rice", "1 cup", carbs = 45.0, sugars = 0.0, fibre = 1.0), MealItem("chicken curry", "1 bowl", carbs = 8.0, sugars = 4.0), MealItem("naan bread", "1 piece", carbs = 40.0, sugars = 3.0, fibre = 2.0)), true, 4.1),
+        Dish(listOf(MealItem("fish soup", "1 bowl", carbs = 14.0, sugars = 4.0, fibre = 1.0), MealItem("rye bread", "1 slice", carbs = 15.0, sugars = 1.0, fibre = 3.0)), false, 1.6),
+        Dish(listOf(MealItem("chicken wrap", "1 wrap", carbs = 38.0, sugars = 3.0, fibre = 3.0), MealItem("apple", "1 medium", carbs = 21.0, sugars = 16.0, fibre = 4.0)), false, 2.6),
+        Dish(listOf(MealItem("salad", "1 bowl", carbs = 9.0, sugars = 4.0, fibre = 4.0), MealItem("hummus", "2 spoons", carbs = 6.0, fibre = 2.0)), false, 0.9),
     )
     private val dinners = listOf(
-        Dish(listOf(MealItem("pasta", "1 plate", carbs = 70, sugars = 3, fibre = 4), MealItem("tomato sauce", "1 ladle", carbs = 9, sugars = 6, fibre = 2)), false, 3.6),
-        Dish(listOf(MealItem("lamb", "1 portion", carbs = 0), MealItem("potatoes", "4 small", carbs = 34, sugars = 1, fibre = 3)), true, 2.3),
-        Dish(listOf(MealItem("salmon", "1 fillet", carbs = 0), MealItem("brown rice", "1 cup", carbs = 44, sugars = 0, fibre = 3)), false, 2.2),
-        Dish(listOf(MealItem("pizza", "3 slices", carbs = 90, sugars = 9, fibre = 6)), true, 4.6),
-        Dish(listOf(MealItem("chicken", "1 breast", carbs = 0), MealItem("vegetables", "1 plate", carbs = 12, sugars = 6, fibre = 5)), false, 0.8),
+        Dish(listOf(MealItem("pasta", "1 plate", carbs = 70.0, sugars = 3.0, fibre = 4.0), MealItem("tomato sauce", "1 ladle", carbs = 9.0, sugars = 6.0, fibre = 2.0)), false, 3.6),
+        Dish(listOf(MealItem("lamb", "1 portion", carbs = 0.0), MealItem("potatoes", "4 small", carbs = 34.0, sugars = 1.0, fibre = 3.0)), true, 2.3),
+        Dish(listOf(MealItem("salmon", "1 fillet", carbs = 0.0), MealItem("brown rice", "1 cup", carbs = 44.0, sugars = 0.0, fibre = 3.0)), false, 2.2),
+        Dish(listOf(MealItem("pizza", "3 slices", carbs = 90.0, sugars = 9.0, fibre = 6.0)), true, 4.6),
+        Dish(listOf(MealItem("chicken", "1 breast", carbs = 0.0), MealItem("vegetables", "1 plate", carbs = 12.0, sugars = 6.0, fibre = 5.0)), false, 0.8),
     )
 
     /** [MealEntry.before] here holds the before reading's time (ids come when saved). */
