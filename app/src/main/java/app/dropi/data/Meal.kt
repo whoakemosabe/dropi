@@ -395,9 +395,85 @@ object Label {
         "ravintokuitu", "kuitu", "vláknina", "vlakna", "vlaknine", "fibre alimentare", "φυτικές ίνες",
     )
 
+    /** A line of text on the photo: where it is (centre, left edge, height in px) and its slant in degrees. */
+    data class TextLine(val text: String, val cx: Float, val cy: Float, val left: Float, val h: Float, val angle: Float)
+
+    /**
+     * Table rows from the lines on a photo: turned straight by the lines' typical slant, grouped by
+     * height, and read left to right, so "Kolvetni" and its "54 g" end up on one row even when the
+     * photo is tilted.
+     */
+    fun rows(lines: List<TextLine>): List<String> {
+        if (lines.isEmpty()) return emptyList()
+        val slant = lines.map { it.angle }.sorted()[lines.size / 2].toDouble().let { if (kotlin.math.abs(it) > 30) 0.0 else it }
+        val lineH = lines.map { it.h }.sorted()[lines.size / 2].coerceAtLeast(8f)
+        data class P(val l: TextLine, val x: Double, val y: Double)
+        fun group(deg: Double): List<List<P>> {
+            val rad = Math.toRadians(-deg)
+            val c = kotlin.math.cos(rad); val sn = kotlin.math.sin(rad)
+            // Straightened positions: each centre rotated back by the slant.
+            val ps = lines.map { l -> P(l, l.cx * c - l.cy * sn, l.cx * sn + l.cy * c) }
+            val out = ArrayList<MutableList<P>>()
+            for (p in ps.sortedBy { it.y }) {
+                val row = out.lastOrNull()
+                if (row != null && kotlin.math.abs(p.y - row.map { it.y }.average()) <= lineH * 0.6) row += p else out += mutableListOf(p)
+            }
+            return out
+        }
+        // The slant as reported, its opposite (in case the sign is the other way) and none:
+        // whichever lines the most up into rows wins.
+        val best = listOf(slant, -slant, 0.0).distinct().map { group(it) }.minBy { it.size }
+        return best.map { r -> r.sortedBy { it.x }.joinToString(" ") { it.l.text } }
+    }
+
+    /** Every single-word nutrient name, for fixing small camera misreads ("Kolvetnl" → "kolvetni"). */
+    private val oneWordNames by lazy {
+        (carbWords + sugarWords + fibreWords + proteinWords + fatWords + saturatedWords).filter { ' ' !in it && it.length >= 5 }.distinct()
+    }
+
+    private fun distance(a: String, b: String): Int {
+        if (kotlin.math.abs(a.length - b.length) > 2) return 3
+        val d = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            var prev = d[0]; d[0] = i
+            for (j in 1..b.length) {
+                val t = d[j]
+                d[j] = minOf(d[j] + 1, d[j - 1] + 1, prev + if (a[i - 1] == b[j - 1]) 0 else 1)
+                prev = t
+            }
+        }
+        return d[b.length]
+    }
+
+    /** Words one letter off a nutrient name (two for long ones) become that name; digits read as letters too ("Ko1vetni"). */
+    private fun fixWords(line: String): String = line.split(' ').joinToString(" ") { w ->
+        val word = w.trim(':', '.', ',', '-', '(', ')')
+        if (word.length < 5 || word.any { it.isDigit() } && word.count { it.isLetter() } < 4) return@joinToString w
+        val letters = word.replace('1', 'l').replace('0', 'o')
+        if (letters in oneWordNames) return@joinToString w.replace(word, letters)
+        val best = oneWordNames.minByOrNull { distance(letters, it) } ?: return@joinToString w
+        val allowed = if (best.length >= 9) 2 else 1
+        if (distance(letters, best) <= allowed) w.replace(word, best) else w
+    }
+
+    /**
+     * Tables read as two columns (all the names, then all the numbers): pair the nutrient names
+     * that have no number with the number-only lines, in order.
+     */
+    private fun pairColumns(clean: List<String>): List<String> {
+        val all = carbWords + sugarWords + fibreWords + proteinWords + fatWords + listOf("orka", "energy", "energi", "salt")
+        val names = clean.filter { l -> all.any { l.contains(it) } && l.none { it.isDigit() } }
+        val values = clean.filter { l -> l.isNotBlank() && Regex("^[<~]?\\s*\\d").containsMatchIn(l.trim()) && l.count { it.isLetter() } <= 6 }
+        if (names.size < 3 || values.size < names.size) return emptyList()
+        // Energy rows often take two values (kJ and kcal): line the rest up from the end when needed.
+        val v = if (values.size > names.size && values.any { it.contains("kj") }) values.filter { !it.contains("kcal") && !it.contains("kkal") } else values
+        return names.zip(v.take(names.size)) { n, x -> "$n $x" }
+    }
+
     /** [lines] in reading order. The first amount on (or right after) a matching line is per 100 g. */
     fun read(lines: List<String>): Per100? {
-        val clean = lines.map { normal(it) }
+        val fixed = lines.map { fixWords(normal(it)) }
+        val clean = fixed + pairColumns(fixed)
         fun find(words: List<String>, avoid: List<String> = emptyList(), skip: List<String> = emptyList()): Double? {
             for ((k, l) in clean.withIndex()) {
                 if (skip.any { l.contains(it) }) continue
@@ -441,7 +517,7 @@ object Label {
     /** The first amount: "12.4 g", "12.4g", "<0.5 g", or a bare "12.4" when the unit was lost. */
     private fun number(l: String): Double? {
         Regex("<?\\s*(\\d{1,3}(?:\\.\\d{1,2})?)\\s*g\\b").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it <= 100.0 }?.let { return it }
-        return Regex("(?<![\\d.])(\\d{1,2}(?:\\.\\d{1,2})?)(?![\\d.]|\\s*(kj|kcal|%))").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it <= 100.0 }
+        return Regex("(?<![\\d.])(\\d{1,2}(?:\\.\\d{1,2})?)(?![\\d.]|\\s*(kj|kcal|kkal|%))").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it <= 100.0 }
     }
 
     /** Prompt for the on-device model: the label's text in, per-100 g numbers out. */

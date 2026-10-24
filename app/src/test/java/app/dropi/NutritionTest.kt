@@ -106,3 +106,53 @@ class BasicsAndGramsTest {
         assertEquals(null, m.items[0].gi)
     }
 }
+
+class IcelandicLabelTest {
+    private fun line(text: String, cx: Float, cy: Float, angle: Float = 0f) =
+        Label.TextLine(text, cx, cy, cx - 40f, 30f, angle)
+
+    @Test
+    fun tiltedTableStillPairsNamesAndNumbers() {
+        // A label photographed 6° tilted: each row's number sits 30–40 px lower than its name.
+        val t = Math.tan(Math.toRadians(6.0)).toFloat()
+        fun at(x: Float, y: Float) = y + x * t
+        val lines = listOf(
+            line("Næringargildi í 100 g", 200f, at(200f, 100f), 6f),
+            line("Orka", 100f, at(100f, 160f), 6f), line("1650 kJ / 394 kkal", 420f, at(420f, 160f), 6f),
+            line("Fita", 100f, at(100f, 210f), 6f), line("12 g", 420f, at(420f, 210f), 6f),
+            line("þar af mettuð fita", 130f, at(130f, 260f), 6f), line("3,1 g", 420f, at(420f, 260f), 6f),
+            line("Kolvetni", 100f, at(100f, 310f), 6f), line("54 g", 420f, at(420f, 310f), 6f),
+            line("þar af sykurtegundir", 140f, at(140f, 360f), 6f), line("4,5 g", 420f, at(420f, 360f), 6f),
+            line("Trefjar", 100f, at(100f, 410f), 6f), line("6 g", 420f, at(420f, 410f), 6f),
+            line("Prótein", 100f, at(100f, 460f), 6f), line("9,5 g", 420f, at(420f, 460f), 6f),
+        )
+        val rows = Label.rows(lines)
+        assertTrue(rows.any { it == "Kolvetni 54 g" })
+        val p = Label.read(rows)!!
+        assertEquals(54.0, p.carbs!!, 0.01)
+        assertEquals(4.5, p.sugars!!, 0.01)
+        assertEquals(6.0, p.fibre!!, 0.01)
+        assertEquals(9.5, p.protein!!, 0.01)
+        assertEquals(12.0, p.fat!!, 0.01)
+    }
+
+    @Test
+    fun namesAndNumbersReadAsSeparateColumns() {
+        // The camera returned the names as one block and the numbers as another.
+        val p = Label.read(listOf(
+            "Næringargildi í 100 g", "Orka", "Fita", "þar af mettuð fita", "Kolvetni", "þar af sykurtegundir", "Trefjar", "Prótein", "Salt",
+            "1650 kJ / 394 kkal", "12 g", "3,1 g", "54 g", "4,5 g", "6 g", "9,5 g", "0,8 g",
+        ))!!
+        assertEquals(54.0, p.carbs!!, 0.01)
+        assertEquals(4.5, p.sugars!!, 0.01)
+        assertEquals(9.5, p.protein!!, 0.01)
+    }
+
+    @Test
+    fun smallMisreadsAreForgiven() {
+        val p = Label.read(listOf("Kolvetnl 54 g", "þar af sykurtegundlr 4,5 g", "Prótcin 9 g"))!!
+        assertEquals(54.0, p.carbs!!, 0.01)
+        assertEquals(4.5, p.sugars!!, 0.01)
+        assertEquals(9.0, p.protein!!, 0.01)
+    }
+}

@@ -139,7 +139,7 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
             GhostButton("Add the foods myself", Modifier.fillMaxWidth()) { MealWork.manual() }
         }
 
-        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read, s.why)
+        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read, s.why, s.text)
 
         is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d, close)
     }
@@ -196,7 +196,7 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
  * label when it couldn't read them), what it is, and how much was eaten.
  */
 @Composable
-private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: String? = null) {
+private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: String? = null, seen: List<String> = emptyList()) {
     fun fmt(d: Double?) = d?.let { Glucose.formatNumber(Math.round(it * 10) / 10.0) }.orEmpty()
     // US labels give their numbers per serving; European ones per 100 g.
     val us = found.us
@@ -278,6 +278,24 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: S
         MealWork.labelGrams(Foods.normalize(name), grams, checked)
     }
     GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
+    // What the camera actually read, so a label that won't work can be checked (and sent to fix it).
+    if (seen.isNotEmpty()) {
+        var show by remember { mutableStateOf(false) }
+        Text(
+            if (show) "Hide what Dropi read" else "What Dropi read from the photo",
+            style = inter(14.sp, FontWeight.SemiBold, C.AccentText),
+            modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(8.dp)).semantics { role = Role.Button }.tap { show = !show },
+        )
+        if (show) {
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text(
+                    seen.joinToString("\n"),
+                    style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(12.dp),
+                )
+            }
+        }
+    }
 }
 
 /** The meal's time, name and starting reading, worked out from the draft. */

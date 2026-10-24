@@ -50,6 +50,10 @@ object Scan {
         return InputImage.fromBitmap(bmp, 0)
     }
 
+    /** The text the last label scan found, line by line, to show the person what was read. */
+    @Volatile var lastText: List<String> = emptyList()
+        private set
+
     /** Why the last scan read nothing, for the screen (null when it worked). */
     @Volatile var problem: String? = null
         private set
@@ -75,17 +79,16 @@ object Scan {
                         // right, so a value in the right-hand column lands next to its name. Then
                         // the lines as ML Kit found them, as a second chance for a tilted photo.
                         val all = text.textBlocks.flatMap { it.lines }
-                        val rows = ArrayList<MutableList<com.google.mlkit.vision.text.Text.Line>>()
-                        for (l in all.sortedBy { it.boundingBox?.centerY() ?: 0 }) {
-                            val y = l.boundingBox?.centerY() ?: 0
-                            val h = (l.boundingBox?.height() ?: 20).coerceAtLeast(8)
-                            val row = rows.lastOrNull()
-                            val rowY = row?.let { r -> r.map { it.boundingBox?.centerY() ?: 0 }.average() }
-                            if (row != null && rowY != null && kotlin.math.abs(y - rowY) <= h * 0.6) row += l else rows += mutableListOf(l)
+                        // Each line's place and slant, laid out into table rows (straightened
+                        // first, so a tilted photo still lines names up with their numbers).
+                        val placed = all.mapNotNull { l ->
+                            val b = l.boundingBox ?: return@mapNotNull null
+                            app.dropi.data.Label.TextLine(l.text, b.exactCenterX(), b.exactCenterY(), b.left.toFloat(), b.height().toFloat(), l.angle)
                         }
                         val out = ArrayList<String>()
-                        rows.forEach { r -> out += r.sortedBy { it.boundingBox?.left ?: 0 }.joinToString(" ") { it.text } }
+                        out += app.dropi.data.Label.rows(placed)
                         all.forEach { out += it.text }
+                        lastText = all.map { it.text }
                         if (out.isEmpty()) problem = "No text found on the photo."
                         cont.resume(out)
                     }
