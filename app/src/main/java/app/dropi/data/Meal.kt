@@ -1,5 +1,7 @@
 package app.dropi.data
 
+import app.dropi.L
+import app.dropi.tr
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -36,8 +38,8 @@ data class MealItem(
     /** A drink with real sugar in it (not diet, zero or water). */
     val sugaryDrink: Boolean get() = (drink || Gi.isDrink(name)) && !Gi.isSugarFree(name) && ((sugars ?: carbs) >= 5.0)
 
-    /** "1 cup", "2 eggs", "3 slices", "½ × 1 cup", "2 × 1 medium". */
-    fun portionText(): String {
+    /** "1 cup", "2 eggs", "3 slices", "½ × 1 cup", "2 × 1 medium". [plain]: a point in decimals (prompts, CSV). */
+    fun portionText(plain: Boolean = false): String {
         if (qty == 1.0) return portion
         val rest = portion.removePrefix("1 ")
         val word = rest.split(' ').singleOrNull()
@@ -45,7 +47,7 @@ data class MealItem(
             val plural = if (word.endsWith("s")) word else if (word.endsWith("ch") || word.endsWith("sh")) word + "es" else word + "s"
             return "${qty.toInt()} $plural"
         }
-        return "${Meal.qtyText(qty)} × $portion"
+        return "${Meal.qtyText(qty, plain)} × $portion"
     }
 
     private companion object {
@@ -145,8 +147,8 @@ data class Meal(
             }
         }
 
-        /** ½, 1, 1½, 2, 0.3… */
-        fun qtyText(q: Double): String {
+        /** ½, 1, 1½, 2, 0.3… (0,3 in Icelandic unless [plain]). */
+        fun qtyText(q: Double, plain: Boolean = false): String {
             val whole = q.toInt()
             val frac = q - whole
             val half = kotlin.math.abs(frac - 0.5) < 0.01
@@ -154,7 +156,7 @@ data class Meal(
                 frac < 0.01 -> "$whole"
                 half && whole == 0 -> "½"
                 half -> "$whole½"
-                else -> String.format(Locale.ROOT, "%.1f", q)
+                else -> String.format(Locale.ROOT, "%.1f", q).let { if (plain) it else it.replace('.', L.decimal) }
             }
         }
     }
@@ -175,8 +177,21 @@ data class MealEntry(
     val foods: List<String> get() = meal.foods
     val carbs: Double get() = meal.carbs
 
+    /** [name] as shown: the default names in the app's language, the person's own as typed. */
+    val shownName: String get() = displayName(name)
+
     companion object {
+        /** The default names, saved on meals in English (see [displayName] for showing them). */
         val NAMES = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+
+        /** A meal name as shown: "Breakfast"… in the app's language; any other name as it was typed. */
+        fun displayName(name: String): String = when (name) {
+            "Breakfast" -> tr("Breakfast")
+            "Lunch" -> tr("Lunch")
+            "Dinner" -> tr("Dinner")
+            "Snack" -> tr("Snack")
+            else -> name
+        }
 
         /** Breakfast, lunch, dinner or a snack, from the time it was eaten. */
         fun nameFor(at: Long, zone: java.time.ZoneId): String {
@@ -214,17 +229,31 @@ object MealLink {
 
     /** "2 h after breakfast", "before lunch", or null. */
     fun text(r: Reading, meals: List<MealEntry>, readings: List<Reading>): String? {
-        mealAfter(r, meals, readings)?.let { return "before ${it.name.lowercase()}" }
+        mealAfter(r, meals, readings)?.let {
+            return when (it.name) {
+                "Breakfast" -> tr("before breakfast")
+                "Lunch" -> tr("before lunch")
+                "Dinner" -> tr("before dinner")
+                "Snack" -> tr("before snack")
+                else -> tr("before {0}", it.name.lowercase())
+            }
+        }
         mealBefore(r, meals)?.let { m ->
             val mins = ((r.at - m.at) / MIN).toInt()
             val h = mins / 60; val rest = mins % 60
             val gap = when {
-                h == 0 -> "$mins min"
-                rest < 10 -> "$h h"
-                rest > 50 -> "${h + 1} h"
-                else -> "$h h ${rest} min"
+                h == 0 -> tr("{0} min", mins)
+                rest < 10 -> tr("{0} h", h)
+                rest > 50 -> tr("{0} h", h + 1)
+                else -> tr("{0} h {1} min", h, rest)
             }
-            return "$gap after ${m.name.lowercase()}"
+            return when (m.name) {
+                "Breakfast" -> tr("{0} after breakfast", gap)
+                "Lunch" -> tr("{0} after lunch", gap)
+                "Dinner" -> tr("{0} after dinner", gap)
+                "Snack" -> tr("{0} after snack", gap)
+                else -> tr("{0} after {1}", gap, m.name.lowercase())
+            }
         }
         return null
     }
@@ -265,7 +294,7 @@ object MealAi {
         "(assume a normal portion when they didn't say). $SHAPE"
 
     fun change(current: Meal, change: String): String {
-        val list = current.items.joinToString("; ") { "${it.name}, ${it.portionText()}, ${Grams.text(it.carbs)} g carbs" } +
+        val list = current.items.joinToString("; ") { "${it.name}, ${it.portionText(plain = true)}, ${Grams.plain(it.carbs)} g carbs" } +
             (if (current.tags.isNotEmpty()) ". Tags: ${current.tags.joinToString(", ")}" else "")
         return "A meal was logged as: $list. The person says: \"${change.take(200)}\". Apply the change and give the whole meal again. $SHAPE"
     }
@@ -621,8 +650,22 @@ object Label {
 }
 
 /** How much a food or meal tends to lift the person's numbers, in words that don't need colour. */
-enum class Rise(val word: String) {
+enum class Rise(val en: String) {
     GENTLE("Gentle rise"), MODERATE("Moderate rise"), BIG("Big rise");
+
+    /** "Gentle rise"… in the app's language. */
+    val word: String get() = when (this) {
+        GENTLE -> tr("Gentle rise")
+        MODERATE -> tr("Moderate rise")
+        BIG -> tr("Big rise")
+    }
+
+    /** Without the word "rise", for a small badge: "Gentle", "Moderate", "Big". */
+    val short: String get() = when (this) {
+        GENTLE -> tr("Gentle")
+        MODERATE -> tr("Moderate")
+        BIG -> tr("Big")
+    }
 
     companion object {
         /** The same steps as the food scores: under 2.0, up to 3.0, over 3.0 mmol/L. */

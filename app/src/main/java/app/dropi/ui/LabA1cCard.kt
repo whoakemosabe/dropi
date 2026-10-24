@@ -36,18 +36,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.dropi.L
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.A1c
 import app.dropi.data.LabA1c
 import app.dropi.data.Report
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private fun pct(v: Double) = String.format(Locale.ROOT, "%.1f%%", v)
+/** "6.5%" ("6,5%" in Icelandic). */
+private fun pct(v: Double) = String.format(Locale.ROOT, "%.1f%%", v).replace('.', L.decimal)
+
+private fun points(v: Double) = String.format(Locale.ROOT, "%.1f", v).replace('.', L.decimal)
 
 /**
  * Lab A1C results next to the estimate from readings. They rarely match exactly (the estimate
@@ -56,17 +60,17 @@ private fun pct(v: Double) = String.format(Locale.ROOT, "%.1f%%", v)
 @Composable
 fun LabA1cCard(state: AppState, report: Report) {
     var adding by remember { mutableStateOf(false) }
-    val df = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+    val df = dayPattern("d MMM yyyy")
     val list = state.labA1c
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("LAB A1C", style = SectionLabel, modifier = Modifier.weight(1f))
-            Chip("Add result", icon = R.drawable.lc_plus) { adding = true }
+            Text(tr("LAB A1C"), style = SectionLabel, modifier = Modifier.weight(1f))
+            Chip(tr("Add result"), icon = R.drawable.lc_plus) { adding = true }
         }
         val last = list.lastOrNull()
         if (last == null) {
             Text(
-                "Add the A1C from your lab results to see it next to the estimate from your readings.",
+                tr("Add the A1C from your lab results to see it next to the estimate from your readings."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
             )
         } else {
@@ -77,7 +81,7 @@ fun LabA1cCard(state: AppState, report: Report) {
                 }
                 report.gmiPercent?.let { g ->
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Estimate now", style = inter(13.sp, color = C.TextMuted))
+                        Text(tr("Estimate now"), style = inter(13.sp, color = C.TextMuted))
                         Text(pct(g), style = inter(17.sp, FontWeight.Bold, C.Text).copy(fontFeatureSettings = ""))
                     }
                 }
@@ -87,9 +91,9 @@ fun LabA1cCard(state: AppState, report: Report) {
                 val d = g - last.percent
                 Text(
                     when {
-                        kotlin.math.abs(d) < 0.3 -> "Your estimate is close to your last lab result."
-                        d > 0 -> "Your estimate is ${String.format(Locale.ROOT, "%.1f", d)} points above your last lab result."
-                        else -> "Your estimate is ${String.format(Locale.ROOT, "%.1f", -d)} points below your last lab result."
+                        kotlin.math.abs(d) < 0.3 -> tr("Your estimate is close to your last lab result.")
+                        d > 0 -> tr("Your estimate is {0} points above your last lab result.", points(d))
+                        else -> tr("Your estimate is {0} points below your last lab result.", points(-d))
                     },
                     style = inter(13.sp, color = C.TextMuted),
                 )
@@ -102,10 +106,10 @@ fun LabA1cCard(state: AppState, report: Report) {
                     Box(
                         Modifier.size(40.dp).clip(CircleShape).tap { state.removeLabA1c(r) },
                         contentAlignment = Alignment.Center,
-                    ) { Ic(R.drawable.lc_x, C.TextMuted, 14.dp, contentDescription = "Remove") }
+                    ) { Ic(R.drawable.lc_x, C.TextMuted, 14.dp, contentDescription = tr("Remove")) }
                 }
             }
-            GhostButton("Remove the latest result", Modifier.fillMaxWidth()) { state.removeLabA1c(last) }
+            GhostButton(tr("Remove the latest result"), Modifier.fillMaxWidth()) { state.removeLabA1c(last) }
         }
     }
     if (adding) {
@@ -142,7 +146,7 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                 .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Lab A1C result", style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
+            Text(tr("Lab A1C result"), style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
             Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SlidingSegments(listOf("%", "mmol/mol"), unit, Modifier.fillMaxWidth()) { unit = it }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -168,7 +172,7 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
-            Text("Test date", style = SectionLabel, modifier = Modifier.padding(horizontal = 24.dp))
+            Text(tr("Test date"), style = SectionLabel, modifier = Modifier.padding(horizontal = 24.dp))
             DatePicker(
                 state = dateState,
                 title = null,
@@ -181,8 +185,8 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                 ),
             )
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton("Cancel", Modifier.weight(1f)) { onDismiss() }
-                PrimaryButton("Save", Modifier.weight(1f)) {
+                GhostButton(tr("Cancel"), Modifier.weight(1f)) { onDismiss() }
+                PrimaryButton(tr("Save"), Modifier.weight(1f)) {
                     val ms = dateState.selectedDateMillis ?: today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
                     val date = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
                     onSave(LabA1c(date, (percent * 10).roundToInt() / 10.0))

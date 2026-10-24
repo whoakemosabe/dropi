@@ -79,7 +79,7 @@ object Diag {
         sb.append("Last label scan\n")
         if (label.isEmpty()) sb.append("  (none since Dropi opened)\n")
         else {
-            Scan.problem?.let { sb.append("  Problem: ").append(it).append('\n') }
+            Scan.problemEn?.let { sb.append("  Problem: ").append(it).append('\n') }
             sb.append("  Text read from the photo:\n")
             label.take(80).forEach { sb.append("    ").append(it).append('\n') }
         }

@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import app.dropi.R
+import app.dropi.tr
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -31,8 +32,8 @@ class MealService : Service() {
         val n = NotificationCompat.Builder(this, Alerts.CH_AI)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(0xFF6E5BFF.toInt())
-            .setContentTitle("Working out your meal…")
-            .setContentText("Dropi lets you know when it's done.")
+            .setContentTitle(tr("Working out your meal…"))
+            .setContentText(tr("Dropi lets you know when it's done."))
             .setProgress(0, 0, true)
             .setOngoing(true)
             .setSilent(true)

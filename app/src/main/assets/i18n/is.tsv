@@ -639,3 +639,234 @@ The download stopped. Try again on Wi-Fi.	Niðurhalið stöðvaðist. Reyndu aft
 The download didn't check out, so it was deleted. Try again.	Niðurhalið stóðst ekki yfirferð, svo því var eytt. Reyndu aftur.
 Dropi on-device AI	Gervigreind Dropa í símanum
 Gemma 4 model, 2.6 GB	Gemma 4-líkan, 2,6 GB
+How was my week?	Hvernig var vikan mín?
+When do I run highest?	Hvenær er blóðsykurinn hæstur?
+Which foods lift me most?	Hvaða matur hækkar sykurinn mest?
+Any lows lately?	Lágar mælingar nýlega?
+Nothing logged in the last 7 days yet. Log a few readings and ask again.	Ekkert skráð síðustu 7 daga. Skráðu nokkrar mælingar og spurðu aftur.
+{0} reading on {1} of 7 days, averaging {2} {3}.	{0} mæling á {1} af 7 dögum, að meðaltali {2} {3}.
+{0} readings on {1} of 7 days, averaging {2} {3}.	{0} mælingar á {1} af 7 dögum, að meðaltali {2} {3}.
+{0}% were in range.	{0}% voru innan marka.
+{0}% were in range, up from {1}% the week before.	{0}% voru innan marka, meira en vikuna á undan ({1}%).
+{0}% were in range, down from {1}% the week before.	{0}% voru innan marka, minna en vikuna á undan ({1}%).
+{0}% were in range, the same as the week before.	{0}% voru innan marka, sama og vikuna á undan.
+No lows.	Engar lágar mælingar.
+{0} low.	{0} lág mæling.
+{0} lows.	{0} lágar mælingar.
+There aren't enough readings yet. After a few more days of logging, this gets clearer.	Það eru ekki nógu margar mælingar enn. Eftir nokkurra daga skráningu í viðbót skýrist þetta.
+{0} readings run highest, averaging {1} {2} over the last 30 days.	Hæstu mælingarnar: {0}, að meðaltali {1} {2} síðustu 30 daga.
+{0} is lowest at {1}.	Lægstu mælingarnar: {0}, að meðaltali {1}.
+Your readings are spread too thinly to tell yet.	Mælingarnar eru enn of dreifðar til að segja til um það.
+By time of day, the morning is your highest stretch ({0} on average).	Eftir tíma dags er blóðsykurinn hæstur á morgnana ({0} að meðaltali).
+By time of day, around lunch is your highest stretch ({0} on average).	Eftir tíma dags er blóðsykurinn hæstur í kringum hádegi ({0} að meðaltali).
+By time of day, the afternoon is your highest stretch ({0} on average).	Eftir tíma dags er blóðsykurinn hæstur síðdegis ({0} að meðaltali).
+By time of day, the evening is your highest stretch ({0} on average).	Eftir tíma dags er blóðsykurinn hæstur á kvöldin ({0} að meðaltali).
+By time of day, overnight is your highest stretch ({0} on average).	Eftir tíma dags er blóðsykurinn hæstur á nóttunni ({0} að meðaltali).
+Most were in the morning.	Flestar voru að morgni.
+Most were around lunch.	Flestar voru í kringum hádegi.
+Most were in the afternoon.	Flestar voru síðdegis.
+Most were in the evening.	Flestar voru að kvöldi.
+Most were overnight.	Flestar voru að nóttu.
+No food scores yet. Log a meal with the + button, with a reading before it, then log an after-eating reading. Once a food has two meals behind it, it gets a score.	Engar einkunnir fyrir mat enn. Skráðu máltíð með + hnappnum, með mælingu á undan, og skráðu svo mælingu eftir mat. Þegar matvara hefur tvær máltíðir að baki fær hún einkunn.
+Biggest rises: {0}.	Mest hækkun: {0}.
+Gentlest: {0}.	Mildast: {0}.
+Rises are the typical peak 45 min–3 h after eating, in {0}.	Hækkun er dæmigerður toppur 45 mín.–3 klst. eftir mat, í {0}.
+No lows in the last 14 days.	Engar lágar mælingar síðustu 14 daga.
+{0} low reading in the last 14 days, the latest {1} on {2}.	{0} lág mæling síðustu 14 daga, síðast {1} ({2}).
+{0} low readings in the last 14 days, the latest {1} on {2}.	{0} lágar mælingar síðustu 14 daga, síðast {1} ({2}).
+Your sensor spent about {0} h under {1}.	Neminn sýndi undir {1} í um {0} klst.
+Your sensor spent about {0} min under {1}.	Neminn sýndi undir {1} í um {0} mín.
+Worth mentioning to your care team if they keep happening.	Gott að nefna það við heilbrigðisteymið ef þetta heldur áfram.
+Ask about your numbers	Spurðu um tölurnar þínar
+“How was my week?” “Any lows lately?”	„Hvernig var vikan mín?“ „Lágar mælingar nýlega?“
+Couldn't answer that just now. Try one of the questions above.	Gat ekki svarað þessu núna. Prófaðu eina af spurningunum hér að ofan.
+I can't help with doses. Your care team can.	Ég get ekki hjálpað með skammta. Heilbrigðisteymið þitt getur það.
+Ask Dropi	Spyrðu Dropa
+Thinking…	Hugsa…
+Asking in your own words	Að spyrja með eigin orðum
+Ask it	Spyrja
+Ask in your own words	Spurðu með eigin orðum
+Ask	Spyrja
+Answers come from your own log, worked out on this phone by {0}. Nothing is uploaded.	Svörin koma úr þinni eigin skráningu og {0} vinnur þau í þessum síma. Ekkert er sent út.
+Answers come from your own log, worked out on this phone.	Svörin koma úr þinni eigin skráningu og eru unnin í þessum síma.
+Typing your own question needs an on-device AI model this phone can't run. The questions above work on any phone.	Til að skrifa eigin spurningu þarf gervigreindarlíkan í símanum sem þessi sími ræður ekki við. Spurningarnar hér að ofan virka í öllum símum.
+Typing your own questions needs the on-device model; send one and Dropi offers the download. The questions above work now.	Til að skrifa eigin spurningar þarf líkanið í símanum; sendu eina og Dropi býðst til að sækja það. Spurningarnar hér að ofan virka strax.
+Dropi doesn't give medical or dose advice.	Dropi veitir hvorki læknisráð né ráð um skammta.
+{0} low reading this week, mostly {1}.	{0} lág mæling þessa vikuna, aðallega {1}.
+{0} low readings this week, mostly {1}.	{0} lágar mælingar þessa vikuna, aðallega {1}.
+{0} low reading this week.	{0} lág mæling þessa vikuna.
+{0} low readings this week.	{0} lágar mælingar þessa vikuna.
+{0} low reading in the last {1} days, mostly {2}.	{0} lág mæling síðustu {1} daga, aðallega {2}.
+{0} low readings in the last {1} days, mostly {2}.	{0} lágar mælingar síðustu {1} daga, aðallega {2}.
+{0} low reading in the last {1} days.	{0} lág mæling síðustu {1} daga.
+{0} low readings in the last {1} days.	{0} lágar mælingar síðustu {1} daga.
+No lows this week.	Engar lágar mælingar þessa vikuna.
+No lows in the last {0} days.	Engar lágar mælingar síðustu {0} daga.
+Fasting readings average {0}, above the {1}–{2} target.	Fastandi mælingar eru að meðaltali {0}, yfir markgildunum {1}–{2}.
+Fasting readings average {0}, a little under the {1}–{2} target.	Fastandi mælingar eru að meðaltali {0}, aðeins undir markgildunum {1}–{2}.
+Fasting readings are on target, averaging {0}.	Fastandi mælingar eru innan markgilda, að meðaltali {0}.
+After-eating readings were over {0} in {1} of {2}.	Mælingar eftir mat yfir {0}: {1} af {2}.
+Every after-eating reading stayed under {0}.	Allar mælingar eftir mat héldust undir {0}.
+In range {0}% of the time, up from {1}% before.	Innan marka {0}% tímans, meira en áður ({1}%).
+In range {0}% of the time, down from {1}% before.	Innan marka {0}% tímans, minna en áður ({1}%).
+Readings swing quite a bit (variability {0}%). Steadier is 36% or less.	Mælingarnar sveiflast talsvert (breytileiki {0}%). Stöðugra er 36% eða minna.
+Readings are steady (variability {0}%, goal 36% or less).	Mælingarnar eru stöðugar (breytileiki {0}%, markmið 36% eða minna).
+Your highest readings tend to be {0} (average {1}).	Hæstu mælingarnar eru oftast {0} (meðaltal {1}).
+After meals of {0} g carbs or more you average {1}, against {2} after smaller ones.	Eftir máltíðir með {0} g kolvetna eða meira er meðaltalið {1}, en {2} eftir minni máltíðir.
+Logged on {0} of {1} days. Nice and consistent.	Skráð á {0} af {1} dögum. Flott og reglulegt.
+{0} day	{0} dagur
+{0} days	{0} dagar
+Not enough readings yet	Ekki nógu margar mælingar enn
+Trends appear after a few readings in this period. Keep logging and check back.	Þróun birtist eftir nokkrar mælingar á þessu tímabili. Haltu áfram að skrá og kíktu aftur.
+What stands out	Það sem stendur upp úr
+More detail	Nánar
+By moment, day by day, PDF for your care team	Eftir tíma dags, dag fyrir dag, PDF fyrir heilbrigðisteymið
+Share a PDF of these {0} days	Deila PDF-skýrslu fyrir þessa {0} daga
+Based on your logged readings, not a sensor: time in range here is the share of readings. Estimated A1C (GMI) can differ from a lab A1C.	Byggt á mælingunum sem þú skráir, ekki nema: tími innan marka hér er hlutfall mælinga. Áætlað HbA1c (GMI) getur vikið frá HbA1c úr blóðprufu.
+Estimated A1C	Áætlað HbA1c
+after a week	eftir viku
+{0} in range this week.	{0} innan marka þessa vikuna.
+{0} in range in {1} days.	{0} innan marka á {1} dögum.
+{0} in range this week, up from {1}%.	{0} innan marka þessa vikuna, meira en áður ({1}%).
+{0} in range in {1} days, up from {2}%.	{0} innan marka á {1} dögum, meira en áður ({2}%).
+{0} in range this week, down from {1}%.	{0} innan marka þessa vikuna, minna en áður ({1}%).
+{0} in range in {1} days, down from {2}%.	{0} innan marka á {1} dögum, minna en áður ({2}%).
+{0} in range this week, the same as before.	{0} innan marka þessa vikuna, sama og áður.
+{0} in range in {1} days, the same as before.	{0} innan marka á {1} dögum, sama og áður.
+Variability	Breytileiki
+goal 36% or less	markmið 36% eða minna
+Lowest	Lægst
+Highest	Hæst
+under {0}%	undir {0}%
+High	Hátt
+over {0}%	yfir {0}%
+Very low	Mjög lágt
+Goal: over 70%	Markmið: yfir 70%
+{0} · goal {1}	{0} · markmið {1}
+{0} reading	{0} mæling
+{0} readings	{0} mælingar
+Show table	Sýna töflu
+Range	Bil
+Every reading	Allar mælingar
+3 days	3 dagar
+Week	Vika
+Month	Mánuður
+Readings from {1}: {0} reading, highest {2}, lowest {3}.	{1}: {0} mæling, hæst {2}, lægst {3}.
+Readings from {1}: {0} readings, highest {2}, lowest {3}.	{1}: {0} mælingar, hæst {2}, lægst {3}.
+Readings from {1}: {0} reading.	{1}: {0} mæling.
+Readings from {1}: {0} readings.	{1}: {0} mælingar.
+Pinch to zoom, drag sideways to move in time.	Klíptu til að þysja, dragðu til hliðar til að færa þig í tíma.
+Meals	Máltíðir
+Sensor	Nemi
+Shaded: in range, {0}	Skyggt: innan marka, {0}
+Bar: one day, lowest to highest; dot is the average	Súla: einn dagur, frá lægsta til hæsta gildis; punkturinn er meðaltalið
+Grey line: joins each day's average	Grá lína: tengir meðaltal hvers dags
+Dot: a reading, coloured by range (tap one)	Punktur: mæling, lituð eftir bili (ýttu á einn)
+Grey line: joins your readings in time order	Grá lína: tengir mælingarnar í tímaröð
+Light band: your before-eating target, {0}–{1}	Ljóst band: markgildi þín fyrir mat, {0}–{1}
+Flat dashes: your after-eating limit, {0}	Lárétt strik: hámarkið þitt eftir mat, {0}
+Square: a meal, when you ate it	Ferningur: máltíð, þegar þú borðaðir
+Sloped dashes: from the meal up to its peak	Hallandi strik: frá máltíðinni upp í toppinn
+Coloured line: sensor values	Lituð lína: gildi nemans
+Pinch to zoom, drag sideways to go back in time, tap a dot for details.	Klíptu til að þysja, dragðu til hliðar til að fara aftur í tíma, ýttu á punkt til að sjá nánar.
+Zoomed out, each day is a bar from its lowest to highest reading.	Þegar þysjað er út er hver dagur súla frá lægstu til hæstu mælingar.
+Typical day	Dæmigerður dagur
+Every day of the period laid over one day shows your patterns. It needs readings at more times of day, so keep logging.	Allir dagar tímabilsins lagðir yfir einn sólarhring sýna mynstrin þín. Til þess þarf mælingar á fleiri tímum dags, svo haltu áfram að skrá.
+Typical day. Highest around {0} at {1}, lowest around {2} at {3}.	Dæmigerður dagur. Hæst um kl. {0}, {1}; lægst um kl. {2}, {3}.
+Middle value	Miðgildi
+Half your readings	Helmingur mælinga
+8 in 10	8 af 10
+Highest around {0} ({1}), lowest around {2} ({3}).	Hæst um kl. {0} ({1}), lægst um kl. {2} ({3}).
+LAB A1C	HbA1c úr blóðprufu
+Add result	Bæta við niðurstöðu
+Add the A1C from your lab results to see it next to the estimate from your readings.	Bættu við HbA1c úr blóðprufu til að sjá það við hlið áætlunarinnar út frá mælingunum þínum.
+Estimate now	Áætlun núna
+Your estimate is close to your last lab result.	Áætlunin er nálægt síðustu blóðprufu.
+Your estimate is {0} points above your last lab result.	Áætlunin er {0} prósentustigum yfir síðustu blóðprufu.
+Your estimate is {0} points below your last lab result.	Áætlunin er {0} prósentustigum undir síðustu blóðprufu.
+Remove the latest result	Fjarlægja nýjustu niðurstöðuna
+Lab A1C result	HbA1c úr blóðprufu
+Test date	Dagsetning blóðprufu
+Save	Vista
+before breakfast	fyrir morgunmat
+before lunch	fyrir hádegismat
+before dinner	fyrir kvöldmat
+before snack	fyrir millimál
+before {0}	fyrir {0}
+{0} after breakfast	{0} eftir morgunmat
+{0} after lunch	{0} eftir hádegismat
+{0} after dinner	{0} eftir kvöldmat
+{0} after snack	{0} eftir millimál
+{0} after {1}	{0} eftir {1}
+Gentle rise	Lítil hækkun
+Moderate rise	Miðlungs hækkun
+Big rise	Mikil hækkun
+Gentle	Lítil
+Moderate	Miðlungs
+Big	Mikil
+Fast carbs	Hröð kolvetni
+Medium carbs	Miðlungshröð kolvetni
+Slow carbs	Hæg kolvetni
+Veg first	Grænmeti fyrst
+Walked after	Gönguferð á eftir
+Alcohol	Áfengi
+Feeling ill	Veikindi
+Stressed	Streita
+fast carbs	hröð kolvetni
+slow carbs	hæg kolvetni
+a sugary drink hits fast	sykraður drykkur virkar hratt
+fibre softens it	trefjar draga úr hækkuninni
+veg first	grænmeti fyrst
+a walk after	gönguferð á eftir
+fat and protein push the peak later	fita og prótein seinka toppnum
+some fat and protein slow it a little	smá fita og prótein hægja aðeins á
+your past meals with {0} and {1}	fyrri máltíðir þínar með {0} og {1}
+your past meals with {0}	fyrri máltíðir þínar með {0}
+{0} g carbs	{0} g kolvetni
+{0} g sugars	{0} g sykurtegundir
+{0} g fibre	{0} g trefjar
+Meals with 8 g or more fibre rise {1} less for you ({0} meal).	Hjá þér hækka máltíðir með 8 g eða meira af trefjum blóðsykurinn um {1} minna ({0} máltíð).
+Meals with 8 g or more fibre rise {1} less for you ({0} meals).	Hjá þér hækka máltíðir með 8 g eða meira af trefjum blóðsykurinn um {1} minna ({0} máltíðir).
+Meals with 8 g or more fibre rise {1} more for you ({0} meal).	Hjá þér hækka máltíðir með 8 g eða meira af trefjum blóðsykurinn um {1} meira ({0} máltíð).
+Meals with 8 g or more fibre rise {1} more for you ({0} meals).	Hjá þér hækka máltíðir með 8 g eða meira af trefjum blóðsykurinn um {1} meira ({0} máltíðir).
+With a walk after, your rise is {1} smaller ({0} meal).	Með gönguferð á eftir er hækkunin hjá þér {1} minni ({0} máltíð).
+With a walk after, your rise is {1} smaller ({0} meals).	Með gönguferð á eftir er hækkunin hjá þér {1} minni ({0} máltíðir).
+With a walk after, your rise is {1} bigger ({0} meal).	Með gönguferð á eftir er hækkunin hjá þér {1} meiri ({0} máltíð).
+With a walk after, your rise is {1} bigger ({0} meals).	Með gönguferð á eftir er hækkunin hjá þér {1} meiri ({0} máltíðir).
+Eating veg first, your rise is {1} smaller ({0} meal).	Þegar þú borðar grænmetið fyrst er hækkunin {1} minni ({0} máltíð).
+Eating veg first, your rise is {1} smaller ({0} meals).	Þegar þú borðar grænmetið fyrst er hækkunin {1} minni ({0} máltíðir).
+Eating veg first, your rise is {1} bigger ({0} meal).	Þegar þú borðar grænmetið fyrst er hækkunin {1} meiri ({0} máltíð).
+Eating veg first, your rise is {1} bigger ({0} meals).	Þegar þú borðar grænmetið fyrst er hækkunin {1} meiri ({0} máltíðir).
+Slow-carb meals rise {1} less than fast-carb ones for you ({0} slow-carb meal).	Hjá þér hækka máltíðir með hægum kolvetnum blóðsykurinn um {1} minna en máltíðir með hröðum kolvetnum ({0} máltíð með hægum kolvetnum).
+Slow-carb meals rise {1} less than fast-carb ones for you ({0} slow-carb meals).	Hjá þér hækka máltíðir með hægum kolvetnum blóðsykurinn um {1} minna en máltíðir með hröðum kolvetnum ({0} máltíðir með hægum kolvetnum).
+Slow-carb meals rise {1} more than fast-carb ones for you ({0} slow-carb meal).	Hjá þér hækka máltíðir með hægum kolvetnum blóðsykurinn um {1} meira en máltíðir með hröðum kolvetnum ({0} máltíð með hægum kolvetnum).
+Slow-carb meals rise {1} more than fast-carb ones for you ({0} slow-carb meals).	Hjá þér hækka máltíðir með hægum kolvetnum blóðsykurinn um {1} meira en máltíðir með hröðum kolvetnum ({0} máltíðir með hægum kolvetnum).
+Meals with a sugary drink rise {1} less for you ({0} meal).	Hjá þér hækka máltíðir með sykruðum drykk blóðsykurinn um {1} minna ({0} máltíð).
+Meals with a sugary drink rise {1} less for you ({0} meals).	Hjá þér hækka máltíðir með sykruðum drykk blóðsykurinn um {1} minna ({0} máltíðir).
+Meals with a sugary drink rise {1} more for you ({0} meal).	Hjá þér hækka máltíðir með sykruðum drykk blóðsykurinn um {1} meira ({0} máltíð).
+Meals with a sugary drink rise {1} more for you ({0} meals).	Hjá þér hækka máltíðir með sykruðum drykk blóðsykurinn um {1} meira ({0} máltíðir).
+Fatty or protein-rich meals peak about {1} min later for you ({0} meal).	Hjá þér ná feitar eða próteinríkar máltíðir toppi u.þ.b. {1} mín. seinna ({0} máltíð).
+Fatty or protein-rich meals peak about {1} min later for you ({0} meals).	Hjá þér ná feitar eða próteinríkar máltíðir toppi u.þ.b. {1} mín. seinna ({0} máltíðir).
+After an evening with alcohol, your fasting reading is {1} lower ({0} morning).	Eftir kvöld með áfengi er fastandi mælingin þín {1} lægri ({0} morgunn).
+After an evening with alcohol, your fasting reading is {1} lower ({0} mornings).	Eftir kvöld með áfengi er fastandi mælingin þín {1} lægri ({0} morgnar).
+After an evening with alcohol, your fasting reading is {1} higher ({0} morning).	Eftir kvöld með áfengi er fastandi mælingin þín {1} hærri ({0} morgunn).
+After an evening with alcohol, your fasting reading is {1} higher ({0} mornings).	Eftir kvöld með áfengi er fastandi mælingin þín {1} hærri ({0} morgnar).
+Looking at your plate…	Skoða diskinn þinn…
+Couldn't make out the meal. Say what you ate instead, or add the foods yourself.	Náði ekki að greina máltíðina. Segðu frekar hvað þú borðaðir eða bættu matvörunum við handvirkt.
+Working out your meal…	Reikna út máltíðina þína…
+Couldn't work that out. Try naming each food, like "2 slices of toast and jam".	Náði ekki að lesa úr þessu. Prófaðu að nefna hverja matvöru, t.d. „2 ristaðar brauðsneiðar og sulta“.
+Changing it…	Breyti…
+Reading the label…	Les næringartöfluna…
+Found text, but no carbs or sugars in it.	Fann texta en engin kolvetni eða sykur í honum.
+Reading the barcode…	Les strikamerkið…
+Couldn't open the photo the camera took. Try again, and if it keeps happening, send a problem report from More.	Náði ekki að opna myndina sem myndavélin tók. Reyndu aftur og ef þetta gerist ítrekað skaltu senda tilkynningu um vandamál úr Meira.
+No barcode found on the photo. Take it again closer, with the stripes filling most of the frame, or scan the label instead.	Ekkert strikamerki fannst á myndinni. Taktu hana aftur nær, svo strikin fylli mestallan rammann, eða skannaðu næringartöfluna í staðinn.
+Looking up the packet…	Fletti upp pakkanum…
+This packet isn't in Open Food Facts yet. Type the numbers from its label, or scan the label. Dropi keeps them for next time.	Þessi pakki er ekki enn í Open Food Facts. Sláðu inn tölurnar af næringartöflunni eða skannaðu hana. Dropi geymir þær til næsta skiptis.
+Couldn't reach Open Food Facts. Check the internet connection and try again, or type the numbers from the label.	Náði ekki sambandi við Open Food Facts. Athugaðu nettenginguna og reyndu aftur, eða sláðu inn tölurnar af næringartöflunni.
+No barcode found on the photo.	Ekkert strikamerki fannst á myndinni.
+Couldn't open the photo.	Náði ekki að opna myndina.
+No text found on the photo.	Enginn texti fannst á myndinni.
+The text reader failed: {0}	Textalesturinn mistókst: {0}
+The text reader failed.	Textalesturinn mistókst.
+Dropi lets you know when it's done.	Dropi lætur þig vita þegar þetta er tilbúið.

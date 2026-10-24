@@ -1,5 +1,8 @@
 package app.dropi.data
 
+import app.dropi.L
+import app.dropi.tr
+import app.dropi.trn
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -16,7 +19,16 @@ import kotlin.math.sin
  * on-device model's own figure is used first when it gives one.
  */
 object Gi {
-    enum class Speed(val word: String) { FAST("Fast carbs"), MEDIUM("Medium carbs"), SLOW("Slow carbs") }
+    enum class Speed(val en: String) {
+        FAST("Fast carbs"), MEDIUM("Medium carbs"), SLOW("Slow carbs");
+
+        /** "Fast carbs"… in the app's language ([en] is the English, for prompts). */
+        val word: String get() = when (this) {
+            FAST -> tr("Fast carbs")
+            MEDIUM -> tr("Medium carbs")
+            SLOW -> tr("Slow carbs")
+        }
+    }
 
     fun speed(gi: Int) = when {
         gi >= 70 -> Speed.FAST
@@ -66,7 +78,17 @@ object Gi {
 
 /** Things that went with a meal and change how it lands, picked up from the person's words or tapped. */
 object MealTags {
-    data class Tag(val key: String, val label: String, val words: List<String>)
+    /** [en] is the English name (prompts); [label] is shown, in the app's language. */
+    data class Tag(val key: String, val en: String, val words: List<String>) {
+        val label: String get() = when (key) {
+            "veg_first" -> tr("Veg first")
+            "walk_after" -> tr("Walked after")
+            "alcohol" -> tr("Alcohol")
+            "ill" -> tr("Feeling ill")
+            "stress" -> tr("Stressed")
+            else -> en
+        }
+    }
 
     val ALL = listOf(
         Tag("veg_first", "Veg first", listOf("veg first", "vegetables first", "salad first", "veggies first")),
@@ -77,7 +99,11 @@ object MealTags {
     )
     val KEYS = ALL.map { it.key }.toSet()
 
+    /** The tag's name as shown, in the app's language. */
     fun label(key: String) = ALL.firstOrNull { it.key == key }?.label ?: key
+
+    /** The tag's English name (for prompts). */
+    fun en(key: String) = ALL.firstOrNull { it.key == key }?.en ?: key
 
     /** Tags mentioned in [text], by plain word match (the model's tags are added to these). */
     fun fromWords(text: String): List<String> {
@@ -130,30 +156,31 @@ object MealCurve {
         var peak = 60
         val drinkOnly = meal.items.all { it.sugaryDrink || it.carbs == 0.0 } && meal.hasSugaryDrink
         when (meal.speed) {
-            Gi.Speed.FAST -> { rise *= 1.15; peak = 45; reasons += "fast carbs" }
-            Gi.Speed.SLOW -> { rise *= 0.85; peak = 75; reasons += "slow carbs" }
+            Gi.Speed.FAST -> { rise *= 1.15; peak = 45; reasons += tr("fast carbs") }
+            Gi.Speed.SLOW -> { rise *= 0.85; peak = 75; reasons += tr("slow carbs") }
             else -> {}
         }
         if (meal.hasSugaryDrink) {
             rise *= 1.1
             peak = if (drinkOnly) 35 else minOf(peak, 50)
-            reasons += "a sugary drink hits fast"
+            reasons += tr("a sugary drink hits fast")
         }
-        if ((meal.fibre ?: 0.0) >= 10) { rise *= 0.9; reasons += "fibre softens it" }
-        if ("veg_first" in meal.tags) { rise *= 0.9; reasons += "veg first" }
-        if ("walk_after" in meal.tags) { rise *= 0.85; reasons += "a walk after" }
+        if ((meal.fibre ?: 0.0) >= 10) { rise *= 0.9; reasons += tr("fibre softens it") }
+        if ("veg_first" in meal.tags) { rise *= 0.9; reasons += tr("veg first") }
+        if ("walk_after" in meal.tags) { rise *= 0.85; reasons += tr("a walk after") }
         val fat = meal.fat ?: 0.0
         val protein = meal.protein ?: 0.0
         var tail = 90
         when {
-            meal.slowDigesting -> { peak += 45; tail += 60; rise *= 0.9; reasons += "fat and protein push the peak later" }
-            meal.someFatProtein -> { peak += 20; tail += 30; reasons += "some fat and protein slow it a little" }
+            meal.slowDigesting -> { peak += 45; tail += 60; rise *= 0.9; reasons += tr("fat and protein push the peak later") }
+            meal.someFatProtein -> { peak += 20; tail += 30; reasons += tr("some fat and protein slow it a little") }
         }
         if (fat >= 25 && protein >= 30 && !meal.slowDigesting) peak += 10
         // Past meals with the same foods know this person best: they count for half.
         if (history != null) {
             rise = 0.5 * rise + 0.5 * history.rise.coerceAtLeast(0.0)
-            reasons += "your past meals with ${history.foods.take(2).joinToString(" and ") { Foods.display(it).lowercase(Locale.ROOT) }}"
+            val f = history.foods.take(2).map { Foods.display(it).lowercase(Locale.ROOT) }
+            reasons += if (f.size >= 2) tr("your past meals with {0} and {1}", f[0], f[1]) else tr("your past meals with {0}", f.firstOrNull().orEmpty())
         }
         return Curve(rise.coerceIn(0.0, 12.0), peak, peak + tail, reasons, perGram != null || history != null)
     }
@@ -162,9 +189,9 @@ object MealCurve {
     fun duration(min: Int): String {
         val h = min / 60; val m = (min % 60 + 2) / 5 * 5
         return when {
-            h == 0 -> "$min min"
-            m == 0 || m == 60 -> "${if (m == 60) h + 1 else h} h"
-            else -> "$h h $m min"
+            h == 0 -> tr("{0} min", min)
+            m == 0 || m == 60 -> tr("{0} h", if (m == 60) h + 1 else h)
+            else -> tr("{0} h {1} min", h, m)
         }
     }
 }
@@ -174,7 +201,12 @@ object MealCurve {
  * or without…). Only said when each side has at least three measured meals and the gap is real.
  */
 object MealPatterns {
-    data class Pattern(val text: String, val good: Boolean)
+    /** [text] is shown, in the app's language; [en] is the same in English (for prompts). */
+    data class Pattern(val text: String, val good: Boolean, val en: String = text)
+
+    /** The English form of a counted sentence (the count is {0}, then the other values). */
+    private fun english(n: Int, one: String, other: String, vararg args: Any?): String =
+        L.fill(if (n == 1) one else other, arrayOf<Any?>(n, *args))
 
     private data class Measured(val e: MealEntry, val rise: Double, val peakMin: Int)
 
@@ -196,33 +228,58 @@ object MealPatterns {
         val ms = measured(all, meals)
         val out = ArrayList<Pattern>()
         fun d(v: Double) = Foods.delta(abs(v), unit).removePrefix("+")
-        fun compareRise(yes: List<Measured>, no: List<Measured>, say: (less: Boolean, diff: String, n: Int) -> String) {
+        fun dPlain(v: Double) = Foods.delta(abs(v), unit, plain = true).removePrefix("+")
+        // say(less, shown diff, English diff, meals) gives the sentence shown and its English.
+        fun compareRise(yes: List<Measured>, no: List<Measured>, say: (less: Boolean, diff: String, enDiff: String, n: Int) -> Pair<String, String>) {
             if (yes.size < minEach || no.size < minEach) return
             val diff = Foods.median(yes.map { it.rise }) - Foods.median(no.map { it.rise })
             if (abs(diff) < 0.8) return
-            out += Pattern(say(diff < 0, d(diff), yes.size), diff < 0)
+            val (text, en) = say(diff < 0, d(diff), dPlain(diff), yes.size)
+            out += Pattern(text, diff < 0, en)
         }
-        compareRise(ms.filter { (it.e.meal.fibre ?: 0.0) >= 8 }, ms.filter { (it.e.meal.fibre ?: 0.0) < 8 }) { less, diff, n ->
-            "Meals with 8 g or more fibre rise $diff ${if (less) "less" else "more"} for you ($n meals)."
+        compareRise(ms.filter { (it.e.meal.fibre ?: 0.0) >= 8 }, ms.filter { (it.e.meal.fibre ?: 0.0) < 8 }) { less, diff, enDiff, n ->
+            if (less) trn(n, "Meals with 8 g or more fibre rise {1} less for you ({0} meal).", "Meals with 8 g or more fibre rise {1} less for you ({0} meals).", diff) to
+                english(n, "Meals with 8 g or more fibre rise {1} less for you ({0} meal).", "Meals with 8 g or more fibre rise {1} less for you ({0} meals).", enDiff)
+            else trn(n, "Meals with 8 g or more fibre rise {1} more for you ({0} meal).", "Meals with 8 g or more fibre rise {1} more for you ({0} meals).", diff) to
+                english(n, "Meals with 8 g or more fibre rise {1} more for you ({0} meal).", "Meals with 8 g or more fibre rise {1} more for you ({0} meals).", enDiff)
         }
-        compareRise(ms.filter { "walk_after" in it.e.meal.tags }, ms.filter { "walk_after" !in it.e.meal.tags }) { less, diff, n ->
-            "With a walk after, your rise is $diff ${if (less) "smaller" else "bigger"} ($n meals)."
+        compareRise(ms.filter { "walk_after" in it.e.meal.tags }, ms.filter { "walk_after" !in it.e.meal.tags }) { less, diff, enDiff, n ->
+            if (less) trn(n, "With a walk after, your rise is {1} smaller ({0} meal).", "With a walk after, your rise is {1} smaller ({0} meals).", diff) to
+                english(n, "With a walk after, your rise is {1} smaller ({0} meal).", "With a walk after, your rise is {1} smaller ({0} meals).", enDiff)
+            else trn(n, "With a walk after, your rise is {1} bigger ({0} meal).", "With a walk after, your rise is {1} bigger ({0} meals).", diff) to
+                english(n, "With a walk after, your rise is {1} bigger ({0} meal).", "With a walk after, your rise is {1} bigger ({0} meals).", enDiff)
         }
-        compareRise(ms.filter { "veg_first" in it.e.meal.tags }, ms.filter { "veg_first" !in it.e.meal.tags }) { less, diff, n ->
-            "Eating veg first, your rise is $diff ${if (less) "smaller" else "bigger"} ($n meals)."
+        compareRise(ms.filter { "veg_first" in it.e.meal.tags }, ms.filter { "veg_first" !in it.e.meal.tags }) { less, diff, enDiff, n ->
+            if (less) trn(n, "Eating veg first, your rise is {1} smaller ({0} meal).", "Eating veg first, your rise is {1} smaller ({0} meals).", diff) to
+                english(n, "Eating veg first, your rise is {1} smaller ({0} meal).", "Eating veg first, your rise is {1} smaller ({0} meals).", enDiff)
+            else trn(n, "Eating veg first, your rise is {1} bigger ({0} meal).", "Eating veg first, your rise is {1} bigger ({0} meals).", diff) to
+                english(n, "Eating veg first, your rise is {1} bigger ({0} meal).", "Eating veg first, your rise is {1} bigger ({0} meals).", enDiff)
         }
-        compareRise(ms.filter { it.e.meal.speed == Gi.Speed.SLOW }, ms.filter { it.e.meal.speed == Gi.Speed.FAST }) { less, diff, n ->
-            "Slow-carb meals rise $diff ${if (less) "less" else "more"} than fast-carb ones for you ($n slow-carb meals)."
+        compareRise(ms.filter { it.e.meal.speed == Gi.Speed.SLOW }, ms.filter { it.e.meal.speed == Gi.Speed.FAST }) { less, diff, enDiff, n ->
+            if (less) trn(n, "Slow-carb meals rise {1} less than fast-carb ones for you ({0} slow-carb meal).", "Slow-carb meals rise {1} less than fast-carb ones for you ({0} slow-carb meals).", diff) to
+                english(n, "Slow-carb meals rise {1} less than fast-carb ones for you ({0} slow-carb meal).", "Slow-carb meals rise {1} less than fast-carb ones for you ({0} slow-carb meals).", enDiff)
+            else trn(n, "Slow-carb meals rise {1} more than fast-carb ones for you ({0} slow-carb meal).", "Slow-carb meals rise {1} more than fast-carb ones for you ({0} slow-carb meals).", diff) to
+                english(n, "Slow-carb meals rise {1} more than fast-carb ones for you ({0} slow-carb meal).", "Slow-carb meals rise {1} more than fast-carb ones for you ({0} slow-carb meals).", enDiff)
         }
-        compareRise(ms.filter { it.e.meal.hasSugaryDrink }, ms.filter { !it.e.meal.hasSugaryDrink }) { less, diff, n ->
-            "Meals with a sugary drink rise $diff ${if (less) "less" else "more"} for you ($n meals)."
+        compareRise(ms.filter { it.e.meal.hasSugaryDrink }, ms.filter { !it.e.meal.hasSugaryDrink }) { less, diff, enDiff, n ->
+            if (less) trn(n, "Meals with a sugary drink rise {1} less for you ({0} meal).", "Meals with a sugary drink rise {1} less for you ({0} meals).", diff) to
+                english(n, "Meals with a sugary drink rise {1} less for you ({0} meal).", "Meals with a sugary drink rise {1} less for you ({0} meals).", enDiff)
+            else trn(n, "Meals with a sugary drink rise {1} more for you ({0} meal).", "Meals with a sugary drink rise {1} more for you ({0} meals).", diff) to
+                english(n, "Meals with a sugary drink rise {1} more for you ({0} meal).", "Meals with a sugary drink rise {1} more for you ({0} meals).", enDiff)
         }
         // Fat and protein move the peak later rather than higher.
         val rich = ms.filter { it.e.meal.slowDigesting }
         val lean = ms.filter { !it.e.meal.slowDigesting && !it.e.meal.someFatProtein }
         if (rich.size >= minEach && lean.size >= minEach) {
             val later = Foods.median(rich.map { it.peakMin.toDouble() }) - Foods.median(lean.map { it.peakMin.toDouble() })
-            if (later >= 25) out += Pattern("Fatty or protein-rich meals peak about ${later.roundToInt() / 5 * 5} min later for you (${rich.size} meals).", true)
+            if (later >= 25) {
+                val mins = later.roundToInt() / 5 * 5
+                out += Pattern(
+                    trn(rich.size, "Fatty or protein-rich meals peak about {1} min later for you ({0} meal).", "Fatty or protein-rich meals peak about {1} min later for you ({0} meals).", mins),
+                    true,
+                    english(rich.size, "Fatty or protein-rich meals peak about {1} min later for you ({0} meal).", "Fatty or protein-rich meals peak about {1} min later for you ({0} meals).", mins),
+                )
+            }
         }
         // Alcohol: the next morning's fasting reading.
         val zone = ZoneId.systemDefault()
@@ -238,10 +295,16 @@ object MealPatterns {
         }
         if (drinksDays.size >= minEach && dryDays.size >= minEach) {
             val diff = Foods.median(drinksDays.map { it.mmol }) - Foods.median(dryDays.map { it.mmol })
-            if (abs(diff) >= 0.5) out += Pattern(
-                "After an evening with alcohol, your fasting reading is ${d(diff)} ${if (diff < 0) "lower" else "higher"} (${drinksDays.size} mornings).",
+            val n = drinksDays.size
+            if (abs(diff) >= 0.5) out += (if (diff < 0) Pattern(
+                trn(n, "After an evening with alcohol, your fasting reading is {1} lower ({0} morning).", "After an evening with alcohol, your fasting reading is {1} lower ({0} mornings).", d(diff)),
                 false,
-            )
+                english(n, "After an evening with alcohol, your fasting reading is {1} lower ({0} morning).", "After an evening with alcohol, your fasting reading is {1} lower ({0} mornings).", dPlain(diff)),
+            ) else Pattern(
+                trn(n, "After an evening with alcohol, your fasting reading is {1} higher ({0} morning).", "After an evening with alcohol, your fasting reading is {1} higher ({0} mornings).", d(diff)),
+                false,
+                english(n, "After an evening with alcohol, your fasting reading is {1} higher ({0} morning).", "After an evening with alcohol, your fasting reading is {1} higher ({0} mornings).", dPlain(diff)),
+            ))
         }
         return out
     }
@@ -271,8 +334,8 @@ object DayTotals {
 
     /** "142 g carbs · 38 g sugars · 22 g fibre · 85 g protein · 60 g fat" (missing ones left out). */
     fun text(t: Totals): String = listOfNotNull(
-        "${Grams.text(t.carbs)} g carbs", t.sugars?.let { "${Grams.text(it)} g sugars" }, t.fibre?.let { "${Grams.text(it)} g fibre" },
-        t.protein?.let { "${Grams.text(it)} g protein" }, t.fat?.let { "${Grams.text(it)} g fat" },
+        tr("{0} g carbs", Grams.text(t.carbs)), t.sugars?.let { tr("{0} g sugars", Grams.text(it)) }, t.fibre?.let { tr("{0} g fibre", Grams.text(it)) },
+        t.protein?.let { tr("{0} g protein", Grams.text(it)) }, t.fat?.let { tr("{0} g fat", Grams.text(it)) },
     ).joinToString(" · ")
 }
 

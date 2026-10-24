@@ -1,5 +1,8 @@
 package app.dropi.data
 
+import app.dropi.L
+import app.dropi.tr
+import app.dropi.trn
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
@@ -123,25 +126,31 @@ object Analytics {
     fun insights(r: Report, targets: Targets, meals: List<MealEntry> = emptyList(), v: (Double) -> String): List<Insight> {
         val out = ArrayList<Insight>()
         if (r.count < 3) return out
-        val period = if (r.days == 7) "this week" else "in the last ${r.days} days"
+        val week = r.days == 7
 
         // Lows first: they matter most.
         if (r.lows > 0) {
             val lowReadings = r.readings.filter { it.mmol < Glucose.LOW }
             val common = lowReadings.groupBy { it.tag }.maxByOrNull { it.value.size }
-            val where = if (common != null && r.lows >= 2 && common.value.size * 2 > r.lows) ", mostly ${common.key.label.lowercase()}" else ""
-            out += Insight(InsightKind.ATTENTION, "${r.lows} low ${if (r.lows == 1) "reading" else "readings"} $period$where.")
+            val mostly = common != null && r.lows >= 2 && common.value.size * 2 > r.lows
+            val text = when {
+                week && mostly -> trn(r.lows, "{0} low reading this week, mostly {1}.", "{0} low readings this week, mostly {1}.", common!!.key.label.lowercase(L.locale))
+                week -> trn(r.lows, "{0} low reading this week.", "{0} low readings this week.")
+                mostly -> trn(r.lows, "{0} low reading in the last {1} days, mostly {2}.", "{0} low readings in the last {1} days, mostly {2}.", r.days, common!!.key.label.lowercase(L.locale))
+                else -> trn(r.lows, "{0} low reading in the last {1} days.", "{0} low readings in the last {1} days.", r.days)
+            }
+            out += Insight(InsightKind.ATTENTION, text)
         } else if (r.count >= 10) {
-            out += Insight(InsightKind.GOOD, "No lows $period.")
+            out += Insight(InsightKind.GOOD, if (week) tr("No lows this week.") else tr("No lows in the last {0} days.", r.days))
         }
 
         val fasting = r.byTag.firstOrNull { it.tag == MealTag.FASTING }
         if (fasting != null && fasting.count >= 3) {
             val (lo, hi) = targets.forTag(MealTag.FASTING)
             out += when {
-                fasting.average > hi -> Insight(InsightKind.ATTENTION, "Fasting readings average ${v(fasting.average)}, above the ${v(lo)}–${v(hi)} target.")
-                fasting.average < lo -> Insight(InsightKind.INFO, "Fasting readings average ${v(fasting.average)}, a little under the ${v(lo)}–${v(hi)} target.")
-                else -> Insight(InsightKind.GOOD, "Fasting readings are on target, averaging ${v(fasting.average)}.")
+                fasting.average > hi -> Insight(InsightKind.ATTENTION, tr("Fasting readings average {0}, above the {1}–{2} target.", v(fasting.average), v(lo), v(hi)))
+                fasting.average < lo -> Insight(InsightKind.INFO, tr("Fasting readings average {0}, a little under the {1}–{2} target.", v(fasting.average), v(lo), v(hi)))
+                else -> Insight(InsightKind.GOOD, tr("Fasting readings are on target, averaging {0}.", v(fasting.average)))
             }
         }
 
@@ -149,9 +158,9 @@ object Analytics {
         if (after.size >= 3) {
             val over = after.count { it.mmol > targets.afterHigh }
             out += when {
-                over * 2 >= after.size -> Insight(InsightKind.ATTENTION, "After-eating readings were over ${v(targets.afterHigh)} in $over of ${after.size}.")
-                over == 0 -> Insight(InsightKind.GOOD, "Every after-eating reading stayed under ${v(targets.afterHigh)}.")
-                else -> Insight(InsightKind.INFO, "After-eating readings were over ${v(targets.afterHigh)} in $over of ${after.size}.")
+                over * 2 >= after.size -> Insight(InsightKind.ATTENTION, tr("After-eating readings were over {0} in {1} of {2}.", v(targets.afterHigh), over, after.size))
+                over == 0 -> Insight(InsightKind.GOOD, tr("Every after-eating reading stayed under {0}.", v(targets.afterHigh)))
+                else -> Insight(InsightKind.INFO, tr("After-eating readings were over {0} in {1} of {2}.", v(targets.afterHigh), over, after.size))
             }
         }
 
@@ -159,20 +168,20 @@ object Analytics {
         val prev = r.previousInRange
         if (tir != null && prev != null && r.count >= 10) {
             val d = tir.roundToInt() - prev.roundToInt()
-            if (d >= 5) out += Insight(InsightKind.GOOD, "In range ${tir.roundToInt()}% of the time, up from ${prev.roundToInt()}% before.")
-            else if (d <= -5) out += Insight(InsightKind.ATTENTION, "In range ${tir.roundToInt()}% of the time, down from ${prev.roundToInt()}% before.")
+            if (d >= 5) out += Insight(InsightKind.GOOD, tr("In range {0}% of the time, up from {1}% before.", tir.roundToInt(), prev.roundToInt()))
+            else if (d <= -5) out += Insight(InsightKind.ATTENTION, tr("In range {0}% of the time, down from {1}% before.", tir.roundToInt(), prev.roundToInt()))
         }
 
         val cv = r.cv
         if (cv != null && r.count >= 10) {
-            out += if (cv > 36) Insight(InsightKind.ATTENTION, "Readings swing quite a bit (variability ${cv.roundToInt()}%). Steadier is 36% or less.")
-            else Insight(InsightKind.GOOD, "Readings are steady (variability ${cv.roundToInt()}%, goal 36% or less).")
+            out += if (cv > 36) Insight(InsightKind.ATTENTION, tr("Readings swing quite a bit (variability {0}%). Steadier is 36% or less.", cv.roundToInt()))
+            else Insight(InsightKind.GOOD, tr("Readings are steady (variability {0}%, goal 36% or less).", cv.roundToInt()))
         }
 
         // The moment of the day that runs highest, when it's over its target.
         val highest = r.byTag.filter { it.count >= 3 }.maxByOrNull { it.average }
         if (highest != null && highest.tag != MealTag.FASTING && highest.average > targets.forTag(highest.tag).second) {
-            out += Insight(InsightKind.INFO, "Your highest readings tend to be ${highest.tag.label.lowercase()} (average ${v(highest.average)}).")
+            out += Insight(InsightKind.INFO, tr("Your highest readings tend to be {0} (average {1}).", highest.tag.label.lowercase(L.locale), v(highest.average)))
         }
 
         // Carbs and after-meal readings: the carbs logged on a before-meal reading (or on the
@@ -185,13 +194,13 @@ object Analytics {
             if (d >= 1.0) {
                 out += Insight(
                     InsightKind.INFO,
-                    "After meals of $BIG_MEAL g carbs or more you average ${v(big.average())}, against ${v(small.average())} after smaller ones.",
+                    tr("After meals of {0} g carbs or more you average {1}, against {2} after smaller ones.", BIG_MEAL, v(big.average()), v(small.average())),
                 )
             }
         }
 
         if (r.days >= 7 && r.daysLogged * 10 >= r.days * 8) {
-            out += Insight(InsightKind.GOOD, "Logged on ${r.daysLogged} of ${r.days} days. Nice and consistent.")
+            out += Insight(InsightKind.GOOD, tr("Logged on {0} of {1} days. Nice and consistent.", r.daysLogged, r.days))
         }
         return out
     }

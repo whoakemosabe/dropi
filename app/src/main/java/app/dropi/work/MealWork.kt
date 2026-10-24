@@ -13,6 +13,7 @@ import app.dropi.data.MealAi
 import app.dropi.data.MealItem
 import app.dropi.data.MealTags
 import app.dropi.data.Usual
+import app.dropi.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,8 +28,14 @@ import java.io.File
  */
 object MealWork {
     sealed interface Status {
-        /** [found]: the foods named so far, shown while the rest is worked out. */
-        data class Working(val what: String, val found: List<String> = emptyList()) : Status
+        /**
+         * [what]: shown, in the app's language; [en]: the same in English, for problem reports.
+         * [found]: the foods named so far, shown while the rest is worked out.
+         */
+        data class Working(val what: String, val found: List<String> = emptyList(), val en: String = what) : Status {
+            /** "Found so far: Rice, Egg", or null before anything is named. */
+            val foundText: String? get() = if (found.isEmpty()) null else tr("Found so far: {0}", found.joinToString(", ") { Foods.display(it) })
+        }
         data object Ready : Status
         data class Failed(val message: String) : Status
         /** A label was read (or couldn't be, [read] false: the numbers are typed); how much was eaten is still needed. */
@@ -116,7 +123,7 @@ object MealWork {
     fun fromPhoto(context: Context, uri: Uri) {
         val ctx = context.applicationContext
         Alerts.cancelMeal(ctx)
-        val id = start(Status.Working("Looking at your plate…"), photo = uri)
+        val id = start(Status.Working(tr("Looking at your plate…"), en = "Looking at your plate…"), photo = uri)
         job(ctx) {
             val meal = try {
                 Ai.mealFromPhoto(ctx, uri) { foods ->
@@ -129,7 +136,7 @@ object MealWork {
             } catch (e: Throwable) { null }
             // Only our own copy of the photo is deleted, and only this job's.
             if (uri.authority == "${ctx.packageName}.files") try { File(File(ctx.cacheDir, "scans"), uri.lastPathSegment ?: "").takeIf { it.isFile }?.delete() } catch (e: Exception) { }
-            finish(ctx, id, meal, "Couldn't make out the meal. Say what you ate instead, or add the foods yourself.")
+            finish(ctx, id, meal, tr("Couldn't make out the meal. Say what you ate instead, or add the foods yourself."))
         }
     }
 
@@ -142,11 +149,11 @@ object MealWork {
     fun fromWords(context: Context, text: String) {
         if (text.isBlank()) return
         val ctx = context.applicationContext
-        val id = start(Status.Working("Working out your meal…"))
+        val id = start(Status.Working(tr("Working out your meal…"), en = "Working out your meal…"))
         job(ctx) {
             val meal = try { Ai.mealFromWords(ctx, MealAi.words(text), "words") } catch (e: Throwable) { null }
                 ?.let { m -> m.copy(tags = (m.tags + MealTags.fromWords(text)).distinct()) }
-            finish(ctx, id, meal, "Couldn't work that out. Try naming each food, like \"2 slices of toast and jam\".")
+            finish(ctx, id, meal, tr("Couldn't work that out. Try naming each food, like \"2 slices of toast and jam\"."))
         }
     }
 
@@ -156,7 +163,7 @@ object MealWork {
         if (text.isBlank()) return
         val ctx = context.applicationContext
         val id = ++counter
-        draft = draft!!.copy(id = id, status = Status.Working("Changing it…"), meal = current)
+        draft = draft!!.copy(id = id, status = Status.Working(tr("Changing it…"), en = "Changing it…"), meal = current)
         job(ctx) {
             val meal = try { Ai.mealFromWords(ctx, MealAi.change(current, text), current.source) } catch (e: Throwable) { null }
                 ?.let { m -> m.copy(tags = (current.tags + m.tags + MealTags.fromWords(text)).distinct()) }
@@ -236,7 +243,7 @@ object MealWork {
     /** A photo of a nutrition label: exact numbers, then how much was eaten. */
     fun fromLabel(context: Context, uri: Uri) {
         val ctx = context.applicationContext
-        val id = start(Status.Working("Reading the label…"))
+        val id = start(Status.Working(tr("Reading the label…"), en = "Reading the label…"))
         job(ctx) {
             val lines = Scan.lines(ctx, uri)
             val found = Label.read(lines)
@@ -255,8 +262,9 @@ object MealWork {
                 ai?.carbs != null -> ai.copy(us = Label.isUs(lines))
                 else -> null
             }
-            val why = if (lines.isEmpty()) Scan.problem else "Found text, but no carbs or sugars in it."
-            if (p == null) Diag.log(ctx, "Label: nothing usable (${why ?: "?"}; ${Scan.lastText.size} lines read; AI ${if (ai != null) "answered" else if (Ai.usable) "had no answer" else "not ready"})")
+            val why = if (lines.isEmpty()) Scan.problem else tr("Found text, but no carbs or sugars in it.")
+            val whyEn = if (lines.isEmpty()) Scan.problemEn else "Found text, but no carbs or sugars in it."
+            if (p == null) Diag.log(ctx, "Label: nothing usable (${whyEn ?: "?"}; ${Scan.lastText.size} lines read; AI ${if (ai != null) "answered" else if (Ai.usable) "had no answer" else "not ready"})")
             else if (found?.carbs == null) Diag.log(ctx, "Label: the parser missed it, the AI read it (${Scan.lastText.size} lines)")
             val seen = Scan.lastText
             // The label of a packet whose barcode wasn't found: what's read here is kept for that barcode.
@@ -290,7 +298,7 @@ object MealWork {
      */
     fun fromBarcode(context: Context, uri: Uri) {
         val ctx = context.applicationContext
-        val id = start(Status.Working("Reading the barcode…"))
+        val id = start(Status.Working(tr("Reading the barcode…"), en = "Reading the barcode…"))
         job(ctx) {
             val code = try { Barcodes.read(ctx, uri) } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -302,12 +310,12 @@ object MealWork {
                 if (!Barcodes.unreadable) Diag.log(ctx, "Barcode: none found on the photo")
                 land(id, Draft(id, Status.NeedsGrams(
                     Label.Per100(null, null, null), read = false, source = "barcode",
-                    why = if (Barcodes.unreadable) "Couldn't open the photo the camera took. Try again, and if it keeps happening, send a problem report from More."
-                        else "No barcode found on the photo. Take it again closer, with the stripes filling most of the frame, or scan the label instead.",
+                    why = if (Barcodes.unreadable) tr("Couldn't open the photo the camera took. Try again, and if it keeps happening, send a problem report from More.")
+                        else tr("No barcode found on the photo. Take it again closer, with the stripes filling most of the frame, or scan the label instead."),
                 )))
                 return@job
             }
-            land(id, Draft(id, Status.Working("Looking up the packet…")))
+            land(id, Draft(id, Status.Working(tr("Looking up the packet…"), en = "Looking up the packet…")))
             val blank = Label.Per100(null, null, null)
             land(id, Draft(id, when (val r = Barcodes.lookup(ctx, code)) {
                 is Barcodes.Result.Ok -> Status.NeedsGrams(r.found.per100, code = code, source = if (r.saved) "saved" else "off", portion = r.found.serving)
@@ -315,14 +323,14 @@ object MealWork {
                     missing = code; missingAt = System.currentTimeMillis()
                     Diag.log(ctx, "Barcode: $code isn't in Open Food Facts")
                     Status.NeedsGrams(blank, read = false, code = code, source = "barcode",
-                        why = "This packet isn't in Open Food Facts yet. Type the numbers from its label, or scan the label. Dropi keeps them for next time.")
+                        why = tr("This packet isn't in Open Food Facts yet. Type the numbers from its label, or scan the label. Dropi keeps them for next time."))
                 }
                 is Barcodes.Result.Offline -> {
                     missing = code; missingAt = System.currentTimeMillis()
                     Status.NeedsGrams(blank, read = false, code = code, source = "barcode",
-                        why = "Couldn't reach Open Food Facts. Check the internet connection and try again, or type the numbers from the label.")
+                        why = tr("Couldn't reach Open Food Facts. Check the internet connection and try again, or type the numbers from the label."))
                 }
-                Barcodes.Result.NoBarcode -> Status.NeedsGrams(blank, read = false, source = "barcode", why = "No barcode found on the photo.")
+                Barcodes.Result.NoBarcode -> Status.NeedsGrams(blank, read = false, source = "barcode", why = tr("No barcode found on the photo."))
             }))
         }
     }
@@ -398,7 +406,7 @@ object MealWork {
     private fun finish(ctx: Context, id: Long, meal: Meal?, failed: String) {
         if (draft?.id != id) return
         if (meal == null) {
-            Diag.log(ctx, "Meal: couldn't be worked out (${draft?.status?.let { (it as? Status.Working)?.what } ?: "?"}, AI ${if (Ai.usable) Ai.name else "not ready"})")
+            Diag.log(ctx, "Meal: couldn't be worked out (${draft?.status?.let { (it as? Status.Working)?.en } ?: "?"}, AI ${if (Ai.usable) Ai.name else "not ready"})")
             land(id, Draft(id, Status.Failed(failed)))
             if (!open || !visible) Alerts.postMealFailed(ctx)
             return

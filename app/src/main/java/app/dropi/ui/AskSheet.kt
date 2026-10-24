@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.Ask
 import androidx.compose.ui.platform.LocalContext
 import app.dropi.work.Ai
@@ -55,8 +56,8 @@ fun AskEntry(state: AppState) {
         Ic(R.drawable.lc_message_circle, C.TextSecondary, 20.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("Ask about your numbers", style = inter(15.sp, FontWeight.SemiBold))
-            Text("“How was my week?” “Any lows lately?”", style = inter(13.sp, color = C.TextMuted))
+            Text(tr("Ask about your numbers"), style = inter(15.sp, FontWeight.SemiBold))
+            Text(tr("“How was my week?” “Any lows lately?”"), style = inter(13.sp, color = C.TextMuted))
         }
         Ic(R.drawable.lc_arrow_right, C.TextMuted, 18.dp)
     }
@@ -72,8 +73,17 @@ private class Turn(val q: String, a: String?) {
     var a by mutableStateOf(a)
 }
 
-/** Anything that reads like a dose ("4 units", "2u") is never shown. */
-private val doseLike = Regex("\\b\\d+(\\.\\d+)?\\s*(units?|u|iu)\\b", RegexOption.IGNORE_CASE)
+/**
+ * Anything that reads like a dose ("4 units", "2u", "4,5 einingar", "6 ein.") is never shown.
+ * The model may answer in Icelandic, so Icelandic unit words and a decimal comma count too.
+ */
+private val doseLike = Regex(
+    "\\b\\d+([.,]\\d+)?\\s*(units?|u(?!\\.\\s*þ)|iu|eining\\w*|ein\\.|a\\.e\\.)(?!\\w)",
+    RegexOption.IGNORE_CASE,
+)
+
+/** Icelandic dose talk without a number in front ("taktu insúlínskammt"). */
+private val doseWords = Regex("insúlínskammt\\w*|skammt\\w* af insúlíni|insúlíneining\\w*", RegexOption.IGNORE_CASE)
 
 @Composable
 private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
@@ -100,15 +110,15 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             val facts = withContext(Dispatchers.Default) { Ask.facts(state.askCtx()) }
             val reply = Ai.ask(context, Ask.prompt(q, facts))
             turn.a = when {
-                reply == null -> "Couldn't answer that just now. Try one of the questions above."
-                doseLike.containsMatchIn(reply) -> "I can't help with doses. Your care team can."
+                reply == null -> tr("Couldn't answer that just now. Try one of the questions above.")
+                doseLike.containsMatchIn(reply) || doseWords.containsMatchIn(reply) -> tr("I can't help with doses. Your care team can.")
                 else -> reply
             }
             busy = false
         }
     }
 
-    StickySheetBody("Ask Dropi", close) {
+    StickySheetBody(tr("Ask Dropi"), close) {
         // Ready-made questions: worked out exactly from the log, on every phone.
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Ask.Q.entries.chunked(2).forEach { pair ->
@@ -137,14 +147,14 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                 Text(t.q, style = heading(17.sp))
                 val a = t.a
                 Text(
-                    a ?: Ai.warmUp ?: "Thinking…",
+                    a ?: Ai.warmUp ?: tr("Thinking…"),
                     style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
                 )
             }
         }
 
         if (needAi) {
-            AiNeededDialog("Asking in your own words", "Ask it", onDismiss = { needAi = false }, readyIcon = R.drawable.lc_send) {
+            AiNeededDialog(tr("Asking in your own words"), tr("Ask it"), onDismiss = { needAi = false }, readyIcon = R.drawable.lc_send) {
                 needAi = false
                 askTyped(text)
             }
@@ -160,7 +170,7 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
-                    if (text.isEmpty()) Text("Ask in your own words", style = inter(15.sp, color = C.TextMuted))
+                    if (text.isEmpty()) Text(tr("Ask in your own words"), style = inter(15.sp, color = C.TextMuted))
                     BasicTextField(
                         value = text,
                         onValueChange = { text = it.take(300) },
@@ -179,19 +189,19 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                         .background(if (text.isNotBlank() && !busy) C.Accent else C.Card)
                         .tap(enabled = text.isNotBlank() && !busy) { askTyped(text) },
                     contentAlignment = Alignment.Center,
-                ) { Ic(R.drawable.lc_send, if (text.isNotBlank() && !busy) C.OnAccent else C.TextMuted, 18.dp, contentDescription = "Ask") }
+                ) { Ic(R.drawable.lc_send, if (text.isNotBlank() && !busy) C.OnAccent else C.TextMuted, 18.dp, contentDescription = tr("Ask")) }
             }
         }
 
         SheetHint(
             when {
-                Ai.usable -> "Answers come from your own log, worked out on this phone by ${Ai.name}. Nothing is uploaded."
-                Ai.checking -> "Answers come from your own log, worked out on this phone."
+                Ai.usable -> tr("Answers come from your own log, worked out on this phone by {0}. Nothing is uploaded.", Ai.name)
+                Ai.checking -> tr("Answers come from your own log, worked out on this phone.")
                 Gemma.state is Gemma.State.Unsupported ->
-                    "Typing your own question needs an on-device AI model this phone can't run. The questions above work on any phone."
+                    tr("Typing your own question needs an on-device AI model this phone can't run. The questions above work on any phone.")
                 else ->
-                    "Typing your own questions needs the on-device model; send one and Dropi offers the download. The questions above work now."
-            } + " Dropi doesn't give medical or dose advice."
+                    tr("Typing your own questions needs the on-device model; send one and Dropi offers the download. The questions above work now.")
+            } + " " + tr("Dropi doesn't give medical or dose advice.")
         )
     }
 }

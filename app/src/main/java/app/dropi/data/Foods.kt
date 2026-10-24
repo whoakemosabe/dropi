@@ -128,10 +128,11 @@ object Foods {
         return if (s.size % 2 == 1) s[s.size / 2] else (s[s.size / 2 - 1] + s[s.size / 2]) / 2
     }
 
-    /** A change in the person's unit with its sign: "+2.4", "−0.3", "+43". */
-    fun delta(mmol: Double, unit: GlucoseUnit): String {
+    /** A change in the person's unit with its sign: "+2.4" ("+2,4" in Icelandic), "−0.3", "+43". [plain]: always a point (prompts, CSV). */
+    fun delta(mmol: Double, unit: GlucoseUnit, plain: Boolean = false): String {
         val v = if (unit == GlucoseUnit.MGDL) (mmol * Glucose.MGDL_PER_MMOL).roundToInt().toDouble() else Math.round(mmol * 10) / 10.0
-        val body = if (unit == GlucoseUnit.MGDL) "${kotlin.math.abs(v).toInt()}" else String.format(Locale.ROOT, "%.1f", kotlin.math.abs(v))
+        val body = if (unit == GlucoseUnit.MGDL) "${kotlin.math.abs(v).toInt()}"
+            else String.format(Locale.ROOT, "%.1f", kotlin.math.abs(v)).let { if (plain) it else it.replace('.', app.dropi.L.decimal) }
         return when {
             v > 0 -> "+$body"
             v < 0 -> "−$body"

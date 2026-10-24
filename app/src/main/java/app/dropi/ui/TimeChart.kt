@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.heightIn
 import app.dropi.R
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.Agp
 import app.dropi.data.Foods
 import app.dropi.data.Glucose
@@ -122,17 +124,17 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 10.sp, color = muted, fontWeight = FontWeight.Medium)
     val clock = remember { DateTimeFormatter.ofPattern(if (fmt.is24) "HH:mm" else "ha", Locale.ENGLISH) }
-    val weekday = remember { DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH) }
-    val dayMonth = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
+    val weekday = remember { dayPattern("EEE d") }
+    val dayMonth = remember { dayPattern("d MMM") }
     val meals = remember(state.meals, state.measuredById) { state.meals.associateWith { state.outcome(it) } }
 
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Every reading", style = SectionLabel, modifier = Modifier.weight(1f))
+            Text(tr("Every reading"), style = SectionLabel, modifier = Modifier.weight(1f))
             Text(rangeText(start, end, zone, fmt), style = inter(13.sp, FontWeight.Medium, C.TextMuted))
         }
         val chosen = presets.withIndex().minByOrNull { (_, p) -> abs(kotlin.math.ln(p.toDouble() / span)) }?.index ?: 0
-        SlidingSegments(listOf("Day", "3 days", "Week", "Month"), chosen, Modifier.fillMaxWidth()) {
+        SlidingSegments(listOf(tr("Day"), tr("3 days"), tr("Week"), tr("Month")), chosen, Modifier.fillMaxWidth()) {
             span = presets[it]
             end = now + HOUR
             clamp()
@@ -147,10 +149,20 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                 .height(plotH + 22.dp)
                 .onSizeChanged { boxW = it.width }
                 .semantics {
-                    contentDescription = "Readings from ${rangeText(start, end, zone, fmt)}: ${visible.size} readings" +
-                        (visible.maxByOrNull { it.mmol }?.let { ", highest ${Glucose.format(it.mmol, unit)}" } ?: "") +
-                        (visible.minByOrNull { it.mmol }?.let { ", lowest ${Glucose.format(it.mmol, unit)}" } ?: "") +
-                        ". Pinch to zoom, drag sideways to move in time."
+                    val range = rangeText(start, end, zone, fmt)
+                    val hiR = visible.maxByOrNull { it.mmol }
+                    val loR = visible.minByOrNull { it.mmol }
+                    val what = if (hiR != null && loR != null) {
+                        trn(
+                            visible.size,
+                            "Readings from {1}: {0} reading, highest {2}, lowest {3}.",
+                            "Readings from {1}: {0} readings, highest {2}, lowest {3}.",
+                            range, Glucose.format(hiR.mmol, unit), Glucose.format(loR.mmol, unit),
+                        )
+                    } else {
+                        trn(visible.size, "Readings from {1}: {0} reading.", "Readings from {1}: {0} readings.", range)
+                    }
+                    contentDescription = what + " " + tr("Pinch to zoom, drag sideways to move in time.")
                 },
         ) {
             Canvas(
@@ -250,7 +262,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                         drawLine(grid.copy(alpha = if (midnight) 0.9f else 0.4f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
                         val label = when {
                             step < DAY && !midnight -> clock.format(local)
-                            step <= DAY -> weekday.format(local)
+                            step <= DAY -> weekday.format(local).cap()
                             else -> dayMonth.format(local)
                         }
                         val tl = measurer.measure(label, labelStyle.copy(color = if (midnight) textCol else muted))
@@ -352,7 +364,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
 
                 // Value labels on the left.
                 listOf(Glucose.LOW, Glucose.TIR_HIGH, maxV).forEach { g ->
-                    val tl = measurer.measure(Glucose.format(g, unit).removeSuffix(".0"), labelStyle)
+                    val tl = measurer.measure(Glucose.format(g, unit).removeSuffix(".0").removeSuffix(",0"), labelStyle)
                     drawText(tl, topLeft = Offset(0f, (yOf(g) - tl.size.height / 2f).coerceIn(0f, h - tl.size.height)))
                 }
             }
@@ -360,9 +372,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
 
         // Overlays, as switches that wrap (never a sideways-scrolling row).
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("Your targets", selected = showTargets) { showTargets = !showTargets }
-            Chip("Meals", icon = R.drawable.lc_utensils, selected = showMeals) { showMeals = !showMeals }
-            if (sensor.isNotEmpty()) Chip("Sensor", icon = R.drawable.lc_activity, selected = showSensor) { showSensor = !showSensor }
+            Chip(tr("Your targets"), selected = showTargets) { showTargets = !showTargets }
+            Chip(tr("Meals"), icon = R.drawable.lc_utensils, selected = showMeals) { showMeals = !showMeals }
+            if (sensor.isNotEmpty()) Chip(tr("Sensor"), icon = R.drawable.lc_activity, selected = showSensor) { showSensor = !showSensor }
         }
 
         // The key: only what's on the chart right now.
@@ -376,24 +388,24 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            KeyRow(KeyMark.BAND, C.InRange, "Shaded: in range, 3.9–10.0")
+            KeyRow(KeyMark.BAND, C.InRange, tr("Shaded: in range, {0}", "${Glucose.format(Glucose.LOW, unit)}–${Glucose.format(Glucose.TIR_HIGH, unit)}"))
             if (zoomedOut) {
-                KeyRow(KeyMark.BAR, C.TextSecondary, "Bar: one day, lowest to highest; dot is the average")
-                KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), "Grey line: joins each day's average")
+                KeyRow(KeyMark.BAR, C.TextSecondary, tr("Bar: one day, lowest to highest; dot is the average"))
+                KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins each day's average"))
             } else {
-                KeyRow(KeyMark.DOT, C.InRange, "Dot: a reading, coloured by range (tap one)")
-                if (!(showSensor && inView)) KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), "Grey line: joins your readings in time order")
+                KeyRow(KeyMark.DOT, C.InRange, tr("Dot: a reading, coloured by range (tap one)"))
+                if (!(showSensor && inView)) KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins your readings in time order"))
             }
             if (showTargets) {
                 val t = state.targets
-                KeyRow(KeyMark.BAND, C.AccentText, "Light band: your before-eating target, ${Glucose.format(t.beforeLow, unit)}–${Glucose.format(t.beforeHigh, unit)}")
-                KeyRow(KeyMark.FLAT_DASH, C.AccentText, "Flat dashes: your after-eating limit, ${Glucose.format(t.afterHigh, unit)}")
+                KeyRow(KeyMark.BAND, C.AccentText, tr("Light band: your before-eating target, {0}–{1}", Glucose.format(t.beforeLow, unit), Glucose.format(t.beforeHigh, unit)))
+                KeyRow(KeyMark.FLAT_DASH, C.AccentText, tr("Flat dashes: your after-eating limit, {0}", Glucose.format(t.afterHigh, unit)))
             }
             if (showMeals && !zoomedOut) {
-                KeyRow(KeyMark.SQUARE, C.AccentText, "Square: a meal, when you ate it")
-                KeyRow(KeyMark.SLOPE_DASH, C.AccentText, "Sloped dashes: from the meal up to its peak")
+                KeyRow(KeyMark.SQUARE, C.AccentText, tr("Square: a meal, when you ate it"))
+                KeyRow(KeyMark.SLOPE_DASH, C.AccentText, tr("Sloped dashes: from the meal up to its peak"))
             }
-            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], "Coloured line: sensor values")
+            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], tr("Coloured line: sensor values"))
         }
 
         val s = selected
@@ -408,12 +420,12 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                         style = inter(13.sp, color = C.TextSecondary),
                     )
                 }
-                Chip("Edit", icon = R.drawable.lc_pencil) { state.editing = s }
+                Chip(tr("Edit"), icon = R.drawable.lc_pencil) { state.editing = s }
             }
         } else {
             Text(
-                "Pinch to zoom, drag sideways to go back in time, tap a dot for details." +
-                    if (span > 10 * DAY) " Zoomed out, each day is a bar from its lowest to highest reading." else "",
+                tr("Pinch to zoom, drag sideways to go back in time, tap a dot for details.") +
+                    if (span > 10 * DAY) " " + tr("Zoomed out, each day is a bar from its lowest to highest reading.") else "",
                 style = inter(13.sp, FontWeight.Medium, C.TextMuted).copy(lineHeight = 17.sp),
             )
         }
@@ -423,8 +435,8 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
 private fun rangeText(start: Long, end: Long, zone: ZoneId, fmt: Fmt): String {
     val a = Instant.ofEpochMilli(start).atZone(zone).toLocalDate()
     val b = Instant.ofEpochMilli(end).atZone(zone).toLocalDate()
-    val f = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
-    return if (a == b) DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH).format(a) else "${f.format(a)} – ${f.format(b)}"
+    val f = dayPattern("d MMM")
+    return if (a == b) dayPattern("EEE d MMM").format(a).cap() else "${f.format(a)} – ${f.format(b)}"
 }
 
 /**
@@ -440,10 +452,10 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
     val hours = remember(report, state.sensor) { Agp.profile(report.readings, state.sensor.filter { it.at >= from }, zone) }
     val have = hours.filterNotNull()
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Typical day", style = SectionLabel)
+        Text(tr("Typical day"), style = SectionLabel)
         if (have.size < 6) {
             Text(
-                "Every day of the period laid over one day shows your patterns. It needs readings at more times of day, so keep logging.",
+                tr("Every day of the period laid over one day shows your patterns. It needs readings at more times of day, so keep logging."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
             )
             return@Column
@@ -465,8 +477,10 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
                 .fillMaxWidth()
                 .height(200.dp)
                 .semantics {
-                    contentDescription = "Typical day. Highest around ${hi.hour}:00 at ${Glucose.format(hi.p50, unit)}, " +
-                        "lowest around ${lo.hour}:00 at ${Glucose.format(lo.p50, unit)}."
+                    contentDescription = tr(
+                        "Typical day. Highest around {0} at {1}, lowest around {2} at {3}.",
+                        "%02d:00".format(hi.hour), Glucose.format(hi.p50, unit), "%02d:00".format(lo.hour), Glucose.format(lo.p50, unit),
+                    )
                 },
         ) {
             val left = 30.dp.toPx()
@@ -507,17 +521,17 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
                 drawText(tl, topLeft = Offset((x - tl.size.width / 2f).coerceIn(left, size.width - tl.size.width), h + 4.dp.toPx()))
             }
             listOf(Glucose.LOW, Glucose.TIR_HIGH, maxV).forEach { g ->
-                val tl = measurer.measure(Glucose.format(g, unit).removeSuffix(".0"), labelStyle)
+                val tl = measurer.measure(Glucose.format(g, unit).removeSuffix(".0").removeSuffix(",0"), labelStyle)
                 drawText(tl, topLeft = Offset(0f, (yOf(g) - tl.size.height / 2f).coerceIn(0f, h - tl.size.height)))
             }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Legend(C.Text, "Middle value", line = true)
-            Legend(C.Aurora[1].copy(alpha = 0.5f), "Half your readings")
-            Legend(C.Aurora[2].copy(alpha = 0.3f), "8 in 10")
+            Legend(C.Text, tr("Middle value"), line = true)
+            Legend(C.Aurora[1].copy(alpha = 0.5f), tr("Half your readings"))
+            Legend(C.Aurora[2].copy(alpha = 0.3f), tr("8 in 10"))
         }
         Text(
-            "Highest around ${"%02d:00".format(hi.hour)} (${Glucose.format(hi.p50, unit)}), lowest around ${"%02d:00".format(lo.hour)} (${Glucose.format(lo.p50, unit)}).",
+            tr("Highest around {0} ({1}), lowest around {2} ({3}).", "%02d:00".format(hi.hour), Glucose.format(hi.p50, unit), "%02d:00".format(lo.hour), Glucose.format(lo.p50, unit)),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
     }

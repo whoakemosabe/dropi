@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import app.dropi.data.GlucoseUnit
 import app.dropi.data.MeterScan
+import app.dropi.tr
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -106,26 +107,36 @@ object Scan {
     @Volatile var lastText: List<String> = emptyList()
         private set
 
-    /** Why the last scan read nothing, for the screen (null when it worked). */
+    /** Why the last scan read nothing, for the screen, in the app's language (null when it worked). */
     @Volatile var problem: String? = null
         private set
 
+    /** The same in English, for problem reports. */
+    @Volatile var problemEn: String? = null
+        private set
+
+    private fun setProblem(en: String?, shown: String?) { problemEn = en; problem = shown }
+
+    private fun cantOpen() = setProblem("Couldn't open the photo.", tr("Couldn't open the photo."))
+    private fun noText() = setProblem("No text found on the photo.", tr("No text found on the photo."))
+    private fun readerFailed(e: Exception) = setProblem("The text reader failed: ${e.message?.take(80)}", tr("The text reader failed: {0}", e.message?.take(80)))
+
     /** The reading in mmol/L, or null if no plausible number was found. */
     suspend fun read(context: Context, uri: Uri, unit: GlucoseUnit): Double? = withContext(Dispatchers.Default) {
-        val pieces = try { recognise(context, uri) } catch (e: Throwable) { problem = "Couldn't open the photo."; Diag.log(context, "Meter: couldn't open the photo (${e.javaClass.simpleName})"); emptyList() }
+        val pieces = try { recognise(context, uri) } catch (e: Throwable) { cantOpen(); Diag.log(context, "Meter: couldn't open the photo (${e.javaClass.simpleName})"); emptyList() }
         try { photoFile(context).delete() } catch (e: Exception) { }
         MeterScan.pick(pieces, unit).also { if (it == null) Diag.log(context, "Meter: no reading found among ${pieces.size} pieces of text (${pieces.take(12).joinToString(" | ") { p -> p.text }})") }
     }
 
     /** Every line of text on a photo, top to bottom (nutrition labels). The photo is then deleted. */
     suspend fun lines(context: Context, uri: Uri): List<String> = withContext(Dispatchers.Default) {
-        problem = null
+        setProblem(null, null)
         val image = try { image(context, uri) } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Diag.log(context, "Label: opening the photo failed (${e.javaClass.simpleName}: ${e.message?.take(160)})")
             null
         }
-        if (image == null) { problem = "Couldn't open the photo."; return@withContext emptyList() }
+        if (image == null) { cantOpen(); return@withContext emptyList() }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         try {
             suspendCancellableCoroutine { cont ->
@@ -145,14 +156,14 @@ object Scan {
                         out += app.dropi.data.Label.rows(placed)
                         all.forEach { out += it.text }
                         lastText = all.map { it.text }
-                        if (out.isEmpty()) problem = "No text found on the photo."
+                        if (out.isEmpty()) noText()
                         cont.resume(out)
                     }
-                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
+                    .addOnFailureListener { e -> readerFailed(e); Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            problem = "The text reader failed."
+            setProblem("The text reader failed.", tr("The text reader failed."))
             Diag.log(context, "Label: the text reader failed (${e.javaClass.simpleName}: ${e.message?.take(160)})")
             emptyList()
         } finally {
@@ -161,8 +172,8 @@ object Scan {
     }
 
     private suspend fun recognise(context: Context, uri: Uri): List<MeterScan.Piece> {
-        problem = null
-        val image = image(context, uri) ?: run { problem = "Couldn't open the photo."; return emptyList() }
+        setProblem(null, null)
+        val image = image(context, uri) ?: run { cantOpen(); return emptyList() }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         return try {
             suspendCancellableCoroutine { cont ->
@@ -174,10 +185,10 @@ object Scan {
                             out += MeterScan.Piece(line.text, lh)
                             for (el in line.elements) out += MeterScan.Piece(el.text, el.boundingBox?.height() ?: lh)
                         }
-                        if (out.isEmpty()) problem = "No text found on the photo."
+                        if (out.isEmpty()) noText()
                         cont.resume(out)
                     }
-                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
+                    .addOnFailureListener { e -> readerFailed(e); Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
             }
         } finally {
             recognizer.close()
