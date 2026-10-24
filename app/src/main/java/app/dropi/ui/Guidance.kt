@@ -56,7 +56,7 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
     )
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val shape = RoundedCornerShape(24.dp)
+        val shape = RoundedCornerShape(Corner.XL)
         Column(
             Modifier
                 .padding(horizontal = 24.dp)
@@ -65,12 +65,12 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                 .clip(shape)
                 .background(C.Card)
                 .border(1.dp, c.copy(alpha = 0.5f), shape)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(c.copy(alpha = 0.16f)),
+                    Modifier.size(36.dp).clip(RoundedCornerShape(Corner.S)).background(c.copy(alpha = 0.16f)),
                     contentAlignment = Alignment.Center,
                 ) { Ic(if (low) R.drawable.lc_circle_alert else R.drawable.lc_heart_pulse, c, 20.dp) }
                 Spacer(Modifier.width(12.dp))
@@ -79,17 +79,17 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                     Text(value, style = numeral(26.sp))
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 steps.forEachIndexed { i, s ->
                     Row {
                         Text("${i + 1}", style = inter(13.sp, FontWeight.Bold, C.TextMuted), modifier = Modifier.width(20.dp))
-                        Text(s, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
+                        Text(s, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
                     }
                 }
             }
             Text(
                 "General guidance only. Follow the plan you agreed with your care team.",
-                style = inter(12.sp, color = C.TextMuted),
+                style = inter(13.sp, color = C.TextMuted),
             )
             if (low && onRecheck != null) {
                 val at = recheckAt

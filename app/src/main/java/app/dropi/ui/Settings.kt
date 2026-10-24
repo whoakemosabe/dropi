@@ -328,7 +328,7 @@ private fun openLink(context: android.content.Context, url: String) {
 
 @Composable
 fun SheetSection(title: String, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, style = SectionLabel)
         content()
     }
@@ -338,9 +338,9 @@ fun SheetSection(title: String, content: @Composable () -> Unit) {
 private fun TargetLine(label: String, value: String, color: Color) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(color))
-        Spacer(Modifier.width(10.dp))
-        Text(label, style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
-        Text(value, style = inter(14.sp, FontWeight.Bold, C.Text))
+        Spacer(Modifier.width(12.dp))
+        Text(label, style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
+        Text(value, style = inter(15.sp, FontWeight.Bold, C.Text))
     }
 }
 
@@ -348,15 +348,15 @@ private fun TargetLine(label: String, value: String, color: Color) {
 @Composable
 private fun TargetStepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
+        Text(label, style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
         Chip("−") { onMinus() }
-        Text(value, style = inter(16.sp, FontWeight.Bold, C.Text), modifier = Modifier.padding(horizontal = 8.dp))
+        Text(value, style = inter(17.sp, FontWeight.Bold, C.Text), modifier = Modifier.padding(horizontal = 8.dp))
         Chip("+") { onPlus() }
     }
 }
 
 @Composable
 fun SheetHint(text: String) {
-    Spacer(Modifier.height(2.dp))
-    Text(text, style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp))
+    Spacer(Modifier.height(4.dp))
+    Text(text, style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp))
 }

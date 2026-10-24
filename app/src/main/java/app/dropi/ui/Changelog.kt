@@ -62,11 +62,11 @@ private fun ColumnScope.ChangelogContent(close: () -> Unit) {
         val list = log
         when {
             list == null && failed -> {
-                Text("Couldn't reach GitHub for the list of changes.", style = inter(14.sp, color = C.TextSecondary))
+                Text("Couldn't reach GitHub for the list of changes.", style = inter(15.sp, color = C.TextSecondary))
                 Chip("Try again", icon = R.drawable.lc_refresh_cw) { attempt++ }
             }
-            list == null -> Text("Loading…", style = inter(14.sp, color = C.TextMuted))
-            list.isEmpty() -> Text("No releases yet.", style = inter(14.sp, color = C.TextSecondary))
+            list == null -> Text("Loading…", style = inter(15.sp, color = C.TextMuted))
+            list.isEmpty() -> Text("No releases yet.", style = inter(15.sp, color = C.TextSecondary))
             else -> list.forEachIndexed { i, r ->
                 val current = r.version == installed
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
@@ -79,25 +79,25 @@ private fun ColumnScope.ChangelogContent(close: () -> Unit) {
                         }
                     }
                     Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f).padding(bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.weight(1f).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("v${r.version}", style = numeral(20.sp))
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             val d = try { day.format(LocalDate.parse(r.date)) } catch (e: Exception) { "" }
-                            Text(d, style = inter(12.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
+                            Text(d, style = inter(13.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
                             if (current) {
                                 Text(
                                     "On your phone",
-                                    style = inter(11.sp, FontWeight.SemiBold, C.OnAccent),
-                                    modifier = Modifier.clip(RoundedCornerShape(50)).background(C.Accent).padding(horizontal = 8.dp, vertical = 3.dp),
+                                    style = inter(13.sp, FontWeight.SemiBold, C.OnAccent),
+                                    modifier = Modifier.clip(RoundedCornerShape(50)).background(C.Accent).padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             }
                         }
                         val ink = if (current || i == 0) C.Text else C.TextSecondary
                         r.notes.forEach { n ->
                             Row {
-                                Text("–", style = inter(14.sp, color = C.TextMuted), modifier = Modifier.width(14.dp))
-                                Text(n, style = inter(14.sp, color = ink).copy(lineHeight = 20.sp))
+                                Text("–", style = inter(15.sp, color = C.TextMuted), modifier = Modifier.width(14.dp))
+                                Text(n, style = inter(15.sp, color = ink).copy(lineHeight = 20.sp))
                             }
                         }
                     }

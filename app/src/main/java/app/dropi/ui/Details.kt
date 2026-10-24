@@ -103,11 +103,11 @@ fun DetailsDialog(
                 .widthIn(max = 440.dp)
                 .fillMaxWidth()
                 .imePadding()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(Corner.XL))
                 .background(C.Card)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Details", style = heading(20.sp))
             Text(
@@ -135,10 +135,10 @@ fun DetailsDialog(
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Ic(R.drawable.lc_check, C.TextMuted, 18.dp)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Took my tablets", style = inter(15.sp, FontWeight.SemiBold))
-                    Text("Diabetes medicine other than insulin", style = inter(12.sp, color = C.TextMuted))
+                    Text("Diabetes medicine other than insulin", style = inter(13.sp, color = C.TextMuted))
                 }
                 Switch(
                     checked = d.meds,
@@ -150,15 +150,15 @@ fun DetailsDialog(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(Corner.M))
                     .background(C.SurfaceLight)
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
-                if (note.isEmpty()) Text("Note: how you feel, anything unusual…", style = inter(14.sp, color = C.TextMuted))
+                if (note.isEmpty()) Text("Note: how you feel, anything unusual…", style = inter(15.sp, color = C.TextMuted))
                 BasicTextField(
                     value = note,
                     onValueChange = { note = it.take(200) },
-                    textStyle = inter(14.sp, color = C.Text),
+                    textStyle = inter(15.sp, color = C.Text),
                     cursorBrush = SolidColor(C.AccentText),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     maxLines = 3,
@@ -182,7 +182,7 @@ fun DetailsDialog(
 private fun Stepper(label: String, value: String?, icon: Int, onMinus: () -> Unit, onPlus: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Ic(icon, C.TextMuted, 18.dp)
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, style = inter(15.sp, FontWeight.SemiBold))
             Text(value ?: "Not logged", style = inter(13.sp, FontWeight.Medium, if (value != null) C.Text else C.TextMuted))

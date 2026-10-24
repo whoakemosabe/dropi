@@ -59,16 +59,16 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
     StickySheetBody("Report a problem", close) {
         Text(
             "Say what didn't work, then send it. Dropi adds what it knows about the problem, so it can be fixed without guessing.",
-            style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
+            style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
         )
         Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 110.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(Corner.M))
                 .background(C.SurfaceLight)
-                .border(1.dp, C.GlassBorder, RoundedCornerShape(16.dp))
-                .padding(14.dp),
+                .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+                .padding(16.dp),
         ) {
             if (note.isEmpty()) Text("e.g. I scanned the skyr label and it said it couldn't read the numbers", style = inter(15.sp, color = C.TextMuted))
             BasicTextField(
@@ -83,7 +83,7 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
         Text(
             "Also included: the app version and phone, the on-device AI's state and which chip it runs on, your settings, " +
                 "the text from the last label scan, recent problems and the last crash. Not included: your readings, meals or notes.",
-            style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+            style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
         )
         PrimaryButton("Send report", Modifier.fillMaxWidth(), icon = R.drawable.lc_send) {
             val text = Diag.report(context, note)
@@ -102,17 +102,12 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
             SelectionContainer {
                 Text(
                     Diag.report(context, note),
-                    style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(12.dp),
+                    style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.M)).background(C.Card).padding(12.dp),
                 )
             }
         }
-        Text(
-            "Clear the problem list",
-            style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
-            modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(8.dp)).semantics { role = Role.Button }
-                .tap { Diag.clear(context); preview = false },
-        )
+        GhostButton("Clear the problem list", Modifier.fillMaxWidth()) { Diag.clear(context); preview = false }
     }
 }
 

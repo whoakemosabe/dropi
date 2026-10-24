@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -92,10 +96,10 @@ fun TrendsPage(state: AppState) {
         }
         if (report.count < 3) {
             item(key = "empty") {
-                Column(Modifier.fillMaxWidth().card().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().card().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Ic(R.drawable.lc_droplet, C.AccentText, 32.dp)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Not enough readings yet", style = inter(16.sp, FontWeight.Bold))
+                    Spacer(Modifier.height(12.dp))
+                    Text("Not enough readings yet", style = inter(17.sp, FontWeight.Bold))
                     Text(
                         "Trends appear after a few readings in this period. Keep logging and check back.",
                         style = inter(13.sp, color = C.TextSecondary),
@@ -104,15 +108,15 @@ fun TrendsPage(state: AppState) {
             }
             return@LazyColumn
         }
-        item(key = "headline") { Column { Headline(report, unit) } }
-        item(key = "lab") { LabA1cCard(state, report) }
-        report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
+        // The chart leads; then the numbers, time in range and a typical day.
         item(key = "chart") { TimeChart(state, fmt, now) }
+        item(key = "headline") { Column { Headline(report, unit) } }
+        report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
         item(key = "agp") { TypicalDay(state, report) }
         if (insights.isNotEmpty()) {
             item(key = "insights") {
                 // One card, read top to bottom: a coloured mark says good, worth a look, or just so.
-                Column(Modifier.fillMaxWidth().card().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Column(Modifier.fillMaxWidth().card().padding(horizontal = 16.dp, vertical = 16.dp)) {
                     Text("What stands out", style = SectionLabel)
                     insights.forEachIndexed { i, ins ->
                         val tint = when (ins.kind) {
@@ -124,16 +128,35 @@ fun TrendsPage(state: AppState) {
                         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
                             Box(Modifier.padding(top = 4.dp).width(3.dp).height(14.dp).clip(RoundedCornerShape(2.dp)).background(tint))
                             Spacer(Modifier.width(12.dp))
-                            Text(ins.text, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
+                            Text(ins.text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
                         }
                     }
                 }
             }
         }
         item(key = "ask") { AskEntry(state) }
-        if (report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
-        item(key = "table") { DailyTable(report, unit) }
-        item(key = "pdf") {
+        item(key = "lab") { LabA1cCard(state, report) }
+        // By moment, the day-by-day table and the PDF fold away under one row.
+        item(key = "more") {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .card()
+                    .semantics(mergeDescendants = true) { role = Role.Button; stateDescription = if (state.trendsMore) "Shown" else "Hidden" }
+                    .tap { state.trendsMore = !state.trendsMore }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("More detail", style = inter(15.sp, FontWeight.SemiBold))
+                    Text("By moment, day by day, PDF for your care team", style = inter(13.sp, color = C.TextMuted))
+                }
+                Ic(if (state.trendsMore) R.drawable.lc_chevron_up else R.drawable.lc_chevron_down, C.TextMuted, 18.dp)
+            }
+        }
+        if (state.trendsMore && report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
+        if (state.trendsMore) item(key = "table") { DailyTable(report, unit) }
+        if (state.trendsMore) item(key = "pdf") {
             // The doctor's report for exactly the days on screen.
             val scope = androidx.compose.runtime.rememberCoroutineScope()
             var busy by remember { mutableStateOf(false) }
@@ -157,7 +180,7 @@ fun TrendsPage(state: AppState) {
             Text(
                 "Based on your logged readings, not a sensor: time in range here is the share of readings. " +
                     "Estimated A1C (GMI) can differ from a lab A1C.",
-                style = inter(11.sp, color = C.TextMuted),
+                style = inter(13.sp, color = C.TextMuted),
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             )
         }
@@ -169,20 +192,20 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
     // The average big under the aurora, the estimated A1C beside it, then the period in a sentence.
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
-            Text("Average", style = inter(14.sp, FontWeight.Medium, C.TextSecondary))
+            Text("Average", style = inter(15.sp, FontWeight.Medium, C.TextSecondary))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(84.sp).copy(lineHeight = 88.sp))
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(unit.label, style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 16.dp))
             }
         }
-        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 10.dp)) {
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 12.dp)) {
             Text("Estimated A1C", style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
             val g = r.gmiPercent
             Text(g?.let { String.format(Locale.ROOT, "%.1f%%", it) } ?: "—", style = numeral(36.sp, if (g != null) C.Text else C.TextMuted))
             Text(
                 if (g != null) "${r.gmiMmolMol?.roundToInt()} mmol/mol" else "after a week",
-                style = inter(12.sp, FontWeight.Medium, C.TextMuted),
+                style = inter(13.sp, FontWeight.Medium, C.TextMuted),
             )
         }
     }
@@ -208,13 +231,13 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
         else withStyle(androidx.compose.ui.text.SpanStyle(color = C.Low)) { append(if (r.lows == 1) "1 low." else "${r.lows} lows.") }
     }
     Text(sentence, style = heading(19.sp, C.TextSecondary).copy(lineHeight = 26.sp), modifier = Modifier.padding(horizontal = 4.dp))
-    Spacer(Modifier.height(14.dp))
+    Spacer(Modifier.height(16.dp))
     Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(horizontal = 4.dp)) {
         SmallStat("Variability", r.cv?.let { "${it.roundToInt()}%" } ?: "—", "goal 36% or less", Modifier.weight(1f))
         Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
-        SmallStat("Lowest", r.readings.minOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 14.dp))
+        SmallStat("Lowest", r.readings.minOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 16.dp))
         Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
-        SmallStat("Highest", r.readings.maxOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 14.dp))
+        SmallStat("Highest", r.readings.maxOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 16.dp))
     }
 }
 
@@ -222,8 +245,8 @@ private fun Headline(r: Report, unit: GlucoseUnit) {
 private fun SmallStat(label: String, value: String, sub: String, modifier: Modifier) {
     Column(modifier) {
         Text(value, style = numeral(28.sp, C.Text), maxLines = 1)
-        Text(label, style = inter(12.sp, FontWeight.SemiBold, C.TextSecondary), maxLines = 1)
-        Text(sub, style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+        Text(label, style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary), maxLines = 1)
+        Text(sub, style = inter(13.sp, color = C.TextMuted), maxLines = 1)
     }
 }
 
@@ -247,7 +270,7 @@ private fun RangeCard(b: Bands, unit: GlucoseUnit) {
                 Spacer(Modifier.height(4.dp))
                 Text("${b.inRange.roundToInt()}%", style = numeral(34.sp, C.Text))
             }
-            Text("Goal: over 70%", style = inter(12.sp, FontWeight.Medium, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
+            Text("Goal: over 70%", style = inter(13.sp, FontWeight.Medium, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
         }
         // Low on the left, high on the right, like reading a scale.
         Canvas(Modifier.fillMaxWidth().height(16.dp)) {
@@ -268,10 +291,10 @@ private fun RangeCard(b: Bands, unit: GlucoseUnit) {
         segs.forEach { s ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(s.color))
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(s.label, style = inter(14.sp, FontWeight.SemiBold, C.Text))
-                    Text("${s.range} · goal ${s.goal}", style = inter(11.sp, color = C.TextMuted))
+                    Text(s.label, style = inter(15.sp, FontWeight.SemiBold, C.Text))
+                    Text("${s.range} · goal ${s.goal}", style = inter(13.sp, color = C.TextMuted))
                 }
                 Text("${s.pct.roundToInt()}%", style = inter(15.sp, FontWeight.Bold, C.Text))
             }
@@ -291,11 +314,11 @@ private fun ByMoment(state: AppState, r: Report) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Ic(t.tag.icon(), C.TextMuted, 13.dp)
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(t.tag.label, style = inter(13.sp, FontWeight.SemiBold, C.Text), modifier = Modifier.weight(1f))
-                    Text(plural(t.count, "reading"), style = inter(11.sp, color = C.TextMuted))
+                    Text(plural(t.count, "reading"), style = inter(13.sp, color = C.TextMuted))
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f).height(12.dp)) {
                         Box(
@@ -306,10 +329,10 @@ private fun ByMoment(state: AppState, r: Report) {
                                 .background(C.status(s))
                         )
                     }
-                    Spacer(Modifier.width(10.dp))
-                    Text(Glucose.format(t.average, unit), style = inter(14.sp, FontWeight.Bold, C.Text))
+                    Spacer(Modifier.width(12.dp))
+                    Text(Glucose.format(t.average, unit), style = inter(15.sp, FontWeight.Bold, C.Text))
                 }
-                Text(s.label, style = inter(11.sp, color = C.TextMuted))
+                Text(s.label, style = inter(13.sp, color = C.TextMuted))
             }
         }
     }
@@ -321,16 +344,16 @@ private fun DailyTable(r: Report, unit: GlucoseUnit) {
     var open by remember { mutableStateOf(false) }
     val df = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(8.dp)).tap { open = !open }, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(Corner.S)).tap { open = !open }, verticalAlignment = Alignment.CenterVertically) {
             Text("Daily averages", style = SectionLabel, modifier = Modifier.weight(1f))
             Text(if (open) "Hide" else "Show table", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
         }
         if (open) {
             Row {
-                Text("Day", style = inter(11.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1.4f))
-                Text("Readings", style = inter(11.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1f))
-                Text("Average", style = inter(11.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1f))
-                Text("Range", style = inter(11.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1.2f))
+                Text("Day", style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1.4f))
+                Text("Readings", style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1f))
+                Text("Average", style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1f))
+                Text("Range", style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1.2f))
             }
             r.byDay.reversed().forEach { d ->
                 Row {

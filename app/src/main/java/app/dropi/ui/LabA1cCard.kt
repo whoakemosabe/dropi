@@ -58,7 +58,7 @@ fun LabA1cCard(state: AppState, report: Report) {
     var adding by remember { mutableStateOf(false) }
     val df = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
     val list = state.labA1c
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("LAB A1C", style = SectionLabel, modifier = Modifier.weight(1f))
             Chip("Add result", icon = R.drawable.lc_plus) { adding = true }
@@ -73,12 +73,12 @@ fun LabA1cCard(state: AppState, report: Report) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
                     Text(pct(last.percent), style = numeral(28.sp, C.Text))
-                    Text("${last.mmolMol.roundToInt()} mmol/mol · ${df.format(last.date)}", style = inter(12.sp, color = C.TextSecondary))
+                    Text("${last.mmolMol.roundToInt()} mmol/mol · ${df.format(last.date)}", style = inter(13.sp, color = C.TextSecondary))
                 }
                 report.gmiPercent?.let { g ->
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("Estimate now", style = inter(11.sp, color = C.TextMuted))
-                        Text(pct(g), style = inter(18.sp, FontWeight.Bold, C.Text).copy(fontFeatureSettings = ""))
+                        Text("Estimate now", style = inter(13.sp, color = C.TextMuted))
+                        Text(pct(g), style = inter(17.sp, FontWeight.Bold, C.Text).copy(fontFeatureSettings = ""))
                     }
                 }
             }
@@ -91,7 +91,7 @@ fun LabA1cCard(state: AppState, report: Report) {
                         d > 0 -> "Your estimate is ${String.format(Locale.ROOT, "%.1f", d)} points above your last lab result."
                         else -> "Your estimate is ${String.format(Locale.ROOT, "%.1f", -d)} points below your last lab result."
                     },
-                    style = inter(12.sp, color = C.TextMuted),
+                    style = inter(13.sp, color = C.TextMuted),
                 )
             }
             // Earlier results, newest first; long-press-free removal with a small ×.
@@ -136,14 +136,14 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                 .padding(horizontal = 12.dp, vertical = 24.dp)
                 .widthIn(max = 460.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(Corner.XL))
                 .background(C.Card)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 18.dp),
+                .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Lab A1C result", style = heading(20.sp), modifier = Modifier.padding(horizontal = 20.dp))
-            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Lab A1C result", style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
+            Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SlidingSegments(listOf("%", "mmol/mol"), unit, Modifier.fillMaxWidth()) { unit = it }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Chip("−") {
@@ -163,12 +163,12 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                 }
                 Text(
                     if (unit == 0) "${A1c.toMmolMol(percent).roundToInt()} mmol/mol" else pct(percent),
-                    style = inter(12.sp, color = C.TextMuted),
+                    style = inter(13.sp, color = C.TextMuted),
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
-            Text("Test date", style = SectionLabel, modifier = Modifier.padding(horizontal = 20.dp))
+            Text("Test date", style = SectionLabel, modifier = Modifier.padding(horizontal = 24.dp))
             DatePicker(
                 state = dateState,
                 title = null,

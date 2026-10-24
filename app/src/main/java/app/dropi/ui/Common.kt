@@ -36,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.graphics.Brush
@@ -71,7 +73,18 @@ fun rememberNow(periodMs: Long): Long {
     return now
 }
 
-val CardShape = RoundedCornerShape(20.dp)
+/**
+ * The four corner sizes: small (chips, icon tiles, links), medium (buttons, fields, rows),
+ * large (cards), extra large (sheets and dialogs). Hairline bars (2–3 dp) are the only others.
+ */
+object Corner {
+    val S = 8.dp
+    val M = 14.dp
+    val L = 20.dp
+    val XL = 28.dp
+}
+
+val CardShape = RoundedCornerShape(Corner.L)
 
 fun Modifier.card(shape: Shape = CardShape, fill: Color = C.Card): Modifier = this
     .clip(shape)
@@ -98,7 +111,7 @@ fun Chip(
             .tap(press, onClick = onClick)
             // Screen readers hear whether it's on, not just the colour.
             .semantics { this.selected = selected }
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
     ) {
@@ -121,13 +134,13 @@ fun PrimaryButton(
         modifier
             .heightIn(min = 52.dp)
             .pressed(press)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(
                 if (enabled) Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow))
                 else Brush.horizontalGradient(listOf(C.SurfaceLight, C.SurfaceLight))
             )
             .tap(press, enabled = enabled, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -136,17 +149,28 @@ fun PrimaryButton(
             Ic(icon, fg, 18.dp)
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, style = inter(16.sp, FontWeight.Bold, fg))
+        Text(text, style = inter(17.sp, FontWeight.Bold, fg))
     }
 }
 
-/** A quiet text button. */
+/**
+ * The secondary button: a soft tint of its colour with a thin edge of the same colour, so it
+ * always reads as a button (plain text is kept for real links only).
+ */
 @Composable
 fun GhostButton(text: String, modifier: Modifier = Modifier, color: Color = C.TextSecondary, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Corner.M)
     Box(
-        modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).tap(onClick = onClick).padding(horizontal = 16.dp),
+        modifier
+            .heightIn(min = 48.dp)
+            .clip(shape)
+            .background(color.copy(alpha = 0.08f))
+            .border(1.dp, color.copy(alpha = 0.28f), shape)
+            .semantics { role = Role.Button }
+            .tap(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, style = inter(15.sp, FontWeight.SemiBold, color)) }
+    ) { Text(text, style = inter(15.sp, FontWeight.SemiBold, color), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
 }
 
 /** A thin bar that fills with download progress. */
@@ -181,10 +205,10 @@ fun SlidingSegments(
     BoxWithConstraints(
         modifier
             .height(height)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.SurfaceLight)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(14.dp))
-            .padding(3.dp)
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+            .padding(4.dp)
     ) {
         val segW = maxWidth / options.size
         Box(
@@ -192,7 +216,7 @@ fun SlidingSegments(
                 .offset { IntOffset((segW * pos).roundToPx(), 0) }
                 .width(segW)
                 .height(height - 6.dp)
-                .clip(RoundedCornerShape(11.dp))
+                .clip(RoundedCornerShape(Corner.S))
                 .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
         )
         Row(Modifier.fillMaxWidth().height(height - 6.dp)) {
@@ -263,7 +287,7 @@ fun ChoiceGrid(
 @Composable
 private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val press = rememberPress()
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(Corner.M)
     val fg = if (selected) C.OnAccent else C.TextSecondary
     Column(
         modifier
@@ -287,7 +311,7 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
         }
         Text(
             c.label,
-            style = inter(12.sp, FontWeight.SemiBold, fg),
+            style = inter(13.sp, FontWeight.SemiBold, fg),
             maxLines = 2,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )

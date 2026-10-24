@@ -37,7 +37,7 @@ object C {
 
     val Bg get() = pick(0xFF0B0C10, 0xFFEEF3FF, 0xFF0A0406)
     /** Slide-up sheets: between the page and its cards, so cards inside a sheet still stand out. */
-    val Sheet get() = pick(0xFF121318, 0xFFFFFFFF, 0xFF170A0E)
+    val Sheet get() = pick(0xFF121318, 0xFFF5F7FF, 0xFF110609)
     val Card get() = pick(0xFF1A1C23, 0xFFFFFFFF, 0xFF170A0E)
     val SurfaceLight get() = pick(0xFF262932, 0xFFE3E9FA, 0xFF261018)
     val Border get() = pick(0xFF383C47, 0xFFCDD6EE, 0xFF3D1621)
@@ -67,7 +67,8 @@ object C {
     val UrgentLow get() = pick(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
     val Low get() = pick(0xFFFF7F9C, 0xFFE5486E, 0xFFFF8FB0)
     val BelowTarget get() = pick(0xFF7EA4F2, 0xFF3D6AC2, 0xFF7FA7D9)
-    val InRange get() = pick(0xFF22D18A, 0xFF0E9F63, 0xFF9F8CFF)
+    // Dracula's own green: in range is never the violet the buttons use.
+    val InRange get() = pick(0xFF22D18A, 0xFF0E9F63, 0xFF50FA7B)
     val High get() = pick(0xFFF2B632, 0xFFA67C00, 0xFFF2C94C)
     val VeryHigh get() = pick(0xFFF06A2A, 0xFFD9480F, 0xFFE8622C)
 

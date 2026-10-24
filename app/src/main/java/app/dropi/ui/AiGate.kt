@@ -57,13 +57,13 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, rea
                 .padding(horizontal = 24.dp)
                 .widthIn(max = 420.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(26.dp))
+                .clip(RoundedCornerShape(Corner.XL))
                 .background(C.Card)
-                .padding(22.dp),
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(C.Aurora)),
+                Modifier.size(52.dp).clip(RoundedCornerShape(Corner.M)).background(Brush.linearGradient(C.Aurora)),
                 contentAlignment = Alignment.Center,
             ) { Ic(R.drawable.lc_message_circle, Color.White, 24.dp) }
 
@@ -109,7 +109,7 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, rea
                             "After that everything runs on your phone and nothing is uploaded. You can remove it any time in Settings.",
                         style = body,
                     )
-                    if (g is Gemma.State.Failed) Text(g.message, style = inter(14.sp, color = C.High))
+                    if (g is Gemma.State.Failed) Text(g.message, style = inter(15.sp, color = C.High))
                     PrimaryButton("Download (${Gemma.gb(Gemma.SIZE)} GB)", Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
                         scope.launch { Gemma.download(context) }
                     }

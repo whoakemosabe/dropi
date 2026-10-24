@@ -148,24 +148,24 @@ fun DropiRoot(state: AppState) {
                     .padding(start = 24.dp, end = 24.dp, bottom = 118.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(Corner.M))
                     .background(C.Text)
                     .semantics(mergeDescendants = false) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
-                    .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                    .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     if (deletedMeal != null) "${deletedMeal.name} deleted" else "Reading deleted",
-                    style = inter(14.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f),
+                    style = inter(15.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f),
                 )
                 Text(
                     "Undo",
-                    style = inter(14.sp, FontWeight.Bold, C.Bg),
+                    style = inter(15.sp, FontWeight.Bold, C.Bg),
                     modifier = Modifier
                         .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Corner.S))
                         .tap { if (state.lastDeletedMeal != null) state.undoDeleteMeal() else state.undoDelete() }
-                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                 )
             }
         }
@@ -186,13 +186,13 @@ fun DropiRoot(state: AppState) {
         ) {
             Text(
                 mealNote ?: "",
-                style = inter(14.sp, FontWeight.SemiBold, C.Bg),
+                style = inter(15.sp, FontWeight.SemiBold, C.Bg),
                 modifier = Modifier
                     .navigationBarsPadding()
                     .padding(start = 24.dp, end = 24.dp, bottom = 118.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(Corner.M))
                     .background(C.Text)
                     .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -307,7 +307,7 @@ private fun TopBar(state: AppState) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(Brush.linearGradient(C.Aurora)),
+            Modifier.size(36.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
             contentAlignment = Alignment.Center,
         ) { Ic(R.drawable.lc_droplet, C.OnAccent, 18.dp) }
         Spacer(Modifier.width(12.dp))
@@ -343,7 +343,7 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
     Box(
         Modifier
             .navigationBarsPadding()
-            .padding(bottom = 10.dp)
+            .padding(bottom = 12.dp)
             .widthIn(max = 460.dp)
             .fillMaxWidth()
             .height(104.dp),
@@ -438,7 +438,7 @@ private fun Wing(
             .semantics { isTraversalGroup = true }
             // Keep the items clear of the curved inner edge and the round outer one.
             .padding(start = if (left) 6.dp else 20.dp, end = if (left) 20.dp else 6.dp, top = 6.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -465,8 +465,8 @@ private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modif
         verticalArrangement = Arrangement.Center,
     ) {
         Ic(icon, tint, 20.dp)
-        Spacer(Modifier.height(2.dp))
-        Text(label, style = inter(11.sp, if (selected) FontWeight.Bold else FontWeight.SemiBold, tint), maxLines = 1, softWrap = false)
+        Spacer(Modifier.height(4.dp))
+        Text(label, style = inter(12.sp, if (selected) FontWeight.Bold else FontWeight.SemiBold, tint), maxLines = 1, softWrap = false)
     }
 }
 

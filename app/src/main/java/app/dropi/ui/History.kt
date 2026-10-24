@@ -74,7 +74,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                 item(key = "empty") {
                     Text(
                         if (all.isEmpty()) "No readings yet." else "No ${filter?.label?.lowercase()} readings yet.",
-                        style = inter(14.sp, color = C.TextSecondary),
+                        style = inter(15.sp, color = C.TextSecondary),
                         modifier = Modifier.padding(vertical = 24.dp),
                     )
                 }
@@ -82,11 +82,11 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
             byDay.forEach { (day, rs) ->
                 item(key = "d$day") {
                     val avg = rs.map { it.mmol }.average()
-                    Row(Modifier.fillMaxWidth().padding(top = 10.dp, start = 4.dp), verticalAlignment = Alignment.Bottom) {
+                    Row(Modifier.fillMaxWidth().padding(top = 12.dp, start = 4.dp), verticalAlignment = Alignment.Bottom) {
                         Text(dayName.format(day), style = inter(13.sp, FontWeight.Bold, C.Text), modifier = Modifier.weight(1f))
                         Text(
                             "${plural(rs.size, "reading")} · avg ${Glucose.format(avg, state.unit)}",
-                            style = inter(12.sp, color = C.TextMuted),
+                            style = inter(13.sp, color = C.TextMuted),
                         )
                     }
                 }
@@ -99,13 +99,13 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .onSizeChanged { headerPx = it.height }
-                .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
         ) {
             SheetTitle("All readings", close)
             Text(
                 "${plural(all.size, "reading")} in total",
-                style = inter(12.sp, color = C.TextMuted),
-                modifier = Modifier.padding(start = 2.dp, bottom = 8.dp),
+                style = inter(13.sp, color = C.TextMuted),
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
             )
             val options = listOf<MealTag?>(null) + MealTag.entries
             ChoiceGrid(
@@ -114,7 +114,7 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
                 columns = 4,
                 compact = true,
             ) { filter = options[it] }
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
         }
     }
 }

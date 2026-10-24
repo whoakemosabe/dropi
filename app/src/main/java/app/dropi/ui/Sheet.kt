@@ -163,7 +163,7 @@ fun SlideSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.(close: (
                 .heightIn(max = maxHeight)
                 .onSizeChanged { heightPx = it.height.toFloat() }
                 .offset { IntOffset(0, offsetY.roundToInt()) }
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .clip(RoundedCornerShape(topStart = Corner.XL, topEnd = Corner.XL))
                 .background(C.Sheet)
                 .nestedScroll(connection)
                 .draggable(
@@ -173,7 +173,7 @@ fun SlideSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.(close: (
                 ),
         ) {
             // Handle.
-            Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 12.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(C.TextMuted.copy(alpha = 0.5f)))
             }
             content { close() }
@@ -206,7 +206,7 @@ fun ColumnScope.StickySheetBody(
                 .background(C.Sheet)
                 .verticalScroll(rememberScrollState())
                 .then(if (footer == null) Modifier.navigationBarsPadding() else Modifier)
-                .padding(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = 24.dp),
+                .padding(start = 16.dp, end = 16.dp, top = headerDp + 24.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )
@@ -216,7 +216,7 @@ fun ColumnScope.StickySheetBody(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .onSizeChanged { headerPx = it.height }
-                .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
         ) { SheetTitle(title, close) }
     }
     if (footer != null) {
@@ -226,7 +226,7 @@ fun ColumnScope.StickySheetBody(
                 .fillMaxWidth()
                 .background(C.Sheet)
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 14.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
         ) { footer() }
     }
 }

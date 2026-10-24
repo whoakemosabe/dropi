@@ -126,10 +126,10 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val dayMonth = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
     val meals = remember(state.meals, state.measuredById) { state.meals.associateWith { state.outcome(it) } }
 
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Every reading", style = SectionLabel, modifier = Modifier.weight(1f))
-            Text(rangeText(start, end, zone, fmt), style = inter(12.sp, FontWeight.Medium, C.TextMuted))
+            Text(rangeText(start, end, zone, fmt), style = inter(13.sp, FontWeight.Medium, C.TextMuted))
         }
         val chosen = presets.withIndex().minByOrNull { (_, p) -> abs(kotlin.math.ln(p.toDouble() / span)) }?.index ?: 0
         SlidingSegments(listOf("Day", "3 days", "Week", "Month"), chosen, Modifier.fillMaxWidth()) {
@@ -371,9 +371,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(Corner.S))
                 .background(C.SurfaceLight.copy(alpha = 0.5f))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             KeyRow(KeyMark.BAND, C.InRange, "Shaded: in range, 3.9–10.0")
@@ -400,12 +400,12 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
         if (s != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(10.dp).clip(CircleShape).background(C.status(state.status(s))))
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("${Glucose.format(s.mmol, unit)} ${unit.label} · ${s.tag.label}", style = inter(15.sp, FontWeight.SemiBold))
                     Text(
                         listOf(fmt.dayTime(s.at), state.linkText(s).orEmpty(), s.detailsText()).filter { it.isNotBlank() }.joinToString(" · "),
-                        style = inter(12.sp, color = C.TextSecondary),
+                        style = inter(13.sp, color = C.TextSecondary),
                     )
                 }
                 Chip("Edit", icon = R.drawable.lc_pencil) { state.editing = s }
@@ -414,7 +414,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
             Text(
                 "Pinch to zoom, drag sideways to go back in time, tap a dot for details." +
                     if (span > 10 * DAY) " Zoomed out, each day is a bar from its lowest to highest reading." else "",
-                style = inter(12.sp, FontWeight.Medium, C.TextMuted).copy(lineHeight = 17.sp),
+                style = inter(13.sp, FontWeight.Medium, C.TextMuted).copy(lineHeight = 17.sp),
             )
         }
     }
@@ -439,7 +439,7 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
     val from = report.from.atStartOfDay(zone).toInstant().toEpochMilli()
     val hours = remember(report, state.sensor) { Agp.profile(report.readings, state.sensor.filter { it.at >= from }, zone) }
     val have = hours.filterNotNull()
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Typical day", style = SectionLabel)
         if (have.size < 6) {
             Text(
@@ -511,7 +511,7 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
                 drawText(tl, topLeft = Offset(0f, (yOf(g) - tl.size.height / 2f).coerceIn(0f, h - tl.size.height)))
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Legend(C.Text, "Middle value", line = true)
             Legend(C.Aurora[1].copy(alpha = 0.5f), "Half your readings")
             Legend(C.Aurora[2].copy(alpha = 0.3f), "8 in 10")
@@ -527,8 +527,8 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
 private fun Legend(color: androidx.compose.ui.graphics.Color, text: String, line: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.width(14.dp).height(if (line) 3.dp else 10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)).background(color))
-        Spacer(Modifier.width(6.dp))
-        Text(text, style = inter(11.sp, color = C.TextMuted))
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = inter(12.sp, color = C.TextMuted))
     }
 }
 
@@ -555,8 +555,8 @@ private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, tex
                 KeyMark.SLOPE_DASH -> drawLine(color, Offset(0f, h * 0.9f), Offset(w, h * 0.1f), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
             }
         }
-        Spacer(Modifier.width(10.dp))
-        Text(text, style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 16.sp))
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp))
     }
 }
 

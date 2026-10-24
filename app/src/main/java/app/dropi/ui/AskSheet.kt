@@ -49,7 +49,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun AskEntry(state: AppState) {
     Row(
-        Modifier.fillMaxWidth().card().tap { state.askOpen = true }.padding(horizontal = 16.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().card().tap { state.askOpen = true }.padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Ic(R.drawable.lc_message_circle, C.TextSecondary, 20.dp)
@@ -116,16 +116,16 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                     pair.forEach { q ->
                         Text(
                             q.text,
-                            style = inter(14.sp, FontWeight.SemiBold),
+                            style = inter(15.sp, FontWeight.SemiBold),
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = 56.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .clip(RoundedCornerShape(Corner.M))
                                 .background(C.SurfaceLight)
                                 .tap {
                                     turns += Turn(q.text, Ask.answer(q, state.askCtx()))
                                 }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                         )
                     }
                 }
@@ -133,7 +133,7 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         }
 
         turns.forEach { t ->
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(t.q, style = heading(17.sp))
                 val a = t.a
                 Text(
@@ -153,13 +153,13 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(Corner.M))
                     .background(C.SurfaceLight)
-                    .border(1.dp, C.GlassBorder, RoundedCornerShape(18.dp))
-                    .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
+                Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
                     if (text.isEmpty()) Text("Ask in your own words", style = inter(15.sp, color = C.TextMuted))
                     BasicTextField(
                         value = text,

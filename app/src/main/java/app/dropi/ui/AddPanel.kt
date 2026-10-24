@@ -65,7 +65,7 @@ fun AddPanel(state: AppState) {
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SheetTitle("Add", close)
@@ -73,14 +73,14 @@ fun AddPanel(state: AppState) {
                 state.addOpen = false
                 Launch.mealAction.value = action
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Tile("Reading", "Type or scan your meter", R.drawable.lc_droplet, Modifier.weight(1f)) {
                     state.addOpen = false
                     state.startNew()
                 }
                 Tile("Snap a meal", "Photo of your plate", R.drawable.lc_camera, Modifier.weight(1f)) { go("camera") }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Tile("Say what you ate", "Speak or type it", R.drawable.lc_mic, Modifier.weight(1f)) { go("words") }
                 Tile("Scan a label", "Exact carbs from a packet", R.drawable.lc_scan_text, Modifier.weight(1f)) { go("label") }
             }
@@ -88,11 +88,11 @@ fun AddPanel(state: AppState) {
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, C.Border, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(Corner.M))
+                    .border(1.dp, C.Border, RoundedCornerShape(Corner.M))
                     .semantics { role = Role.Button }
                     .tap { go("barcode") }
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Ic(R.drawable.lc_scan_barcode, C.AccentText, 20.dp)
@@ -104,11 +104,11 @@ fun AddPanel(state: AppState) {
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, C.Border, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(Corner.M))
+                    .border(1.dp, C.Border, RoundedCornerShape(Corner.M))
                     .semantics { role = Role.Button }
                     .tap { go("pick") }
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Ic(R.drawable.lc_image, C.AccentText, 20.dp)
@@ -125,7 +125,7 @@ fun AddPanel(state: AppState) {
                             (if (m.items.size > 2) " +${m.items.size - 2}" else "") + " · ${app.dropi.data.Grams.text(m.carbs)} g"
                         Text(
                             label,
-                            style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary),
+                            style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary),
                             modifier = Modifier
                                 .heightIn(min = 44.dp)
                                 .clip(RoundedCornerShape(50))
@@ -136,7 +136,7 @@ fun AddPanel(state: AppState) {
                                     state.addOpen = false
                                     MealWork.again(m)
                                 }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                         )
                     }
                 }
@@ -152,21 +152,21 @@ private fun Tile(title: String, sub: String, icon: Int, modifier: Modifier, onCl
         modifier
             .heightIn(min = 124.dp)
             .pressed(press)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Corner.L))
             .background(C.Card)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(20.dp))
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.L))
             .semantics(mergeDescendants = true) { role = Role.Button }
             .tap(press, onClick = onClick)
-            .padding(14.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(C.Aurora)),
+            Modifier.size(40.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
             contentAlignment = Alignment.Center,
         ) { Ic(icon, C.OnAccent, 20.dp) }
         Spacer(Modifier.height(12.dp))
-        Text(title, style = inter(16.sp, FontWeight.Bold))
-        Text(sub, style = inter(12.sp, color = C.TextMuted))
+        Text(title, style = inter(17.sp, FontWeight.Bold))
+        Text(sub, style = inter(13.sp, color = C.TextMuted))
     }
 }
 

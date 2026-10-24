@@ -59,7 +59,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
     val dayName = DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH)
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val shape = RoundedCornerShape(24.dp)
+        val shape = RoundedCornerShape(Corner.XL)
         Column(
             Modifier
                 .padding(horizontal = 16.dp, vertical = 24.dp)
@@ -68,10 +68,10 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
                 .clip(shape)
                 .background(C.Card)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("When did you take it?", style = heading(20.sp), modifier = Modifier.padding(horizontal = 20.dp))
+            Text("When did you take it?", style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
             // Today and the seven days before, as a 4 × 2 grid.
             val days = (0..7).map { today.minusDays(it.toLong()) }
             ChoiceGrid(
@@ -106,7 +106,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
                 Text(
                     "That's in the future. Pick an earlier time.",
                     style = inter(13.sp, FontWeight.Medium, C.High),
-                    modifier = Modifier.padding(horizontal = 20.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp),
                 )
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

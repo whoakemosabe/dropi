@@ -162,10 +162,10 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = 16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (isNew) "New reading" else "Edit reading", style = inter(18.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
+            Text(if (isNew) "New reading" else "Edit reading", style = inter(17.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
             if (isNew) {
                 Row(
                     Modifier
@@ -177,7 +177,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Ic(R.drawable.lc_camera, C.TextSecondary, 16.dp)
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text("Scan meter", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
                 }
                 Spacer(Modifier.width(8.dp))
@@ -196,7 +196,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                 ) {
                     Ic(R.drawable.lc_trash, C.Low, 16.dp, contentDescription = if (confirmDelete) null else "Delete reading")
                     if (confirmDelete) {
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text("Tap to delete", style = inter(13.sp, FontWeight.SemiBold, C.Low))
                     }
                 }
@@ -209,7 +209,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 
         // The number, coloured by where it lands as you type.
         Column(
-            Modifier.fillMaxWidth().padding(top = 2.dp),
+            Modifier.fillMaxWidth().padding(top = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val color = status?.let { C.status(it) } ?: if (text.isEmpty()) C.TextMuted.copy(alpha = 0.5f) else C.Text
@@ -222,16 +222,16 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     style = numeral(56.sp, color),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(unit.label, style = inter(15.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 14.dp))
+                Text(unit.label, style = inter(15.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 16.dp))
             }
             when {
                 status != null -> StatusPill(status)
                 outOfRange -> Text("Meters read ${Glucose.rangeLabel(unit)}", style = inter(13.sp, FontWeight.Medium, C.High))
                 else -> Text("Type the number on your meter", style = inter(13.sp, color = C.TextMuted))
             }
-            scanNote?.let { Text(it, style = inter(12.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(top = 6.dp)) }
+            scanNote?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(top = 8.dp)) }
             if (initial.imported) {
-                Text("From Health Connect", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(top = 6.dp))
+                Text("From Health Connect", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(top = 8.dp))
             }
         }
 
@@ -325,7 +325,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         Keypad(
             decimal = unit == GlucoseUnit.MMOL,
             keyHeight = keyH,
-            modifier = Modifier.padding(top = 14.dp),
+            modifier = Modifier.padding(top = 16.dp),
         ) { key ->
             val next = Glucose.type(text, key, unit)
             if (next == text && key != '⌫') {
@@ -376,7 +376,7 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
                             .weight(1f)
                             .height(keyHeight)
                             .pressed(press)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(Corner.M))
                             .background(C.SurfaceLight)
                             .clickable(press.source, LocalIndication.current, enabled = enabled) { onKey(k) },
                         contentAlignment = Alignment.Center,
@@ -386,7 +386,7 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
                         } else {
                             Text(
                                 k.toString(),
-                                style = inter(24.sp, FontWeight.SemiBold, if (enabled) C.Text else C.TextMuted.copy(alpha = 0.3f)),
+                                style = inter(22.sp, FontWeight.SemiBold, if (enabled) C.Text else C.TextMuted.copy(alpha = 0.3f)),
                                 textAlign = TextAlign.Center,
                             )
                         }
@@ -409,27 +409,27 @@ private fun Pill(text: String, icon: Int, label: String, modifier: Modifier = Mo
             .fillMaxWidth()
             .heightIn(min = 60.dp)
             .pressed(press)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.SurfaceLight)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
             .semantics { contentDescription = "$label: $text. Tap to change." }
             .tap(press, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Ic(icon, C.TextMuted, 12.dp)
             Spacer(Modifier.width(4.dp))
             Text(
                 label,
-                style = inter(11.sp, FontWeight.Medium, C.TextMuted),
+                style = inter(13.sp, FontWeight.Medium, C.TextMuted),
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier.weight(1f),
             )
             Ic(R.drawable.lc_chevron_down, C.TextMuted, 12.dp)
         }
-        Spacer(Modifier.height(3.dp))
-        Text(text, style = inter(14.sp, FontWeight.SemiBold, C.Text).copy(lineHeight = 17.sp))
+        Spacer(Modifier.height(4.dp))
+        Text(text, style = inter(15.sp, FontWeight.SemiBold, C.Text).copy(lineHeight = 20.sp))
     }
 }
 

@@ -42,7 +42,7 @@ fun OnDeviceAiSection() {
     }
 
     val body = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp)
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
             Ai.nano -> Text(
                 "Gemini Nano is on this phone. Meal photos and typed questions work here, with nothing uploaded.",

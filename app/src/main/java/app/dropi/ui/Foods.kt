@@ -52,7 +52,7 @@ private fun riseTone(mmol: Double): Pair<String, Color> = when {
 fun FoodsCard(state: AppState) {
     val scores = state.foodScores
     val ranked = scores.filter { it.ranked }
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Your plate", style = SectionLabel, modifier = Modifier.weight(1f))
             if (scores.isNotEmpty()) {
@@ -62,7 +62,7 @@ fun FoodsCard(state: AppState) {
                     modifier = Modifier.clip(RoundedCornerShape(50)).tap {
                         state.foodOpen = null
                         state.foodsOpen = true
-                    }.padding(horizontal = 10.dp, vertical = 6.dp),
+                    }.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
         }
@@ -79,7 +79,7 @@ fun FoodsCard(state: AppState) {
         val top = shown.maxOf { it.rise }.coerceAtLeast(1.0)
         shown.forEachIndexed { i, s ->
             if (ranked.size > 6 && i == 3) {
-                Box(Modifier.fillMaxWidth().padding(vertical = 2.dp).height(1.dp).background(C.Border.copy(alpha = 0.6f)))
+                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(C.Border.copy(alpha = 0.6f)))
             }
             RiseRow(Foods.display(s.food), s.rise, top, state.unit) {
                 state.foodOpen = s.food
@@ -88,7 +88,7 @@ fun FoodsCard(state: AppState) {
         }
         Text(
             "Typical peak 45 min–3 h after eating, compared with before. Gentlest first.",
-            style = inter(11.sp, color = C.TextMuted),
+            style = inter(13.sp, color = C.TextMuted),
         )
     }
 }
@@ -100,20 +100,20 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(Corner.S))
             .tap(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = "$name: $word rise, $delta ${unit.label}" }
-            .padding(vertical = 6.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(name, style = inter(14.sp, FontWeight.Medium), modifier = Modifier.width(0.dp).weight(0.42f), maxLines = 2)
-        Spacer(Modifier.width(10.dp))
+        Text(name, style = inter(15.sp, FontWeight.Medium), modifier = Modifier.width(0.dp).weight(0.42f), maxLines = 2)
+        Spacer(Modifier.width(12.dp))
         BoxWithConstraints(Modifier.weight(0.4f).height(10.dp)) {
             val frac = (rise.coerceAtLeast(0.0) / top).toFloat().coerceIn(0.04f, 1f)
-            Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(C.SurfaceLight))
-            Box(Modifier.width(maxWidth * frac).height(10.dp).clip(RoundedCornerShape(5.dp)).background(tone))
+            Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(Corner.S)).background(C.SurfaceLight))
+            Box(Modifier.width(maxWidth * frac).height(10.dp).clip(RoundedCornerShape(Corner.S)).background(tone))
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Text(delta, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.width(52.dp), maxLines = 1)
     }
 }
@@ -141,7 +141,7 @@ private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
         for (s in scores) {
             val open = state.foodOpen == s.food
             Column(
-                Modifier.fillMaxWidth().card().animateContentSize().padding(horizontal = 14.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().card().animateContentSize().padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 RiseRow(Foods.display(s.food), s.rise, top, state.unit) { state.foodOpen = if (open) null else s.food }
                 if (open) {
@@ -152,11 +152,11 @@ private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
                             (peak?.let { ", highest around ${minutesWords(it.first)} after eating" } ?: "") +
                             ". From ${plural(s.meals, "meal")}" + (if (!s.ranked) ", so it isn't ranked yet." else "."),
                         style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
-                        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
                     )
                     Curve(s.curve, s.points, Modifier.fillMaxWidth().height(140.dp))
-                    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        listOf("Eating", "2 h", "4 h").forEach { Text(it, style = inter(11.sp, color = C.TextMuted)) }
+                    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        listOf("Eating", "2 h", "4 h").forEach { Text(it, style = inter(13.sp, color = C.TextMuted)) }
                     }
                 }
             }

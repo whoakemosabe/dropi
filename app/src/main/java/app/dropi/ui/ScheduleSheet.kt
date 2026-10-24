@@ -106,7 +106,7 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "Notifications are off for Dropi, so reminders can't show.",
-                        style = inter(12.sp, FontWeight.Medium, C.High),
+                        style = inter(13.sp, FontWeight.Medium, C.High),
                         modifier = Modifier.weight(1f),
                     )
                     Chip("Turn on") {
@@ -186,7 +186,7 @@ private fun ToggleRow(title: String, sub: String, on: Boolean, onChange: (Boolea
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, style = inter(15.sp, FontWeight.SemiBold))
-            Text(sub, style = inter(12.sp, color = C.TextMuted))
+            Text(sub, style = inter(13.sp, color = C.TextMuted))
         }
         Spacer(Modifier.width(12.dp))
         Switch(
@@ -200,11 +200,11 @@ private fun ToggleRow(title: String, sub: String, on: Boolean, onChange: (Boolea
 @Composable
 private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot) -> Unit, onDelete: () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().card(RoundedCornerShape(18.dp)).padding(start = 16.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+        Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.M)).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).tap(onClick = onTime)) {
+            Column(Modifier.weight(1f).clip(RoundedCornerShape(Corner.S)).tap(onClick = onTime)) {
                 Text(time, style = numeral(26.sp, if (s.enabled) C.Text else C.TextMuted))
                 Text(s.name, style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
             }
@@ -230,7 +230,7 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
         if (s.tag == MealTag.AFTER_MEAL) {
             Text(
                 "Follows your meal: when you log a meal (or a before-eating reading), this check moves to after it.",
-                style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+                style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
             )
         }
     }
@@ -247,11 +247,11 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
                 .padding(horizontal = 16.dp, vertical = 24.dp)
                 .widthIn(max = 440.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(Corner.XL))
                 .background(C.Card)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Check time", style = heading(20.sp))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -267,7 +267,7 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
                     ),
                 )
             }
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GhostButton("Cancel", Modifier.weight(1f)) { onDismiss() }
                 PrimaryButton("Set", Modifier.weight(1f)) { onPick(st.hour * 60 + st.minute) }

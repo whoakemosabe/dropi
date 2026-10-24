@@ -126,12 +126,12 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CircularProgressIndicator(Modifier.size(28.dp), color = C.AccentText, strokeWidth = 3.dp)
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(Ai.warmUp ?: s.what, style = inter(16.sp, FontWeight.SemiBold))
+                Text(Ai.warmUp ?: s.what, style = inter(17.sp, FontWeight.SemiBold))
                 // Foods appear as they're named, before the rest is worked out.
                 if (s.found.isNotEmpty()) {
-                    Text("Found so far: " + s.found.joinToString(", ") { Foods.display(it) }, style = inter(14.sp, color = C.TextSecondary))
+                    Text("Found so far: " + s.found.joinToString(", ") { Foods.display(it) }, style = inter(15.sp, color = C.TextSecondary))
                 }
                 Text("You can close this. Dropi lets you know when it's done.", style = inter(13.sp, color = C.TextMuted))
             }
@@ -157,14 +157,14 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Corner.L))
             .background(C.Card)
-            .border(1.dp, C.AccentText.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-            .padding(14.dp),
+            .border(1.dp, C.AccentText.copy(alpha = 0.5f), RoundedCornerShape(Corner.L))
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(1f).heightIn(min = 72.dp)) {
-            if (text.isEmpty()) Text(hint, style = inter(16.sp, color = C.TextMuted).copy(lineHeight = 23.sp))
+            if (text.isEmpty()) Text(hint, style = inter(17.sp, color = C.TextMuted).copy(lineHeight = 23.sp))
             BasicTextField(
                 value = text,
                 onValueChange = { text = it.take(300) },
@@ -230,26 +230,26 @@ private fun LabelGrams(
         style = inter(15.sp, FontWeight.SemiBold).copy(lineHeight = 22.sp),
     )
     if (!read && why != null && source != "barcode") Text(why, style = inter(13.sp, color = C.TextMuted))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Carbs $per", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(carbs, "e.g. 60,5", numeric = true, label = "Carbs $per") { carbs = it.take(5) }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Sugars $per", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(sugars, "optional", numeric = true, label = "Sugars $per, optional") { sugars = it.take(5) }
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Fibre", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(fibre, "optional", numeric = true, label = "Fibre $per, optional") { fibre = it.take(5) }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Protein", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(protein, "optional", numeric = true, label = "Protein $per, optional") { protein = it.take(5) }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Fat", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(fat, "optional", numeric = true, label = "Fat $per, optional") { fat = it.take(5) }
         }
@@ -260,13 +260,13 @@ private fun LabelGrams(
                 "as European labels already do). Check the serving size below.",
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Serving size on the label (g)", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(serving, "e.g. 40", numeric = true, label = "Serving size in grams") { serving = it.take(5) }
         }
     }
     FieldBox(name, "What is it? (e.g. granola)", label = "What is it?", onChange = { name = it.take(40) })
-    Text("How much did you eat?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+    Text("How much did you eat?", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
     val servingG = serving.replace(',', '.').toDoubleOrNull()?.takeIf { it in 1.0..2000.0 }
     val options = when {
         us && servingG != null -> listOf(1.0, 1.5, 2.0).map { Math.round(servingG * it).toInt() }.distinct()
@@ -309,22 +309,18 @@ private fun LabelGrams(
     }
     if (code != null) Text(
         if (source == "off") "Barcode $code · data from Open Food Facts (ODbL)" else "Barcode $code",
-        style = inter(12.sp, color = C.TextMuted),
+        style = inter(13.sp, color = C.TextMuted),
     )
     // What the camera actually read, so a label that won't work can be checked (and sent to fix it).
     if (seen.isNotEmpty()) {
         var show by remember { mutableStateOf(false) }
-        Text(
-            if (show) "Hide what Dropi read" else "What Dropi read from the photo",
-            style = inter(14.sp, FontWeight.SemiBold, C.AccentText),
-            modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(8.dp)).semantics { role = Role.Button }.tap { show = !show },
-        )
+        GhostButton(if (show) "Hide what Dropi read" else "What Dropi read from the photo", Modifier.fillMaxWidth(), color = C.AccentText) { show = !show }
         if (show) {
             androidx.compose.foundation.text.selection.SelectionContainer {
                 Text(
                     seen.joinToString("\n"),
                     style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Card).padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.M)).background(C.Card).padding(12.dp),
                 )
             }
         }
@@ -384,6 +380,8 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     var picking by remember { mutableStateOf(false) }
     var why by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(meal.tags.isNotEmpty()) }
+    // Carbs and the likely rise up front; sugars, fibre, protein and fat one tap away.
+    var nutrition by remember { mutableStateOf(false) }
     val usual = remember(meal) { MealWork.usual(context) }
     val f = MealFacts(state, d)
     val start = f.start
@@ -395,7 +393,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             style = heading(26.sp),
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(Corner.S))
                 .semantics { role = Role.Button; contentDescription = "${f.name}. Change the meal's name or time" }
                 .tap { picking = true },
         )
@@ -407,12 +405,12 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                 .border(1.dp, C.GlassBorder, RoundedCornerShape(50))
                 .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = "Ate at ${fmt.time(f.ateAt)}. Change it" }
                 .tap { picking = true }
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Ic(R.drawable.lc_clock, C.TextSecondary, 16.dp)
             Spacer(Modifier.width(8.dp))
-            Text("Ate ${fmt.time(f.ateAt)}", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+            Text("Ate ${fmt.time(f.ateAt)}", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
         }
     }
     Text("Tap the name or time to change them", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(top = 0.dp))
@@ -420,23 +418,37 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
 
     // ---- Totals ----
     Column(
-        Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp)).padding(18.dp)
+        Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L)).padding(16.dp)
             .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(app.dropi.data.Grams.text(meal.carbs), style = numeral(52.sp))
             Spacer(Modifier.width(8.dp))
-            Text("g carbs", style = inter(16.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.padding(bottom = 7.dp))
+            Text("g carbs", style = inter(17.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.padding(bottom = 8.dp).weight(1f))
+            Row(
+                Modifier
+                    .padding(bottom = 4.dp)
+                    .heightIn(min = 40.dp)
+                    .clip(RoundedCornerShape(Corner.S))
+                    .semantics(mergeDescendants = true) { role = Role.Button; stateDescription = if (nutrition) "Shown" else "Hidden" }
+                    .tap { nutrition = !nutrition }
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Nutrition", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
+                Spacer(Modifier.width(4.dp))
+                Ic(if (nutrition) R.drawable.lc_chevron_up else R.drawable.lc_chevron_down, C.AccentText, 16.dp)
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (nutrition) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("sugars" to meal.sugars, "fibre" to meal.fibre, "protein" to meal.protein, "fat" to meal.fat).forEach { (label, v) ->
                 Column(
-                    Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(C.SurfaceLight).padding(vertical = 10.dp, horizontal = 4.dp),
+                    Modifier.weight(1f).clip(RoundedCornerShape(Corner.M)).background(C.SurfaceLight).padding(vertical = 12.dp, horizontal = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(v?.let { app.dropi.data.Grams.text(it) } ?: "–", style = numeral(20.sp), maxLines = 1)
-                    Text(label, style = inter(11.sp, color = C.TextSecondary))
+                    Text(label, style = inter(13.sp, color = C.TextSecondary))
                 }
             }
         }
@@ -451,12 +463,12 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             },
         )
         if (badges.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 badges.forEach { (text, color) ->
                     Text(
                         text,
-                        style = inter(12.sp, FontWeight.SemiBold, color),
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 5.dp),
+                        style = inter(13.sp, FontWeight.SemiBold, color),
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 4.dp),
                     )
                 }
             }
@@ -471,16 +483,16 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     val curve = remember(meal, perGram, est) { app.dropi.data.MealCurve.predict(meal, perGram, est) }
     val actual = f.old?.let { o -> state.measuredById[o.id]?.after }.orEmpty()
     Column(
-        Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp)).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (start == null) {
             Text(
                 if (f.last != null) "No reading just before this meal. Your last one was at ${fmt.time(f.last.at)} (${Glucose.format(f.last.mmol, unit)})."
                 else "No reading before this meal. Take one before you eat to see where it's likely to take you.",
-                style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
+                style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (f.last != null) Chip("Use ${fmt.time(f.last.at)}", icon = R.drawable.lc_check, selected = true) { MealWork.setBefore(f.last.id) }
                 // Only while the reading would still count as "before" (up to 15 min after eating).
                 if (f.ateAt > System.currentTimeMillis() - 15 * 60_000L) {
@@ -500,16 +512,16 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                 Text(if (s0 != null) "Likely peak" else "Likely rise", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
                 if (start != null) Text("from your ${fmt.time(start.at)} reading, ${Glucose.format(start.mmol, unit)}", style = inter(13.sp, color = C.TextSecondary))
             }
-            FlowRow(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            FlowRow(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     if (s0 != null) "about " + Glucose.format(s0 + curve.rise, unit) else "about " + Foods.delta(curve.rise, unit),
                     style = numeral(32.sp, if (s0 != null) C.status(Glucose.status(s0 + curve.rise, app.dropi.data.MealTag.AFTER_MEAL, state.targets)) else C.Text),
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(
                     "around ${app.dropi.data.MealCurve.duration(curve.peakMin)} after eating",
-                    style = inter(14.sp, color = C.TextSecondary),
-                    modifier = Modifier.padding(bottom = 6.dp),
+                    style = inter(15.sp, color = C.TextSecondary),
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
             ExpectedCurve(curve, s0, actual, unit)
@@ -517,13 +529,13 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             if (outcome != null && s0 != null) {
                 Text(
                     "How it went: peaked ${Glucose.format(s0 + outcome.second, unit)} at ${app.dropi.data.MealCurve.duration(outcome.first)}.",
-                    style = inter(14.sp, FontWeight.SemiBold),
+                    style = inter(15.sp, FontWeight.SemiBold),
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     if (curve.personal) "An estimate from this meal and your past meals. Not advice." else "An estimate from this meal's numbers. Not advice.",
-                    style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+                    style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
                     modifier = Modifier.weight(1f),
                 )
                 Text(
@@ -541,17 +553,17 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                 )
             }
         } else if (start != null) {
-            Text("Starts from your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)}). Add the foods to see the likely peak.", style = inter(14.sp, color = C.TextSecondary))
+            Text("Starts from your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)}). Add the foods to see the likely peak.", style = inter(15.sp, color = C.TextSecondary))
         }
     }
 
     // ---- The foods ----
     Text("What you ate", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.padding(start = 4.dp, top = 4.dp))
     if (meal.items.isNotEmpty()) {
-        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp))) {
+        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L))) {
             meal.items.forEachIndexed { i, item ->
                 if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(C.GlassBorder))
-                FoodRow(item, scores[item.key]) { editing = i }
+                FoodRow(item, scores[item.key], nutrition) { editing = i }
             }
         }
     }
@@ -559,8 +571,8 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, C.Border, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Corner.M))
+            .border(1.5.dp, C.Border, RoundedCornerShape(Corner.M))
             .semantics(mergeDescendants = true) { role = Role.Button }
             .tap { adding = true },
         horizontalArrangement = Arrangement.Center,
@@ -573,7 +585,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
 
     // ---- More, folded ----
     if (meal.items.isNotEmpty()) {
-        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(18.dp))) {
+        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.M))) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -583,7 +595,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("More: veg first, a walk after, rich meal, say a change", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.weight(1f))
+                Text("More: veg first, a walk after, rich meal, say a change", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.weight(1f))
                 Ic(R.drawable.lc_chevron_down, C.TextMuted, 18.dp, modifier = Modifier.graphicsLayer { rotationZ = if (more) 180f else 0f })
             }
             if (more) {
@@ -601,7 +613,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Rich meal", style = inter(15.sp, FontWeight.SemiBold))
-                            Text("Fatty or creamy: the rise comes later, so the after-eating check waits 3 h.", style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp))
+                            Text("Fatty or creamy: the rise comes later, so the after-eating check waits 3 h.", style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 17.sp))
                         }
                         Switch(
                             checked = meal.rich,
@@ -667,9 +679,9 @@ private fun MealWhenDialog(ateAt: Long, name: String, fmt: Fmt, zone: java.time.
                 .padding(horizontal = 16.dp, vertical = 24.dp)
                 .widthIn(max = 440.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(Corner.XL))
                 .background(C.Sheet)
-                .padding(20.dp),
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Which meal?", style = heading(20.sp))
@@ -689,7 +701,7 @@ private fun MealWhenDialog(ateAt: Long, name: String, fmt: Fmt, zone: java.time.
 
 /** One food: its name, one line of portion and what's in it, and its carbs on the right. */
 @Composable
-private fun FoodRow(item: MealItem, score: Foods.Score?, onClick: () -> Unit) {
+private fun FoodRow(item: MealItem, score: Foods.Score?, nutrition: Boolean, onClick: () -> Unit) {
     val rise = score?.takeIf { it.ranked }?.let { Rise.of(it.rise) }
     val looking = item.key in MealWork.filling
     val g = { v: Double -> app.dropi.data.Grams.text(v) }
@@ -698,8 +710,8 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, onClick: () -> Unit) {
         else -> listOfNotNull(
             item.portionText(),
             if (item.sugaryDrink) "sugary drink" else item.giValue?.takeIf { item.carbs > 0 }?.let { app.dropi.data.Gi.speed(it).word.lowercase() },
-            item.protein?.takeIf { it > 0 }?.let { "${g(it)} g protein" },
-            item.fat?.takeIf { it > 0 }?.let { "${g(it)} g fat" },
+            item.protein?.takeIf { it > 0 && nutrition }?.let { "${g(it)} g protein" },
+            item.fat?.takeIf { it > 0 && nutrition }?.let { "${g(it)} g fat" },
         )
     }
     val spoken = buildString {
@@ -716,12 +728,12 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(Foods.display(item.name), style = inter(16.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f, fill = false))
+                Text(Foods.display(item.name), style = inter(17.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f, fill = false))
                 if (item.usual) {
                     Spacer(Modifier.width(8.dp))
-                    Text("Your usual", style = inter(11.sp, FontWeight.SemiBold, C.AccentText))
+                    Text("Your usual", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
                 }
                 if (rise != null) {
                     Spacer(Modifier.width(8.dp))
@@ -730,10 +742,10 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, onClick: () -> Unit) {
             }
             Text(details.joinToString(" · "), style = inter(13.sp, color = if (looking) C.AccentText else C.TextSecondary), maxLines = 2)
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(if (looking) "…" else g(item.carbs), style = numeral(20.sp))
-            Text(" g", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(bottom = 2.dp))
+            Text(" g", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(bottom = 4.dp))
         }
     }
 }
@@ -754,10 +766,10 @@ private fun ChangeBox(onSend: (String) -> Unit) {
         Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.SurfaceLight)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(16.dp))
-            .padding(start = 14.dp, end = 4.dp),
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+            .padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
@@ -793,10 +805,10 @@ private fun FieldBox(value: String, hint: String, numeric: Boolean = false, labe
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.SurfaceLight)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+            .padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         if (value.isEmpty()) Text(hint, style = inter(15.sp, color = C.TextMuted))
         BasicTextField(
@@ -863,7 +875,7 @@ private fun DecimalBox(label: String, value: Double?, modifier: Modifier = Modif
     LaunchedEffect(value) {
         if (app.dropi.data.Grams.parse(text) != value) text = value?.let { app.dropi.data.Grams.text(it).replace('.', ',') }.orEmpty()
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
         BasicTextField(
             value = text,
@@ -884,10 +896,10 @@ private fun DecimalBox(label: String, value: Double?, modifier: Modifier = Modif
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(Corner.M))
                         .background(C.SurfaceLight)
-                        .border(if (highlight) 1.5.dp else 1.dp, if (highlight) C.AccentText else C.GlassBorder, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 14.dp),
+                        .border(if (highlight) 1.5.dp else 1.dp, if (highlight) C.AccentText else C.GlassBorder, RoundedCornerShape(Corner.M))
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     if (text.isEmpty()) Text("–", style = numeral(22.sp, C.TextMuted))
@@ -904,16 +916,16 @@ private fun DecimalBox(label: String, value: Double?, modifier: Modifier = Modif
 /** Carbs, sugars, protein, fat and fibre in two columns of boxes. */
 @Composable
 private fun NumbersGrid(item: MealItem, onChange: (MealItem) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             DecimalBox("Carbs", item.carbs, Modifier.weight(1f), highlight = true) { onChange(item.copy(carbs = it ?: 0.0)) }
             DecimalBox("of which sugars", item.sugars, Modifier.weight(1f)) { onChange(item.copy(sugars = it)) }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             DecimalBox("Protein", item.protein, Modifier.weight(1f)) { onChange(item.copy(protein = it)) }
             DecimalBox("Fat", item.fat, Modifier.weight(1f)) { onChange(item.copy(fat = it)) }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             DecimalBox("Fibre", item.fibre, Modifier.weight(1f)) { onChange(item.copy(fibre = it)) }
             Spacer(Modifier.weight(1f))
         }
@@ -926,9 +938,9 @@ private fun NumbersPreview(item: MealItem?) {
     Row(Modifier.fillMaxWidth()) {
         listOf("carbs" to item?.carbs, "sugars" to item?.sugars, "fibre" to item?.fibre, "protein" to item?.protein, "fat" to item?.fat).forEach { (label, v) ->
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (item == null) Box(Modifier.padding(horizontal = 6.dp).fillMaxWidth().height(26.dp).clip(RoundedCornerShape(8.dp)).background(C.SurfaceLight))
+                if (item == null) Box(Modifier.padding(horizontal = 8.dp).fillMaxWidth().height(26.dp).clip(RoundedCornerShape(Corner.S)).background(C.SurfaceLight))
                 else Text(v?.let { app.dropi.data.Grams.text(it) } ?: "–", style = numeral(22.sp), maxLines = 1)
-                Text(label, style = inter(11.sp, color = C.TextSecondary), modifier = Modifier.padding(top = 4.dp))
+                Text(label, style = inter(13.sp, color = C.TextSecondary), modifier = Modifier.padding(top = 4.dp))
             }
         }
     }
@@ -945,10 +957,10 @@ private fun FoodDialogFrame(onDismiss: () -> Unit, content: @Composable ColumnSc
                 .widthIn(max = 440.dp)
                 .fillMaxWidth()
                 .imePadding()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(Corner.XL))
                 .background(C.Sheet)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             content = content,
         )
@@ -1018,7 +1030,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
 
     FoodDialogFrame(onDismiss) {
         Text("Add a food", style = heading(24.sp))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("What is it?", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
             FieldBox(name, "e.g. hard boiled egg", label = "What is it?", onDone = { askNow++ }) { name = it.take(40) }
         }
@@ -1039,15 +1051,15 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
             }
 
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Card).border(1.dp, C.GlassBorder, RoundedCornerShape(20.dp)).padding(16.dp)
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.L)).background(C.Card).border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.L)).padding(16.dp)
                     .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 when {
                     looking -> Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(18.dp), color = C.AccentText, strokeWidth = 2.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text("Not in Dropi's list. Working it out on your phone…", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Not in Dropi's list. Working it out on your phone…", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
                     }
                     edited != null -> Text("Your numbers", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
                     preview != null -> Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1059,15 +1071,10 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
                     else -> Text("Not in Dropi's list. Type the numbers from the packet or your own amounts.", style = inter(13.sp, color = C.TextSecondary))
                 }
                 NumbersPreview(if (looking || !known) null else current)
-                if (known) Text("Grams for ${current.portionText()}.", style = inter(12.sp, color = C.TextMuted))
-                if (looking) Text("You can add it now; the numbers land on the meal when they're ready.", style = inter(12.sp, color = C.TextMuted))
+                if (known) Text("Grams for ${current.portionText()}.", style = inter(13.sp, color = C.TextMuted))
+                if (looking) Text("You can add it now; the numbers land on the meal when they're ready.", style = inter(13.sp, color = C.TextMuted))
                 if (!numbersOpen) {
-                    Text(
-                        "Change the numbers",
-                        style = inter(14.sp, FontWeight.SemiBold, C.AccentText),
-                        modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(8.dp))
-                            .semantics { role = Role.Button }.tap { numbersOpen = true },
-                    )
+                    GhostButton("Change the numbers", color = C.AccentText) { numbersOpen = true }
                 }
             }
             if (numbersOpen) NumbersGrid(current) { edited = it }
@@ -1105,7 +1112,7 @@ private fun FoodEditDialog(
     FoodDialogFrame(onDismiss) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(Foods.display(initial.name), style = heading(24.sp), modifier = Modifier.weight(1f))
-            Text(item.portionText(), style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 3.dp))
+            Text(item.portionText(), style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 4.dp))
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(0.5, 1.0, 1.5, 2.0, 3.0).forEach { q ->
@@ -1118,16 +1125,16 @@ private fun FoodEditDialog(
         Text("Grams for the whole amount. Decimals are fine: 0,8 or 0.8.", style = inter(13.sp, color = C.TextMuted))
         NumbersGrid(item) { item = it }
         if (initial.carbs != item.carbs && initial.qty == item.qty) {
-            Text("Guessed ${app.dropi.data.Grams.text(initial.carbs)} g carbs. You changed it to ${app.dropi.data.Grams.text(item.carbs)} g.", style = inter(12.sp, color = C.TextMuted))
+            Text("Guessed ${app.dropi.data.Grams.text(initial.carbs)} g carbs. You changed it to ${app.dropi.data.Grams.text(item.carbs)} g.", style = inter(13.sp, color = C.TextMuted))
         }
 
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).border(1.dp, C.GlassBorder, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.M)).background(C.Card).border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M)).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Remember as my ${Foods.display(initial.name).lowercase()}", style = inter(15.sp, FontWeight.SemiBold))
-                Text("Next time: ${app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1))} g carbs for ${item.portion}", style = inter(12.sp, color = C.TextMuted))
+                Text("Next time: ${app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1))} g carbs for ${item.portion}", style = inter(13.sp, color = C.TextMuted))
             }
             Switch(checked = keep, onCheckedChange = { Haptics.toggle(view, it); keep = it }, colors = dropiSwitchColors(),
                 modifier = Modifier.semantics { contentDescription = "Remember this amount" })
@@ -1135,10 +1142,10 @@ private fun FoodEditDialog(
 
         if (score != null) {
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).padding(14.dp).semantics(mergeDescendants = true) {},
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.M)).background(C.Card).padding(16.dp).semantics(mergeDescendants = true) {},
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("After ${Foods.display(initial.name).lowercase()}, last time", style = inter(14.sp, FontWeight.SemiBold))
+                Text("After ${Foods.display(initial.name).lowercase()}, last time", style = inter(15.sp, FontWeight.SemiBold))
                 if (!score.ranked) {
                     Text("1 meal so far: ${Foods.delta(score.rise, unit)} ${unit.label}. Two make a pattern.", style = inter(13.sp, color = C.TextMuted))
                 } else {
@@ -1147,14 +1154,14 @@ private fun FoodEditDialog(
                         Text(Foods.delta(score.rise, unit), style = numeral(24.sp))
                         Spacer(Modifier.width(8.dp))
                         Box(Modifier.size(8.dp).clip(CircleShape).background(riseColor(r)))
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text("${r.word}, ${score.meals} meals", style = inter(13.sp, color = C.TextSecondary))
                     }
                 }
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GhostButton("Remove", Modifier.weight(1f), color = C.Low) { onRemove() }
             PrimaryButton("Done", Modifier.weight(2f)) { onDone(item, keep) }
         }

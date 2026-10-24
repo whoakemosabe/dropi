@@ -145,7 +145,7 @@ fun WelcomeFlow(state: AppState) {
             // Progress: one segment per step after the welcome.
             if (step != Step.WELCOME) {
                 val steps = Step.entries.filter { it != Step.WELCOME && !skipped(it) }
-                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     steps.forEach { s ->
                         Box(
                             Modifier
@@ -157,7 +157,7 @@ fun WelcomeFlow(state: AppState) {
                     }
                 }
             } else {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
             }
 
             AnimatedContent(
@@ -173,7 +173,7 @@ fun WelcomeFlow(state: AppState) {
                 Column(Modifier.fillMaxSize()) {
                     Column(
                         Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 28.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         when (s) {
                             Step.WELCOME -> {
@@ -186,7 +186,7 @@ fun WelcomeFlow(state: AppState) {
                                 )
                                 Point(R.drawable.lc_bookmark, "Everything stays on this phone. No account, nothing uploaded.")
                                 Point(R.drawable.lc_info, "Dropi is a log, not a medical device. Follow the plan you agreed with your care team.")
-                                Text("Next: a few quick choices and what Dropi needs your OK for.", style = inter(14.sp, color = C.TextMuted))
+                                Text("Next: a few quick choices and what Dropi needs your OK for.", style = inter(15.sp, color = C.TextMuted))
                             }
                             Step.UNITS -> {
                                 Badge(R.drawable.lc_droplet)
@@ -202,7 +202,7 @@ fun WelcomeFlow(state: AppState) {
                                 Text(
                                     if (state.unit == GlucoseUnit.MMOL) "Like 6.4, used in Europe, the UK, Canada and Australia."
                                     else "Like 115, used in the US and much of Latin America and Asia.",
-                                    style = inter(14.sp, color = C.TextMuted),
+                                    style = inter(15.sp, color = C.TextMuted),
                                 )
                             }
                             Step.NOTIFY -> {
@@ -223,9 +223,9 @@ fun WelcomeFlow(state: AppState) {
                                         "into Dropi, and yours go out. Blood glucose only, nothing else.",
                                     style = body(),
                                 )
-                                if (!hcAvailable) Text("Health Connect needs installing or updating on this phone first.", style = inter(14.sp, color = C.TextMuted))
+                                if (!hcAvailable) Text("Health Connect needs installing or updating on this phone first.", style = inter(15.sp, color = C.TextMuted))
                                 if (state.healthSync) Allowed("Connected")
-                                hcNote?.let { Text(it, style = inter(14.sp, color = C.High)) }
+                                hcNote?.let { Text(it, style = inter(15.sp, color = C.High)) }
                             }
                             Step.UPDATES -> {
                                 Badge(R.drawable.lc_download)
@@ -261,13 +261,13 @@ fun WelcomeFlow(state: AppState) {
                                 when {
                                     Nano.state == Nano.State.READY -> Allowed("Gemini Nano is ready")
                                     Nano.state == Nano.State.DOWNLOADING -> Allowed("Downloading. It'll finish in the background.")
-                                    Ai.checking -> Text("Checking this phone…", style = inter(14.sp, color = C.TextMuted))
+                                    Ai.checking -> Text("Checking this phone…", style = inter(15.sp, color = C.TextMuted))
                                     Ai.nano -> {}
                                     Gemma.state == Gemma.State.Ready -> Allowed("Gemma is ready")
                                     Gemma.state is Gemma.State.Downloading || Gemma.state == Gemma.State.Verifying ->
                                         Allowed("Downloading. It'll finish in the background.")
                                     Gemma.state == Gemma.State.WaitingForWifi -> Allowed("Waiting for Wi-Fi, then it downloads by itself")
-                                    Gemma.state is Gemma.State.Failed -> Text((Gemma.state as Gemma.State.Failed).message, style = inter(14.sp, color = C.High))
+                                    Gemma.state is Gemma.State.Failed -> Text((Gemma.state as Gemma.State.Failed).message, style = inter(15.sp, color = C.High))
                                 }
                             }
                             Step.DONE -> {
@@ -287,14 +287,14 @@ fun WelcomeFlow(state: AppState) {
                                 }
                                 Text(
                                     "Anything you skipped is in Settings. Using a CGM? Settings › Live sensor connects it.",
-                                    style = inter(14.sp, color = C.TextMuted).copy(lineHeight = 20.sp),
+                                    style = inter(15.sp, color = C.TextMuted).copy(lineHeight = 20.sp),
                                 )
                             }
                         }
                     }
 
                     // The step's buttons, always at the bottom.
-                    Column(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         when (s) {
                             Step.WELCOME -> PrimaryButton("Get started", Modifier.fillMaxWidth()) { go(1) }
                             Step.UNITS -> PrimaryButton("Continue", Modifier.fillMaxWidth()) { go(1) }
@@ -403,7 +403,7 @@ private fun openStore(context: android.content.Context) {
 }
 
 @Composable
-private fun body() = inter(16.sp, color = C.TextSecondary).copy(lineHeight = 24.sp)
+private fun body() = inter(17.sp, color = C.TextSecondary).copy(lineHeight = 24.sp)
 
 @Composable
 private fun Title(text: String) {
@@ -423,7 +423,7 @@ private fun Badge(icon: Int, big: Boolean = false) {
 @Composable
 private fun Point(icon: Int, text: String) {
     Row(verticalAlignment = Alignment.Top) {
-        Ic(icon, C.AccentText, 18.dp, Modifier.padding(top = 2.dp))
+        Ic(icon, C.AccentText, 18.dp, Modifier.padding(top = 4.dp))
         Spacer(Modifier.width(12.dp))
         Text(text, style = inter(15.sp, color = C.Text).copy(lineHeight = 22.sp))
     }
@@ -432,25 +432,25 @@ private fun Point(icon: Int, text: String) {
 @Composable
 private fun Allowed(text: String) {
     Row(
-        Modifier.clip(RoundedCornerShape(50)).background(C.InRange.copy(alpha = 0.14f)).padding(horizontal = 14.dp, vertical = 8.dp),
+        Modifier.clip(RoundedCornerShape(50)).background(C.InRange.copy(alpha = 0.14f)).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Ic(R.drawable.lc_check, C.InRange, 16.dp)
         Spacer(Modifier.width(8.dp))
-        Text(text, style = inter(14.sp, FontWeight.SemiBold, C.Text))
+        Text(text, style = inter(15.sp, FontWeight.SemiBold, C.Text))
     }
 }
 
 @Composable
 private fun CheckLine(label: String, on: Boolean) {
-    Row(Modifier.fillMaxWidth().card(RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.M)).padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
         if (on) {
             Ic(R.drawable.lc_check, C.InRange, 18.dp)
-            Spacer(Modifier.width(6.dp))
-            Text("On", style = inter(14.sp, FontWeight.SemiBold, C.InRange))
+            Spacer(Modifier.width(8.dp))
+            Text("On", style = inter(15.sp, FontWeight.SemiBold, C.InRange))
         } else {
-            Text("Skipped", style = inter(14.sp, color = C.TextMuted))
+            Text("Skipped", style = inter(15.sp, color = C.TextMuted))
         }
     }
 }

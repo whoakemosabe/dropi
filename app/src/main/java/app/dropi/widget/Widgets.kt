@@ -88,7 +88,7 @@ private class Pal(context: Context) {
         Status.URGENT_LOW -> cp(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
         Status.LOW -> cp(0xFFFF7F9C, 0xFFE5486E, 0xFFFF8FB0)
         Status.BELOW_TARGET -> cp(0xFF7EA4F2, 0xFF3D6AC2, 0xFF7FA7D9)
-        Status.IN_RANGE -> cp(0xFF22D18A, 0xFF0E9F63, 0xFF9F8CFF)
+        Status.IN_RANGE -> cp(0xFF22D18A, 0xFF0E9F63, 0xFF50FA7B)
         Status.HIGH -> cp(0xFFF2B632, 0xFFA67C00, 0xFFF2C94C)
         Status.VERY_HIGH -> cp(0xFFF06A2A, 0xFFD9480F, 0xFFE8622C)
     }

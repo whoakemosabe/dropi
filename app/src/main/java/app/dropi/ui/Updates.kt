@@ -86,21 +86,21 @@ fun UpdateBanner() {
             Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(Corner.M))
                 .background(C.Card)
                 .background(auroraWash(0.16f))
-                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(18.dp))
+                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(Corner.M))
                 .tap { act() }
-                .padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+                .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(C.Aurora)),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
                     contentAlignment = Alignment.Center,
                 ) { Ic(R.drawable.lc_download, C.OnAccent, 16.dp) }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Dropi $shownVersion is ready", style = inter(14.sp, FontWeight.Bold, C.Text))
+                    Text("Dropi $shownVersion is ready", style = inter(15.sp, FontWeight.Bold, C.Text))
                     Text(
                         when (ui) {
                             UpdateUi.Idle, UpdateUi.UpToDate, is UpdateUi.Available -> "See what's new"
@@ -109,7 +109,7 @@ fun UpdateBanner() {
                             is UpdateUi.Ready -> ui.note ?: "Downloaded. Tap to install"
                             is UpdateUi.Error -> ui.message
                         },
-                        style = inter(12.sp, color = C.TextSecondary),
+                        style = inter(13.sp, color = C.TextSecondary),
                     )
                 }
                 if (ui !is UpdateUi.Downloading) {
@@ -120,7 +120,7 @@ fun UpdateBanner() {
                             .clip(RoundedCornerShape(50))
                             .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
                             .tap { act() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
                 Text(
@@ -136,7 +136,7 @@ fun UpdateBanner() {
                 )
             }
             if (ui is UpdateUi.Downloading) {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 Box(Modifier.padding(end = 8.dp)) { ProgressLine(UpdateWatch.progress) }
             }
         }
@@ -156,7 +156,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
     val ui = UpdateWatch.ui
     val lines = notes.ifEmpty { listOf("Fixes and improvements") }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val shape = RoundedCornerShape(24.dp)
+        val shape = RoundedCornerShape(Corner.XL)
         // The card rises in, then the lines arrive one after another.
         val enter = remember { Animatable(0f) }
         LaunchedEffect(Unit) { enter.animateTo(1f, tween(320, easing = FastOutSlowInEasing)) }
@@ -181,25 +181,25 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(C.Aurora)),
+                        Modifier.size(28.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
                         contentAlignment = Alignment.Center,
                     ) { Ic(R.drawable.lc_zap, C.OnAccent, 16.dp) }
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text("Update ready", style = SectionLabel.copy(color = C.AccentText), modifier = Modifier.weight(1f))
                     if (behind > 1) {
                         Text(
                             (if (behind >= 30) "30+" else "$behind") + " updates behind",
-                            style = inter(11.sp, FontWeight.SemiBold, C.High),
+                            style = inter(13.sp, FontWeight.SemiBold, C.High),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(Corner.S))
                                 .background(C.High.copy(alpha = 0.12f))
-                                .border(1.dp, C.High.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                .border(1.dp, C.High.copy(alpha = 0.4f), RoundedCornerShape(Corner.S))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -207,7 +207,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     if (behind > 1) "What's new since your version" else "What's new in v$version",
                     style = heading(22.sp),
                 )
-                if (behind > 1) Text("Installing v$version brings you fully up to date.", style = inter(12.sp, color = C.TextSecondary))
+                if (behind > 1) Text("Installing v$version brings you fully up to date.", style = inter(13.sp, color = C.TextSecondary))
             }
           }
 
@@ -215,7 +215,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 Modifier
                     .heightIn(max = 320.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 lines.forEachIndexed { i, n -> Highlight(n, i) }
@@ -223,7 +223,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
 
             Column(
                 Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 when (ui) {
                     is UpdateUi.Downloading -> {
@@ -237,7 +237,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     }
                     is UpdateUi.Ready -> {
                         ui.note?.let {
-                            Text(it, style = inter(12.sp, color = C.High), modifier = Modifier.padding(horizontal = 4.dp))
+                            Text(it, style = inter(13.sp, color = C.High), modifier = Modifier.padding(horizontal = 4.dp))
                         }
                         PrimaryButton("Install", Modifier.fillMaxWidth(), icon = R.drawable.lc_check) {
                             Haptics.confirm(view)
@@ -247,7 +247,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     }
                     else -> {
                         if (ui is UpdateUi.Error) {
-                            Text(ui.message, style = inter(12.sp, color = C.Low), modifier = Modifier.padding(horizontal = 4.dp))
+                            Text(ui.message, style = inter(13.sp, color = C.Low), modifier = Modifier.padding(horizontal = 4.dp))
                         }
                         PrimaryButton(
                             if (ui is UpdateUi.Error) "Try again" else "Update now",
@@ -279,9 +279,9 @@ private fun Highlight(text: String, index: Int) {
         },
         verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.padding(top = 5.dp).size(8.dp).clip(RoundedCornerShape(50)).background(Brush.linearGradient(C.Aurora)))
+        Box(Modifier.padding(top = 4.dp).size(8.dp).clip(RoundedCornerShape(50)).background(Brush.linearGradient(C.Aurora)))
         Spacer(Modifier.width(12.dp))
-        Text(text, style = inter(14.sp, color = C.Text).copy(lineHeight = 20.sp))
+        Text(text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
     }
 }
 

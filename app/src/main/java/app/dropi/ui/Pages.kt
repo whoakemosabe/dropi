@@ -69,30 +69,14 @@ fun MealsPage(state: AppState) {
     ) {
         item(key = "draft") { MealDraftCard() }
         item(key = "log") {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PageTile("Snap a meal", R.drawable.lc_camera, Modifier.weight(1f), lit = true) { Launch.mealAction.value = "camera" }
-                    PageTile("Say what you ate", R.drawable.lc_mic, Modifier.weight(1f)) { Launch.mealAction.value = "words" }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PageTile("Scan a barcode", R.drawable.lc_scan_barcode, Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
-                    PageTile("Scan a label", R.drawable.lc_scan_text, Modifier.weight(1f)) { Launch.mealAction.value = "label" }
-                }
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, C.GlassBorder, RoundedCornerShape(16.dp))
-                        .semantics { role = Role.Button }
-                        .tap { MealWork.manual() }
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Ic(R.drawable.lc_pencil, C.AccentText, 18.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text("Add foods myself", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
-                    Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
+            // One big way in (the camera), then the other four as a compact row.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PrimaryButton("Snap a meal", Modifier.fillMaxWidth(), icon = R.drawable.lc_camera) { Launch.mealAction.value = "camera" }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MiniTile("Say it", R.drawable.lc_mic, Modifier.weight(1f)) { Launch.mealAction.value = "words" }
+                    MiniTile("Barcode", R.drawable.lc_scan_barcode, Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
+                    MiniTile("Label", R.drawable.lc_scan_text, Modifier.weight(1f)) { Launch.mealAction.value = "label" }
+                    MiniTile("Type it", R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
                 }
             }
         }
@@ -104,8 +88,8 @@ fun MealsPage(state: AppState) {
                 Text(
                     "No meals yet. Log one with a photo, in words or from a label. It's saved at the time you ate, " +
                         "and joined to the readings before and after it.",
-                    style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
-                    modifier = Modifier.fillMaxWidth().card().padding(18.dp),
+                    style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
+                    modifier = Modifier.fillMaxWidth().card().padding(16.dp),
                 )
             }
         }
@@ -120,8 +104,8 @@ fun MealsPage(state: AppState) {
                 if (day != today) {
                     Text(
                         app.dropi.data.DayTotals.text(app.dropi.data.DayTotals.of(day, meals)),
-                        style = inter(12.sp, color = C.TextMuted),
-                        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                        style = inter(13.sp, color = C.TextMuted),
+                        modifier = Modifier.padding(start = 4.dp, top = 8.dp),
                     )
                 }
             }
@@ -135,10 +119,10 @@ private fun TotalsCard(state: AppState, today: LocalDate) {
     val todays = state.meals.filter { Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() == today }
     val t = app.dropi.data.DayTotals.of(today, todays)
     val (week, last) = remember(state.meals, today) { app.dropi.data.DayTotals.weekCarbs(state.meals, today, state.zone) }
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Eaten today", style = SectionLabel)
         if (todays.isEmpty()) {
-            Text("Nothing logged yet today.", style = inter(14.sp, color = C.TextSecondary))
+            Text("Nothing logged yet today.", style = inter(15.sp, color = C.TextSecondary))
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 listOf("Carbs" to t.carbs, "Sugars" to t.sugars, "Fibre" to t.fibre, "Protein" to t.protein, "Fat" to t.fat).forEach { (label, v) ->
@@ -148,7 +132,7 @@ private fun TotalsCard(state: AppState, today: LocalDate) {
                     ) {
                         val shown = v?.let { app.dropi.data.Grams.text(it) }
                         Text(shown ?: "–", style = numeral(22.sp), modifier = Modifier.semantics { contentDescription = if (shown == null) "$label not known" else "$shown grams $label" })
-                        Text(if (v == null) label else "$label g", style = inter(11.sp, color = C.TextMuted))
+                        Text(if (v == null) label else "$label g", style = inter(13.sp, color = C.TextMuted))
                     }
                 }
             }
@@ -171,7 +155,7 @@ private fun PatternsCard(state: AppState) {
     val patterns = remember(state.measured, state.readings, state.meals, state.unit) {
         app.dropi.data.MealPatterns.fromMeasured(state.measured, state.readings, state.meals, state.unit)
     }
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("What your meals show", style = SectionLabel)
         if (patterns.isEmpty()) {
             Text(
@@ -183,14 +167,14 @@ private fun PatternsCard(state: AppState) {
         patterns.forEach { p ->
             Row(verticalAlignment = Alignment.Top) {
                 Box(
-                    Modifier.padding(top = 6.dp).size(8.dp).clip(RoundedCornerShape(50))
+                    Modifier.padding(top = 8.dp).size(8.dp).clip(RoundedCornerShape(50))
                         .background(if (p.good) C.InRange else C.AccentText),
                 )
-                Spacer(Modifier.width(10.dp))
-                Text(p.text, style = inter(14.sp).copy(lineHeight = 20.sp))
+                Spacer(Modifier.width(12.dp))
+                Text(p.text, style = inter(15.sp).copy(lineHeight = 20.sp))
             }
         }
-        if (patterns.isNotEmpty()) Text("From your own log. Patterns, not advice.", style = inter(12.sp, color = C.TextMuted))
+        if (patterns.isNotEmpty()) Text("From your own log. Patterns, not advice.", style = inter(13.sp, color = C.TextMuted))
     }
 }
 
@@ -212,11 +196,11 @@ fun MorePage(state: AppState) {
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items.chunked(2).forEachIndexed { i, pair ->
             item(key = "row-$i") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     pair.forEach { (title, icon, go) -> PageTile(title, icon, Modifier.weight(1f), onClick = go) }
                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
@@ -225,7 +209,7 @@ fun MorePage(state: AppState) {
         item(key = "note") {
             Text(
                 "Dropi is a log, not a medical device. Your readings stay on this phone.",
-                style = inter(11.sp, color = C.TextMuted),
+                style = inter(13.sp, color = C.TextMuted),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
             )
         }
@@ -233,6 +217,29 @@ fun MorePage(state: AppState) {
 }
 
 /** A square-ish tile: an icon on a soft square, and a short name under it. */
+/** A small square way in: icon over a one- or two-word label. */
+@Composable
+private fun MiniTile(title: String, icon: Int, modifier: Modifier, onClick: () -> Unit) {
+    val press = rememberPress()
+    Column(
+        modifier
+            .heightIn(min = 72.dp)
+            .pressed(press)
+            .clip(RoundedCornerShape(Corner.M))
+            .background(C.Card)
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .tap(press, onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Ic(icon, C.AccentText, 20.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(title, style = inter(13.sp, FontWeight.SemiBold), maxLines = 1)
+    }
+}
+
 @Composable
 private fun PageTile(title: String, icon: Int, modifier: Modifier, lit: Boolean = false, onClick: () -> Unit) {
     val press = rememberPress()
@@ -240,23 +247,23 @@ private fun PageTile(title: String, icon: Int, modifier: Modifier, lit: Boolean 
         modifier
             .heightIn(min = 104.dp)
             .pressed(press)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Corner.L))
             .background(C.Card)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(20.dp))
+            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.L))
             .semantics(mergeDescendants = true) { role = Role.Button }
             .tap(press, onClick = onClick)
-            .padding(14.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Box(
             Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Corner.S))
                 .then(if (lit) Modifier.background(Brush.linearGradient(C.Aurora)) else Modifier.background(C.SurfaceLight)),
             contentAlignment = Alignment.Center,
         ) { Ic(icon, if (lit) C.OnAccent else C.AccentText, 20.dp) }
         Spacer(Modifier.height(12.dp))
-        Text(title, style = inter(15.sp, FontWeight.Bold).copy(lineHeight = 19.sp))
+        Text(title, style = inter(15.sp, FontWeight.Bold).copy(lineHeight = 20.sp))
     }
 }
 
@@ -285,9 +292,9 @@ fun MealDraftCard() {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.AccentText.copy(alpha = 0.12f))
-            .border(1.dp, C.AccentText.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+            .border(1.dp, C.AccentText.copy(alpha = 0.45f), RoundedCornerShape(Corner.M))
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -302,14 +309,14 @@ fun MealDraftCard() {
                 "Discard",
                 style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
                 modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).semantics { role = Role.Button }
-                    .tap { MealWork.discard() }.padding(horizontal = 10.dp, vertical = 14.dp),
+                    .tap { MealWork.discard() }.padding(horizontal = 12.dp, vertical = 16.dp),
             )
         }
         Text(
             "Open",
-            style = inter(14.sp, FontWeight.Bold, C.OnAccent),
+            style = inter(15.sp, FontWeight.Bold, C.OnAccent),
             modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).background(C.Accent).semantics { role = Role.Button }
-                .tap { MealWork.open = true }.padding(horizontal = 16.dp, vertical = 14.dp),
+                .tap { MealWork.open = true }.padding(horizontal = 16.dp, vertical = 16.dp),
         )
     }
 }

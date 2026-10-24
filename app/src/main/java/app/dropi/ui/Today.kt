@@ -91,7 +91,6 @@ fun TodayPage(state: AppState) {
     val summary = Stats.summary(todays)
     val streak = Stats.streak(all, today, zone)
     val latest = all.lastOrNull()
-    val earlier = all.filter { it.date(zone) != today }.takeLast(30).reversed()
 
     val bars = WindowInsets.systemBars.asPaddingValues()
     LazyColumn(
@@ -135,7 +134,8 @@ fun TodayPage(state: AppState) {
         item(key = "sentence") { DaySentence(state, summary) }
         item(key = "checks") { ChecksCard(state, now, fmt) }
         val meals = state.meals.filter { Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() == today }
-        if (meals.isNotEmpty()) item(key = "meals") { MealsCard(state, meals, now, fmt, "Meals today") }
+        // Meals: one line here; the Meals page has the full cards.
+        if (meals.isNotEmpty()) item(key = "meals") { MealsLine(state, meals, fmt) }
         item(key = "today-label") {
             Text("Today", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
@@ -144,18 +144,12 @@ fun TodayPage(state: AppState) {
                 Text(
                     if (all.isEmpty()) "Your readings will appear here. Tap + to add your first one."
                     else "Nothing logged yet today.",
-                    style = inter(14.sp, color = C.TextSecondary),
-                    modifier = Modifier.fillMaxWidth().card().padding(18.dp),
+                    style = inter(15.sp, color = C.TextSecondary),
+                    modifier = Modifier.fillMaxWidth().card().padding(16.dp),
                 )
             }
         } else {
             item(key = "today-list") { ReadingsCard(state, todays.reversed()) { fmt.time(it.at) } }
-        }
-        if (earlier.isNotEmpty()) {
-            item(key = "earlier-label") {
-                Text("Earlier", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
-            }
-            item(key = "earlier-list") { ReadingsCard(state, earlier) { fmt.dayTime(it.at, now) } }
         }
         if (all.isNotEmpty()) {
             item(key = "history") {
@@ -165,7 +159,7 @@ fun TodayPage(state: AppState) {
         item(key = "footer") {
             Text(
                 "Dropi is a log, not a medical device. Follow the plan you agreed with your care team.",
-                style = inter(11.sp, color = C.TextMuted),
+                style = inter(13.sp, color = C.TextMuted),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
             )
         }
@@ -184,14 +178,14 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
         if (latest == null) {
             Spacer(Modifier.height(24.dp))
             Ic(R.drawable.lc_droplet, C.AccentText, 36.dp)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Text("No readings yet", style = heading(30.sp))
             Text("Tap + to log your first one.", style = inter(15.sp, FontWeight.Medium, C.TextSecondary))
             Spacer(Modifier.height(24.dp))
             return@Column
         }
         val status = state.status(latest)
-        Text("${latest.tag.label} · ${fmt.ago(latest.at, now)}", style = inter(14.sp, FontWeight.Medium, C.TextSecondary))
+        Text("${latest.tag.label} · ${fmt.ago(latest.at, now)}", style = inter(15.sp, FontWeight.Medium, C.TextSecondary))
         // A gentle pop each time a new number lands.
         val pop = remember { Animatable(1f) }
         LaunchedEffect(latest.id) {
@@ -210,12 +204,12 @@ private fun Hero(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak:
         if (streak >= 2) {
             Spacer(Modifier.height(8.dp))
             Row(
-                Modifier.clip(RoundedCornerShape(50)).background(C.High.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 4.dp),
+                Modifier.clip(RoundedCornerShape(50)).background(C.High.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Ic(R.drawable.lc_flame, C.High, 13.dp)
                 Spacer(Modifier.width(4.dp))
-                Text("$streak-day logging streak", style = inter(12.sp, FontWeight.SemiBold, C.High))
+                Text("$streak-day logging streak", style = inter(13.sp, FontWeight.SemiBold, C.High))
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -261,15 +255,15 @@ private fun WeekCard(state: AppState, today: java.time.LocalDate) {
                 state.tab = Tab.TRENDS
             }
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Your week", style = SectionLabel)
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             WeekStat(r.bands?.let { "${Math.round(it.inRange)}%" } ?: "—", "in range")
             WeekStat(if (r.lows == 0) "0" else "${r.lows}", if (r.lows == 1) "low" else "lows")
             WeekStat("${r.daysLogged}/7", "days logged")
         }
-        Text("See this week in Trends", style = inter(12.sp, FontWeight.SemiBold, C.AccentText))
+        Text("See this week in Trends", style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
     }
 }
 
@@ -277,7 +271,7 @@ private fun WeekCard(state: AppState, today: java.time.LocalDate) {
 private fun WeekStat(value: String, label: String) {
     Column {
         Text(value, style = numeral(22.sp, C.Text))
-        Text(label, style = inter(11.sp, color = C.TextMuted))
+        Text(label, style = inter(13.sp, color = C.TextMuted))
     }
 }
 
@@ -300,11 +294,11 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
                     .minimumInteractiveComponentSize()
                     .clip(RoundedCornerShape(50))
                     .tap { state.scheduleOpen = true }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }
         if (checks.isEmpty()) {
-            Text("No check times yet. Plan a few and Dropi can remind you.", style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.padding(horizontal = 4.dp))
+            Text("No check times yet. Plan a few and Dropi can remind you.", style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.padding(horizontal = 4.dp))
             Chip("Plan check times", icon = R.drawable.lc_clock, selected = true) { state.scheduleOpen = true }
             return@Column
         }
@@ -313,12 +307,12 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
         if (move != null) {
             val clock = { m: Int -> fmt.time(java.time.LocalDate.now(state.zone).atStartOfDay(state.zone).plusMinutes(m.toLong()).toInstant().toEpochMilli()) }
             Column(
-                Modifier.fillMaxWidth().card().padding(14.dp).semantics(mergeDescendants = false) {},
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.fillMaxWidth().card().padding(16.dp).semantics(mergeDescendants = false) {},
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     "You usually do your ${move.slot.name.lowercase()} check at about ${clock(move.minute)} (${move.days} of the last 14 days). Move it there?",
-                    style = inter(14.sp, FontWeight.Medium).copy(lineHeight = 20.sp),
+                    style = inter(15.sp, FontWeight.Medium).copy(lineHeight = 20.sp),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Chip("Move to ${clock(move.minute)}", icon = R.drawable.lc_clock, selected = true) { state.acceptMove(move) }
@@ -342,7 +336,7 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
             )
         }
         if (!state.remindersOn) {
-            Text("Reminders are off. Tap Edit to turn them on.", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(horizontal = 4.dp))
+            Text("Reminders are off. Tap Edit to turn them on.", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(horizontal = 4.dp))
         }
     }
 }
@@ -492,11 +486,11 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 }
                 val shownAt = done?.at ?: c.at
                 if (below) {
-                    Text(fmt.time(shownAt), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                    Text(fmt.time(shownAt), style = inter(12.sp, color = C.TextMuted), maxLines = 1)
                     Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
                 } else {
                     Text(value, style = inter(13.sp, FontWeight.Bold, if (due) C.AccentText else C.Text), maxLines = 1)
-                    Text(fmt.time(shownAt), style = inter(11.sp, color = C.TextMuted), maxLines = 1)
+                    Text(fmt.time(shownAt), style = inter(12.sp, color = C.TextMuted), maxLines = 1)
                 }
             }
         }
@@ -549,24 +543,24 @@ private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(C.SurfaceLight), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(Corner.S)).background(C.SurfaceLight), contentAlignment = Alignment.Center) {
             Ic(R.drawable.lc_utensils, C.AccentText, 18.dp)
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("${m.name} · $time · ${app.dropi.data.Grams.text(m.carbs)} g carbs", style = inter(15.sp, FontWeight.SemiBold))
             Text(foods, style = inter(13.sp, color = C.TextSecondary), maxLines = 2)
-            Text(from, style = inter(12.sp, color = C.TextMuted))
-            if (result != null) Text(result, style = inter(12.sp, color = C.TextMuted))
+            Text(from, style = inter(13.sp, color = C.TextMuted))
+            if (result != null) Text(result, style = inter(13.sp, color = C.TextMuted))
         }
         if (rise != null && out != null) {
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(app.dropi.data.Foods.delta(out.rise, state.unit), style = numeral(18.sp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(riseColor(rise)))
-                    Spacer(Modifier.width(5.dp))
-                    Text(rise.word.removeSuffix(" rise"), style = inter(12.sp, FontWeight.SemiBold))
+                    Spacer(Modifier.width(4.dp))
+                    Text(rise.word.removeSuffix(" rise"), style = inter(13.sp, FontWeight.SemiBold))
                 }
             }
         }
@@ -580,16 +574,16 @@ private fun DemoBanner(state: AppState) {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.High.copy(alpha = 0.14f))
-            .border(1.dp, C.High.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+            .border(1.dp, C.High.copy(alpha = 0.6f), RoundedCornerShape(Corner.M))
             .semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
-            .padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Demo data", style = inter(14.sp, FontWeight.Bold))
-            Text("Made-up readings. Your real log is safe.", style = inter(12.sp, color = C.TextSecondary))
+            Text("Demo data", style = inter(15.sp, FontWeight.Bold))
+            Text("Made-up readings. Your real log is safe.", style = inter(13.sp, color = C.TextSecondary))
         }
         Text(
             "Leave",
@@ -612,19 +606,19 @@ fun StatusPill(status: Status) {
         Modifier
             .clip(RoundedCornerShape(50))
             .background(c.copy(alpha = 0.16f))
-            .padding(horizontal = 12.dp, vertical = 5.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(c))
-        Spacer(Modifier.width(6.dp))
-        Text(status.label, style = inter(12.sp, FontWeight.Bold, C.Text))
+        Spacer(Modifier.width(8.dp))
+        Text(status.label, style = inter(13.sp, FontWeight.Bold, C.Text))
     }
 }
 
 /** A run of readings in one glass card, a hairline between each. */
 @Composable
 fun ReadingsCard(state: AppState, readings: List<Reading>, fill: Color = C.Card, time: (Reading) -> String) {
-    Column(Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp), fill)) {
+    Column(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L), fill)) {
         readings.forEachIndexed { i, r ->
             if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(C.Border.copy(alpha = 0.7f)))
             ReadingRow(state, r, time(r))
@@ -653,16 +647,16 @@ fun ReadingRow(state: AppState, r: Reading, time: String) {
             Text(r.tag.label, style = inter(15.sp, FontWeight.SemiBold, C.Text))
             Text(
                 listOf(time, link.orEmpty(), r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · "),
-                style = inter(12.sp, color = C.TextMuted),
+                style = inter(13.sp, color = C.TextMuted),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Text(
             Glucose.format(r.mmol, state.unit),
             style = numeral(20.sp, C.onStatus(c)),
-            modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(c).padding(horizontal = 12.dp, vertical = 3.dp),
+            modifier = Modifier.clip(RoundedCornerShape(Corner.S)).background(c).padding(horizontal = 12.dp, vertical = 4.dp),
         )
     }
 }
@@ -676,13 +670,13 @@ fun CrashCard(state: AppState) {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.Card)
-            .border(1.dp, C.Low.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
-            .padding(14.dp),
+            .border(1.dp, C.Low.copy(alpha = 0.4f), RoundedCornerShape(Corner.M))
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Dropi crashed last time", style = inter(14.sp, FontWeight.Bold, C.Low))
+        Text("Dropi crashed last time", style = inter(15.sp, FontWeight.Bold, C.Low))
         Text(
             text.lines().filter { it.isNotBlank() }.take(8).joinToString("\n"),
             style = androidx.compose.ui.text.TextStyle(
@@ -701,5 +695,27 @@ fun CrashCard(state: AppState) {
             }
             Chip("Dismiss") { state.dismissCrash() }
         }
+    }
+}
+
+
+/** Today's meals in one tappable line ("Breakfast 08:10 · 45 g  ·  Lunch 12:30 · 60 g"), opening the Meals page. */
+@Composable
+private fun MealsLine(state: AppState, meals: List<app.dropi.data.MealEntry>, fmt: Fmt) {
+    val text = meals.sortedBy { it.at }.joinToString("  ·  ") { "${it.name} ${fmt.time(it.at)} · ${app.dropi.data.Grams.text(it.meal.carbs)} g" }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .card()
+            .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = "Meals today: $text. Opens Meals." }
+            .tap { state.tab = Tab.MEALS }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Ic(R.drawable.lc_utensils, C.AccentText, 18.dp)
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = inter(15.sp, FontWeight.Medium), modifier = Modifier.weight(1f), maxLines = 2)
+        Spacer(Modifier.width(8.dp))
+        Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
     }
 }

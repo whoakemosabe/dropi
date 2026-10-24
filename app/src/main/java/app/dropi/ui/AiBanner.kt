@@ -118,16 +118,16 @@ fun AiBanner(state: AppState) {
             Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(Corner.M))
                 .background(C.Card)
                 .background(auroraWash(0.16f))
-                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(18.dp))
+                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(Corner.M))
                 .then(if (action != null) Modifier.tap { act() } else Modifier)
-                .padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+                .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(C.Aurora)),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Ic(
@@ -141,8 +141,8 @@ fun AiBanner(state: AppState) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = inter(14.sp, FontWeight.Bold, C.Text))
-                    Text(line, style = inter(12.sp, color = if (kind == "failed") C.Low else C.TextSecondary))
+                    Text(title, style = inter(15.sp, FontWeight.Bold, C.Text))
+                    Text(line, style = inter(13.sp, color = if (kind == "failed") C.Low else C.TextSecondary))
                 }
                 if (action != null) {
                     Text(
@@ -152,7 +152,7 @@ fun AiBanner(state: AppState) {
                             .clip(RoundedCornerShape(50))
                             .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
                             .tap { act() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
                 Text(
@@ -168,7 +168,7 @@ fun AiBanner(state: AppState) {
                 )
             }
             if (kind == "progress" || kind == "setup") {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 Box(Modifier.padding(end = 8.dp)) { ProgressLine(if (kind == "setup") 1f else done.toFloat() / Gemma.SIZE) }
             }
         }

@@ -104,6 +104,8 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var alertFor by mutableStateOf<Reading?>(null)
 
     var tab by mutableStateOf(Tab.TODAY)
+    /** Trends › More detail opened (by moment, daily table, PDF). */
+    var trendsMore by mutableStateOf(false)
 
     /** The Trends period (7, 14, 30 or 90 days); the header shows its dates. */
     var trendsDays by mutableIntStateOf(14)

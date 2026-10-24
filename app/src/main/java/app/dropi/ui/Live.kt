@@ -111,12 +111,12 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
-                Modifier.clip(CircleShape).tap { state.liveOpen = true }.padding(horizontal = 12.dp, vertical = 6.dp),
+                Modifier.clip(CircleShape).tap { state.liveOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 LiveDot(color)
                 Spacer(Modifier.width(8.dp))
-                Text("Live from your sensor · ${fmt.ago(last.at, now)}", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+                Text("Live from your sensor · ${fmt.ago(last.at, now)}", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // A small settle each time a new value lands.
@@ -146,15 +146,15 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
         RangeRuler(last.mmol, state.unit)
         Spacer(Modifier.height(8.dp))
         // The last three hours in aurora colours, running into a dotted 20 minutes ahead.
-        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp)).padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)) {
+        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L)).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)) {
             val ahead = Trend.ahead(points, 20)
             Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(116.dp))
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                Text("3 h ago", style = inter(11.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Text("3 h ago", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
                 if (ahead != null) {
-                    Text("In 20 min, about ${Glucose.format(ahead, state.unit)}", style = inter(11.sp, FontWeight.Medium, C.TextSecondary))
+                    Text("In 20 min, about ${Glucose.format(ahead, state.unit)}", style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
                 } else {
-                    Text("Now", style = inter(11.sp, color = C.TextMuted))
+                    Text("Now", style = inter(13.sp, color = C.TextMuted))
                 }
             }
         }
@@ -255,11 +255,11 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
 fun LiveWaiting(state: AppState, now: Long, fmt: Fmt) {
     val last = Trend.latest(state.sensor)
     Row(
-        Modifier.fillMaxWidth().card().tap { state.liveOpen = true }.padding(horizontal = 16.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().card().tap { state.liveOpen = true }.padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Ic(R.drawable.lc_activity, C.TextMuted, 18.dp)
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Text(
             if (last == null) "Live mode is on. Waiting for the first value from your sensor."
             else "Last sensor value came ${fmt.ago(last.at, now)}. Check your CGM app is still sending.",
@@ -374,8 +374,8 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
 
 @Composable
 private fun Step(name: String, text: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(name, style = inter(14.sp, FontWeight.SemiBold))
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(name, style = inter(15.sp, FontWeight.SemiBold))
         Text(text, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp))
     }
 }

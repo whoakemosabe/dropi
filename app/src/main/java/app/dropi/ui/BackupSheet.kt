@@ -94,7 +94,7 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
         Text("Back up", style = SectionLabel, modifier = Modifier.padding(top = 4.dp))
         PasswordField(pass, "Password (6 characters or more)") { pass = it }
         PasswordField(pass2, "The same password again") { pass2 = it }
-        if (pass2.isNotEmpty() && pass != pass2) Text("The passwords don't match.", style = inter(12.sp, FontWeight.Medium, C.High))
+        if (pass2.isNotEmpty() && pass != pass2) Text("The passwords don't match.", style = inter(13.sp, FontWeight.Medium, C.High))
         PrimaryButton("Back up now", Modifier.fillMaxWidth(), icon = R.drawable.lc_download, enabled = passOk && !busy) {
             create.launch("dropi-backup-${LocalDate.now(state.zone)}.dropi")
         }
@@ -150,11 +150,11 @@ private fun PasswordField(value: String, hint: String, onChange: (String) -> Uni
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Corner.M))
             .background(C.SurfaceLight)
-            .padding(horizontal = 14.dp, vertical = 15.dp),
+            .padding(horizontal = 16.dp, vertical = 15.dp),
     ) {
-        if (value.isEmpty()) Text(hint, style = inter(14.sp, color = C.TextMuted))
+        if (value.isEmpty()) Text(hint, style = inter(15.sp, color = C.TextMuted))
         BasicTextField(
             value = value,
             onValueChange = { onChange(it.take(128)) },

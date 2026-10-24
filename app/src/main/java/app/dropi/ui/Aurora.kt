@@ -89,7 +89,7 @@ fun RangeRuler(mmol: Double, unit: GlucoseUnit, modifier: Modifier = Modifier) {
             drawRoundRect(marker.copy(alpha = 0.25f), Offset(mx - mw * 1.5f, 0f), Size(mw * 3, size.height), CornerRadius(mw * 1.5f))
             drawRoundRect(marker, Offset(mx - mw / 2, 2.dp.toPx()), Size(mw, size.height - 4.dp.toPx()), CornerRadius(mw / 2))
         }
-        val labelStyle = inter(11.sp, color = C.TextMuted)
+        val labelStyle = inter(12.sp, color = C.TextMuted)
         Text(Glucose.format(Glucose.LOW, unit), style = labelStyle, modifier = Modifier.offset(x = maxWidth * frac(Glucose.LOW) - 10.dp, y = 32.dp))
         Text(Glucose.format(Glucose.TIR_HIGH, unit), style = labelStyle, modifier = Modifier.offset(x = maxWidth * frac(Glucose.TIR_HIGH) - 12.dp, y = 32.dp))
     }
