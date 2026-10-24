@@ -286,3 +286,193 @@ Before dinner	Fyrir kvöldmat
 After breakfast	Eftir morgunmat
 After lunch	Eftir hádegismat
 After dinner	Eftir kvöldmat
+Say what you ate	Segðu hvað þú borðaðir
+For example: two slices of toast with jam and a small glass of orange juice	Til dæmis: tvær ristaðar brauðsneiðar með sultu og lítið glas af appelsínusafa
+Work it out	Reikna út
+Found so far: {0}	Fundið hingað til: {0}
+You can close this. Dropi lets you know when it's done.	Þú getur lokað þessu. Dropi lætur þig vita þegar þetta er tilbúið.
+Add the foods myself	Skrá matinn handvirkt
+What you ate	Hvað þú borðaðir
+Say it	Segðu það
+Tap the microphone and say it, or type it. Speech is turned into text by your phone.	Ýttu á hljóðnemann og segðu það, eða skrifaðu það. Síminn þinn breytir talinu í texta.
+Type it, or use your keyboard's microphone.	Skrifaðu það, eða notaðu hljóðnemann á lyklaborðinu.
+per serving	í skammti
+per 100 g	í 100 g
+Found in Open Food Facts. Check the numbers match the packet's "{0}" column.	Fannst í Open Food Facts. Athugaðu að tölurnar passi við dálkinn „{0}“ á pakkanum.
+A packet you've scanned before, with the numbers you checked.	Pakki sem þú hefur skannað áður, með tölunum sem þú yfirfórst.
+Type the numbers from the label's "{0}" column.	Skrifaðu tölurnar úr dálkinum „{0}“ á næringartöflunni.
+Read from the label. Check the numbers match the "{0}" column.	Lesið af næringartöflunni. Athugaðu að tölurnar passi við dálkinn „{0}“.
+Couldn't read the numbers clearly. Type them from the label's "{0}" column, or take the photo again straight on.	Náði ekki að lesa tölurnar skýrt. Skrifaðu þær úr dálkinum „{0}“ á næringartöflunni, eða taktu myndina aftur beint framan á.
+Carbs {0}	Kolvetni {0}
+e.g. 60,5	t.d. 60,5
+Sugars {0}	Sykurtegundir {0}
+optional	valfrjálst
+Sugars {0}, optional	Sykurtegundir {0}, valfrjálst
+Fibre	Trefjar
+Fibre {0}, optional	Trefjar {0}, valfrjálst
+Protein	Prótein
+Protein {0}, optional	Prótein {0}, valfrjálst
+Fat	Fita
+Fat {0}, optional	Fita {0}, valfrjálst
+This looks like a US label: its numbers are per serving, and its carbs include fibre (Dropi takes the fibre off, as European labels already do). Check the serving size below.	Þetta lítur út fyrir að vera bandarísk næringartafla: tölurnar eru í skammti og kolvetnin innihalda trefjar (Dropi dregur trefjarnar frá, eins og evrópskar töflur gera nú þegar). Athugaðu skammtastærðina hér fyrir neðan.
+Serving size on the label (g)	Skammtastærð á töflunni (g)
+e.g. 40	t.d. 40
+Serving size in grams	Skammtastærð í grömmum
+What is it? (e.g. granola)	Hvað er þetta? (t.d. granóla)
+What is it?	Hvað er þetta?
+How much did you eat?	Hversu mikið borðaðir þú?
+Grams eaten	Magn í grömmum
+Type the carbs {0} to work it out.	Skrifaðu kolvetnin {0} til að reikna þetta út.
+Type the serving size to work it out.	Skrifaðu skammtastærðina til að reikna þetta út.
+That's {0} g carbs.	Það gerir {0} g kolvetni.
+Next	Áfram
+Take it again	Taka aftur
+Pick from photos	Velja úr myndum
+Scan the label	Skanna næringartöflu
+Barcode again	Strikamerki aftur
+Pick a barcode photo	Velja mynd af strikamerki
+Barcode {0} · data from Open Food Facts (ODbL)	Strikamerki {0} · gögn frá Open Food Facts (ODbL)
+Barcode {0}	Strikamerki {0}
+Hide what Dropi read	Fela það sem Dropi las
+What Dropi read from the photo	Það sem Dropi las af myndinni
+Add a food first	Bættu fyrst við mat
+Waiting for a food's numbers…	Bíð eftir tölum fyrir mat…
+Save breakfast	Vista morgunmat
+Save lunch	Vista hádegismat
+Save dinner	Vista kvöldmat
+Save snack	Vista millimál
+Save {0}	Vista: {0}
+Breakfast	Morgunmatur
+Lunch	Hádegismatur
+Dinner	Kvöldmatur
+Snack	Millimál
+{0}. Change the meal's name or time	{0}. Breyta heiti eða tíma máltíðarinnar
+Ate at {0}. Change it	Borðað kl. {0}. Breyta
+Ate {0}	Borðað kl. {0}
+Ate at {0}	Borðað kl. {0}
+Tap the name or time to change them	Ýttu á heitið eða tímann til að breyta
+g carbs	g kolvetni
+Shown	Sýnt
+Hidden	Falið
+Nutrition	Næringargildi
+sugars	sykur
+fibre	trefjar
+protein	prótein
+fat	fita
+carbs	kolvetni
+Sugary drink	Sykraður drykkur
+sugary drink	sykraður drykkur
+Rich: check at {0}	Þung máltíð: mældu eftir {0}
+Some fat and protein: check at {0}	Nokkur fita og prótein: mældu eftir {0}
+No reading just before this meal. Your last one was at {0} ({1}).	Engin mæling rétt fyrir þessa máltíð. Síðasta mælingin þín var kl. {0} ({1}).
+No reading before this meal. Take one before you eat to see where it's likely to take you.	Engin mæling fyrir þessa máltíð. Mældu áður en þú borðar til að sjá hvert blóðsykurinn fer líklega.
+Use {0}	Nota {0}
+Take one now	Mæla núna
+Likely peak	Líklegur toppur
+Likely rise	Líkleg hækkun
+from your {0} reading, {1}	frá mælingunni kl. {0}, {1}
+about {0}	u.þ.b. {0}
+around {0} after eating	um {0} eftir mat
+How it went: peaked {0} at {1}.	Niðurstaðan: toppur {0} eftir {1}.
+An estimate from this meal and your past meals. Not advice.	Áætlun út frá þessari máltíð og fyrri máltíðum þínum. Ekki ráðgjöf.
+An estimate from this meal's numbers. Not advice.	Áætlun út frá tölum þessarar máltíðar. Ekki ráðgjöf.
+Why?	Af hverju?
+Shaped by: {0}.	Mótast af: {0}.
+Back near the start by about {0}.	Aftur nálægt upphafsgildi eftir u.þ.b. {0}.
+It learns your own pattern after a few meals with readings before and after.	Það lærir á þitt mynstur eftir nokkrar máltíðir með mælingum fyrir og eftir.
+Starts from your {0} reading ({1}). Add the foods to see the likely peak.	Byrjar frá mælingunni kl. {0} ({1}). Bættu við matnum til að sjá líklegan topp.
+Add a food	Bæta við mat
+Expanded	Opið
+Collapsed	Lokað
+More: veg first, a walk after, rich meal, say a change	Meira: grænmeti fyrst, göngutúr eftir, þung máltíð, segja breytingu
+Anything else with it?	Eitthvað fleira sem fylgdi?
+Rich meal	Þung máltíð
+Fatty or creamy: the rise comes later, so the after-eating check waits 3 h.	Feit eða rjómakennd: hækkunin kemur seinna, svo mælingin eftir mat bíður í 3 klst.
+Rich meal, check at 3 hours	Þung máltíð, mæla eftir 3 klst.
+Not quite right? Say the change	Ekki alveg rétt? Segðu hverju á að breyta
+Couldn't apply that. Tap the food to change it instead.	Tókst ekki að breyta þessu. Ýttu frekar á matinn til að breyta honum.
+Tap again to delete this meal	Ýttu aftur til að eyða þessari máltíð
+Delete this meal	Eyða þessari máltíð
+Start again	Byrja upp á nýtt
+Carbs, sugars, protein, fat and how fast carbs hit are estimates to check against labels and your usual amounts. Dropi doesn't suggest doses.	Kolvetni, sykurtegundir, prótein, fita og hversu hratt kolvetnin virka eru áætlanir sem þú berð saman við næringartöflur og venjulegt magn hjá þér. Dropi stingur ekki upp á lyfjaskömmtum.
+Which meal?	Hvaða máltíð?
+Other time	Annar tími
+looking up its numbers…	leita að tölunum…
+{0} g protein	{0} g prótein
+{0} g fat	{0} g fita
+{0}, {1} grams of carbs, {2}	{0}, {1} grömm af kolvetnum, {2}
+, your usual amount	, venjulegt magn hjá þér
+, {0} last time	, {0} síðast
+Your usual	Venjulega hjá þér
+e.g. I only ate half the rice	t.d. ég borðaði bara helminginn af hrísgrjónunum
+Change to the meal	Breyting á máltíðinni
+Say the change	Segja breytinguna
+Apply the change	Nota breytinguna
+{0} less	{0} minna
+{0} more	{0} meira
+{0}, {1}. Edit to type a number	{0}, {1}. Breyttu til að slá inn tölu
+{0} in grams, {1}. Decimals allowed	{0} í grömmum, {1}. Aukastafir leyfðir
+not set	ekki skráð
+Carbs	Kolvetni
+of which sugars	þar af sykurtegundir
+Looked up before	Flett upp áður
+Your usual amount	Venjulegt magn hjá þér
+Found: {0}, from Dropi's food list	Fannst: {0}, úr matvörulista Dropa
+Estimated by the on-device AI. Check it if you know better.	Áætlað af gervigreindinni í símanum. Athugaðu það ef þú veist betur.
+How much?	Hversu mikið?
+Other amount	Annað magn
+e.g. 150 g, 1 bowl, a handful	t.d. 150 g, 1 skál, lúka
+How much	Hversu mikið
+Not in Dropi's list. Working it out on your phone…	Ekki á lista Dropa. Reikna út í símanum…
+Your numbers	Þínar tölur
+Looks it up when you stop typing.	Flettir upp þegar þú hættir að skrifa.
+Not in Dropi's list. Type the numbers from the packet or your own amounts.	Ekki á lista Dropa. Skrifaðu tölurnar af pakkanum eða þitt eigið magn.
+Grams for {0}.	Grömm fyrir {0}.
+You can add it now; the numbers land on the meal when they're ready.	Þú getur bætt þessu við núna; tölurnar bætast við máltíðina þegar þær eru tilbúnar.
+Change the numbers	Breyta tölunum
+Add	Bæta við
+Add {0} · {1} g carbs	Bæta við: {0} · {1} g kolvetni
+Add {0} with 0 g carbs	Bæta við: {0} með 0 g kolvetni
+Add {0}	Bæta við: {0}
+Grams for the whole amount. Decimals are fine: 0,8 or 0.8.	Grömm fyrir allt magnið. Aukastafir eru í lagi: 0,8 eða 0.8.
+Guessed {0} g carbs. You changed it to {1} g.	Áætlað var {0} g kolvetni. Þú breyttir því í {1} g.
+Remember as my {0}	Muna sem venjulegt magn: {0}
+Next time: {0} g carbs for {1}	Næst: {0} g kolvetni fyrir {1}
+Remember this amount	Muna þetta magn
+After {0}, last time	Síðast þegar þú borðaðir: {0}
+1 meal so far: {0} {1}. Two make a pattern.	1 máltíð hingað til: {0} {1}. Tvær sýna mynstur.
+{1}, {0} meal	{1}, {0} máltíð
+{1}, {0} meals	{1}, {0} máltíðir
+Expected curve: rises about {0} {1}, peaking around {2} after eating	Væntanlegur ferill: hækkar um u.þ.b. {0} {1} og nær toppi um {2} eftir mat
+Expected curve: rises about {0} {1}, peaking around {2} after eating, with your actual readings shown as dots	Væntanlegur ferill: hækkar um u.þ.b. {0} {1} og nær toppi um {2} eftir mat, raunverulegar mælingar þínar eru sýndar sem punktar
+ate	borðað
+{0} h {1} min	{0} klst. {1} mín.
+Your plate	Diskurinn þinn
+All foods	Allar matvörur
+Log a meal with the + button, with a reading before you eat and one after. After two meals with a food, you'll see how it moves your numbers.	Skráðu máltíð með + hnappinum, með mælingu áður en þú borðar og aðra á eftir. Eftir tvær máltíðir með sömu matvöru sérðu hvernig hún hefur áhrif á tölurnar þínar.
+Almost there: each food needs two meals with an after-eating reading before it's ranked.	Næstum komið: hver matvara þarf tvær máltíðir með mælingu eftir mat áður en hún fær sæti í röðinni.
+Typical peak 45 min–3 h after eating, compared with before. Gentlest first.	Dæmigerður toppur 45 mín.–3 klst. eftir mat, borið saman við fyrir mat. Minnsta hækkun fyrst.
+{0}: gentle rise, {1} {2}	{0}: væg hækkun, {1} {2}
+{0}: moderate rise, {1} {2}	{0}: miðlungs hækkun, {1} {2}
+{0}: big rise, {1} {2}	{0}: mikil hækkun, {1} {2}
+How each food tends to move your numbers: the rise from your reading before eating to the highest value 45 min–3 h later. Tap a food for its curve.	Hvernig hver matvara hefur yfirleitt áhrif á tölurnar þínar: hækkunin frá mælingu fyrir mat upp í hæsta gildi 45 mín.–3 klst. síðar. Ýttu á matvöru til að sjá ferilinn.
+No meals with a reading before and after yet.	Engar máltíðir með mælingu fyrir og eftir enn.
+A gentle rise of {0}.	Væg hækkun um {0}.
+A moderate rise of {0}.	Miðlungs hækkun um {0}.
+A big rise of {0}.	Mikil hækkun um {0}.
+A gentle rise of {0}, highest around {1} after eating.	Væg hækkun um {0}, hæst um {1} eftir mat.
+A moderate rise of {0}, highest around {1} after eating.	Miðlungs hækkun um {0}, hæst um {1} eftir mat.
+A big rise of {0}, highest around {1} after eating.	Mikil hækkun um {0}, hæst um {1} eftir mat.
+From {0} meal.	Byggt á {0} máltíð.
+From {0} meals.	Byggt á {0} máltíðum.
+From {0} meal, so it isn't ranked yet.	Byggt á {0} máltíð, svo hún fær ekki sæti í röðinni enn.
+From {0} meals, so it isn't ranked yet.	Byggt á {0} máltíðum, svo hún fær ekki sæti í röðinni enn.
+Eating	Borðað
+Foods eaten together share a meal's rise. Portions, activity and medicine all play a part too.	Matvörur sem eru borðaðar saman deila hækkun máltíðarinnar. Skammtar, hreyfing og lyf skipta líka máli.
+Typical change in the four hours after eating	Dæmigerð breyting á fjórum klukkustundum eftir mat
+Today	Í dag
+Yesterday	Í gær
+When did you take it?	Hvenær var þetta?
+That's in the future. Pick an earlier time.	Þetta er í framtíðinni. Veldu fyrri tíma.
+Set time	Stilla tíma
+e.g. hard boiled egg	t.d. harðsoðið egg

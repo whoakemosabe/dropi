@@ -32,11 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.dropi.tr
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * "When did you take it?": a day (today back to a week ago) and a time on the clock, for a
@@ -56,7 +55,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
     )
     val picked = day.atTime(time.hour, time.minute).atZone(zone).toInstant().toEpochMilli()
     val future = picked > System.currentTimeMillis() + 60_000
-    val dayName = DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH)
+    val dayName = remember { dayPattern("EEE d") }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val shape = RoundedCornerShape(Corner.XL)
@@ -71,16 +70,16 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
                 .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("When did you take it?", style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
+            Text(tr("When did you take it?"), style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
             // Today and the seven days before, as a 4 × 2 grid.
             val days = (0..7).map { today.minusDays(it.toLong()) }
             ChoiceGrid(
                 days.mapIndexed { back, d ->
                     Choice(
                         when (back) {
-                            0 -> "Today"
-                            1 -> "Yesterday"
-                            else -> dayName.format(d)
+                            0 -> tr("Today")
+                            1 -> tr("Yesterday")
+                            else -> dayName.format(d).cap()
                         }
                     )
                 },
@@ -104,14 +103,14 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
             }
             if (future) {
                 Text(
-                    "That's in the future. Pick an earlier time.",
+                    tr("That's in the future. Pick an earlier time."),
                     style = inter(13.sp, FontWeight.Medium, C.High),
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton("Cancel", Modifier.weight(1f)) { onDismiss() }
-                PrimaryButton("Set time", Modifier.weight(1f), enabled = !future) { onPick(picked) }
+                GhostButton(tr("Cancel"), Modifier.weight(1f)) { onDismiss() }
+                PrimaryButton(tr("Set time"), Modifier.weight(1f), enabled = !future) { onPick(picked) }
             }
         }
     }
