@@ -86,7 +86,13 @@ class Db private constructor(context: Context, name: String) :
             while (c.moveToNext()) {
                 val foods = Foods.unpack(c.getString(2))
                 if (foods.isEmpty()) continue
-                val meal = Meal.fromJson(c.getString(3)) ?: run {
+                val logged = if (c.isNull(4)) null else c.getInt(4).toDouble()
+                val meal = Meal.fromJson(c.getString(3))?.let { m ->
+                    // Carbs changed by hand on the reading after the breakdown: the meal keeps that total.
+                    if (logged == null || kotlin.math.abs(logged - m.carbs) < 0.5) m
+                    else if (m.carbs > 0) m.copy(items = m.items.map { it.copy(carbs = Grams.round(it.carbs * logged / m.carbs)) })
+                    else m.copy(items = m.items + MealItem("carbs added by hand", "1 portion", carbs = logged))
+                } ?: run {
                     val carbs = if (c.isNull(4)) 0.0 else c.getInt(4).toDouble()
                     val each = Grams.round(carbs / foods.size)
                     Meal(foods.mapIndexed { i, f -> MealItem(f, "1 portion", carbs = if (i == 0) Grams.round(carbs - each * (foods.size - 1)) else each) }, false, "typed")
@@ -213,14 +219,14 @@ class Db private constructor(context: Context, name: String) :
         out
     }
 
-    /** Adds meals from a backup, skipping any already here (same minute and foods). */
+    /** Adds meals from a backup, skipping any already here (same minute and foods). [MealEntry.before] must already be an id here. */
     suspend fun mergeMeals(incoming: List<MealEntry>): Int = withContext(Dispatchers.IO) {
         val have = mealsSince(Long.MIN_VALUE).map { (it.at / 60_000) to it.foods.sorted() }.toHashSet()
         var added = 0
         for (e in incoming) {
             val k = (e.at / 60_000) to e.foods.sorted()
             if (k in have) continue
-            saveMeal(e.copy(id = 0, before = null))
+            saveMeal(e.copy(id = 0))
             have += k
             added++
         }
@@ -313,7 +319,8 @@ class Db private constructor(context: Context, name: String) :
                 if (db.insertWithOnConflict("sensor", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1L) added++
             }
             // A month is plenty for trends and food curves.
-            db.delete("sensor", "at < ?", arrayOf((System.currentTimeMillis() - 31L * 86_400_000).toString()))
+            // Uses the minute key (indexed), so it's quick even on every new value.
+            db.delete("sensor", "minute < ?", arrayOf(((System.currentTimeMillis() - 31L * 86_400_000) / 60_000).toString()))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -324,7 +331,8 @@ class Db private constructor(context: Context, name: String) :
     /** Sensor points at or after [since], oldest first. */
     suspend fun sensorSince(since: Long): List<SensorPoint> = withContext(Dispatchers.IO) {
         val out = ArrayList<SensorPoint>()
-        readableDatabase.rawQuery("SELECT at, mmol FROM sensor WHERE at >= ? ORDER BY at ASC", arrayOf(since.toString())).use { c ->
+        // By the minute key, which is the table's index: no full scan.
+        readableDatabase.rawQuery("SELECT at, mmol FROM sensor WHERE minute >= ? ORDER BY minute ASC", arrayOf((since / 60_000).toString())).use { c ->
             while (c.moveToNext()) out += SensorPoint(c.getLong(0), c.getDouble(1))
         }
         out

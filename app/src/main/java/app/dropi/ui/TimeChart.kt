@@ -56,6 +56,7 @@ import app.dropi.data.Agp
 import app.dropi.data.Foods
 import app.dropi.data.Glucose
 import app.dropi.data.MealHistory
+import app.dropi.data.SensorPoint
 import app.dropi.data.MealTag
 import app.dropi.data.Reading
 import java.time.Instant
@@ -85,7 +86,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     // The view: its right edge and how much time it shows.
     var end by remember { mutableLongStateOf(now + HOUR) }
     var span by remember { mutableLongStateOf(DAY) }
-    var selected by remember { mutableStateOf<Reading?>(null) }
+    // The tapped reading, by id, looked up fresh so an edit or delete shows straight away.
+    var selectedId by remember { mutableStateOf<Long?>(null) }
+    val selected = selectedId?.let { id -> readings.firstOrNull { it.id == id } }
     var showTargets by remember { mutableStateOf(false) }
     var showMeals by remember { mutableStateOf(true) }
     var showSensor by remember { mutableStateOf(true) }
@@ -121,9 +124,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val clock = remember { DateTimeFormatter.ofPattern(if (fmt.is24) "HH:mm" else "ha", Locale.ENGLISH) }
     val weekday = remember { DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH) }
     val dayMonth = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
-    val meals = remember(readings, sensor, state.meals) {
-        state.meals.associateWith { MealHistory.outcome(it, readings, sensor, state.meals) }
-    }
+    val meals = remember(state.meals, state.measuredById) { state.meals.associateWith { state.outcome(it) } }
 
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -135,7 +136,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
             span = presets[it]
             end = now + HOUR
             clamp()
-            selected = null
+            selectedId = null
         }
 
         val axisW = 30.dp
@@ -200,7 +201,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                             fun xOf(t: Long) = left + plotW * ((t - start).toFloat() / span)
                             fun yOf(m: Double) = h * (1f - ((m - minV) / (maxV - minV)).toFloat().coerceIn(0f, 1f))
                             val near = visible.minByOrNull { abs(xOf(it.at) - p.x) + abs(yOf(it.mmol) - p.y) * 0.5f }
-                            selected = near?.takeIf { abs(xOf(it.at) - p.x) < 28.dp.toPx() }
+                            selectedId = near?.takeIf { abs(xOf(it.at) - p.x) < 28.dp.toPx() }?.id
                         }
                     },
             ) {
@@ -261,14 +262,18 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
 
                 // The sensor trace behind the dots.
                 if (showSensor && !asBars) {
-                    val pts = sensor.filter { it.at in start..end }
+                    val pts = sensorIn(sensor, start, end)
                     if (pts.size >= 2) {
                         val path = Path()
                         var prev = Long.MIN_VALUE
+                        var lastX = Float.NEGATIVE_INFINITY
+                        val minStep = 1.5.dp.toPx()
                         pts.forEach { p ->
                             val x = xOf(p.at); val y = yOf(p.mmol)
                             // A gap of more than 20 minutes breaks the line rather than bridging it.
-                            if (p.at - prev > 20 * 60_000L) path.moveTo(x, y) else path.lineTo(x, y)
+                            if (p.at - prev > 20 * 60_000L) { path.moveTo(x, y); lastX = x }
+                            // Zoomed out, points closer than a pixel or two add nothing: skip them.
+                            else if (x - lastX >= minStep) { path.lineTo(x, y); lastX = x }
                             prev = p.at
                         }
                         drawPath(path, trace.copy(alpha = 0.7f), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
@@ -320,7 +325,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                     }
                     // The readings joined by a smooth line (not through a long overnight gap). Left
                     // out where the sensor trace already draws the line.
-                    val sensorHere = showSensor && sensor.any { it.at in start..end }
+                    val sensorHere = showSensor && sensorIn(sensor, start, end).isNotEmpty()
                     if (!sensorHere) {
                         val pts = readings.filter { it.at in start - 12 * HOUR..end + 12 * HOUR }.sortedBy { it.at }
                         var run = ArrayList<Offset>()
@@ -362,7 +367,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
 
         // The key: only what's on the chart right now.
         val zoomedOut = with(density) { (boxW - 30.dp.toPx()) * DAY / span < 40.dp.toPx() }
-        val inView = sensor.any { it.at in start..end }
+        val inView = sensorIn(sensor, start, end).isNotEmpty()
         Column(
             Modifier
                 .fillMaxWidth()
@@ -581,4 +586,16 @@ private fun smoothPath(pts: List<Offset>): Path {
         path.cubicTo(p0.x + dx, p0.y + m[i] * dx, p1.x - dx, p1.y - m[i + 1] * dx, p1.x, p1.y)
     }
     return path
+}
+
+/** The sensor points from [start] to [end], found by binary search in the time-ordered list (a view, no copy). */
+private fun sensorIn(sensor: List<SensorPoint>, start: Long, end: Long): List<SensorPoint> {
+    fun firstAtOrAfter(t: Long): Int {
+        var lo = 0; var hi = sensor.size
+        while (lo < hi) { val mid = (lo + hi) ushr 1; if (sensor[mid].at < t) lo = mid + 1 else hi = mid }
+        return lo
+    }
+    val a = firstAtOrAfter(start)
+    val b = firstAtOrAfter(end + 1)
+    return if (a >= b) emptyList() else sensor.subList(a, b)
 }

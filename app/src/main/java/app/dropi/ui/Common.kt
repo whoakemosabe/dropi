@@ -96,6 +96,8 @@ fun Chip(
             .background(if (selected) C.Accent else C.SurfaceLight)
             .border(1.dp, if (selected) C.Accent else C.GlassBorder, RoundedCornerShape(50))
             .tap(press, onClick = onClick)
+            // Screen readers hear whether it's on, not just the colour.
+            .semantics { this.selected = selected }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
@@ -222,7 +224,7 @@ fun SheetTitle(title: String, close: () -> Unit, trailing: @Composable () -> Uni
         trailing()
         Spacer(Modifier.width(8.dp))
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
+            Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
             contentAlignment = Alignment.Center,
         ) { Ic(app.dropi.R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
     }

@@ -41,7 +41,8 @@ data class Slot(
 
     /** This slot's time on [day], as epoch ms. */
     fun at(day: LocalDate, zone: ZoneId): Long =
-        day.atStartOfDay(zone).plusMinutes(minute.toLong()).toInstant().toEpochMilli()
+        // The clock time on that day, right on daylight-saving change days too.
+        day.atTime(minute / 60, minute % 60).atZone(zone).toInstant().toEpochMilli()
 }
 
 /** A one-time reminder: two hours after a before-meal reading, a low re-check, a snooze. */
@@ -51,6 +52,8 @@ data class OneOff(
     val kind: Kind,
     /** When it was set; a reading logged after this answers it. */
     val created: Long,
+    /** The meal an after-meal reminder belongs to, so moving or deleting the meal moves or removes it. */
+    val mealId: Long? = null,
 ) {
     enum class Kind(val title: String) {
         AFTER_MEAL("Time for your after-eating check"),
@@ -220,7 +223,7 @@ object Schedule {
         var d = t.toLocalDate()
         while (true) {
             if (d.dayOfWeek == java.time.DayOfWeek.SUNDAY) {
-                val at = d.atStartOfDay(zone).plusHours(RECAP_HOUR.toLong()).toInstant().toEpochMilli()
+                val at = d.atTime(RECAP_HOUR, 0).atZone(zone).toInstant().toEpochMilli()
                 if (at > now) return at
             }
             d = d.plusDays(1)
@@ -319,7 +322,7 @@ object Schedule {
         // A logged meal's own reminder (counted from when it was eaten) isn't answered by the
         // reading taken before it.
         val kept = oneOffs.filter { it.created > r.at || (it.kind == OneOff.Kind.AFTER_MEAL && r.tag != MealTag.AFTER_MEAL && it.at - r.at > 30 * MIN) }.toMutableList()
-        val mealNear = meals.any { it.at in r.at - 15 * MIN..r.at + 90 * MIN }
+        val mealNear = meals.any { it.at in r.at - 30 * MIN..r.at + 90 * MIN }
         if (afterMealOn && r.tag == MealTag.BEFORE_MEAL && !mealNear) {
             val at = r.at + afterMin * MIN
             if (at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now)
@@ -331,12 +334,20 @@ object Schedule {
      * After logging a meal eaten at [mealAt]: the after-meal reminder is counted from then
      * ([gap] minutes), replacing any after-meal reminder set by a reading before it.
      */
-    fun afterMeal(oneOffs: List<OneOff>, mealAt: Long, gap: Int, afterMealOn: Boolean, now: Long): List<OneOff> {
-        val kept = oneOffs.filter { !(it.kind == OneOff.Kind.AFTER_MEAL && it.at in mealAt - 60 * MIN..mealAt + 5 * 60 * MIN) }.toMutableList()
+    fun afterMeal(oneOffs: List<OneOff>, mealAt: Long, gap: Int, afterMealOn: Boolean, now: Long, mealId: Long? = null): List<OneOff> {
+        val kept = oneOffs.filter { o ->
+            val mine = mealId != null && o.mealId == mealId
+            // A reading-set reminder around this meal is replaced too (it's for the same eating).
+            val near = o.kind == OneOff.Kind.AFTER_MEAL && o.mealId == null && o.at in mealAt - 60 * MIN..mealAt + 5 * 60 * MIN
+            !mine && !near
+        }.toMutableList()
         val at = mealAt + gap * MIN
-        if (afterMealOn && at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now)
+        if (afterMealOn && at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now, mealId)
         return kept
     }
+
+    /** A deleted meal's after-meal reminder goes with it. */
+    fun withoutMeal(oneOffs: List<OneOff>, mealId: Long): List<OneOff> = oneOffs.filter { it.mealId != mealId }
 
     // ---- Storage (JSON in prefs) ----
 
@@ -360,7 +371,9 @@ object Schedule {
 
     fun oneOffsToJson(list: List<OneOff>): String = JSONArray().apply {
         list.forEach { o ->
-            put(JSONObject().put("at", o.at).put("tag", o.tag.name).put("kind", o.kind.name).put("created", o.created))
+            put(JSONObject().put("at", o.at).put("tag", o.tag.name).put("kind", o.kind.name).put("created", o.created).apply {
+                o.mealId?.let { put("meal", it) }
+            })
         }
     }.toString()
 
@@ -370,7 +383,10 @@ object Schedule {
             val a = JSONArray(json)
             (0 until a.length()).map { i ->
                 val o = a.getJSONObject(i)
-                OneOff(o.getLong("at"), MealTag.fromKey(o.optString("tag")), OneOff.Kind.fromKey(o.optString("kind")), o.optLong("created"))
+                OneOff(
+                    o.getLong("at"), MealTag.fromKey(o.optString("tag")), OneOff.Kind.fromKey(o.optString("kind")), o.optLong("created"),
+                    if (o.has("meal")) o.optLong("meal") else null,
+                )
             }
         } catch (e: Exception) { emptyList() }
     }

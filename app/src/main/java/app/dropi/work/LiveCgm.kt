@@ -105,7 +105,7 @@ object LiveCgm {
         }
         scope.launch {
             try {
-                if (Db.get(context).addSensor(listOf(point)) > 0) changed(context)
+                if (Db.real(context).addSensor(listOf(point)) > 0) changed(context)
             } catch (e: Exception) {
             } finally {
                 done()
@@ -118,7 +118,7 @@ object LiveCgm {
         ticks.value = System.currentTimeMillis()
         val p = Prefs(context)
         if (!p.liveOn) return
-        val points = Db.get(context).sensorSince(System.currentTimeMillis() - 60 * 60_000L)
+        val points = Db.real(context).sensorSince(System.currentTimeMillis() - 60 * 60_000L)
         val now = System.currentTimeMillis()
         if (p.liveNotify) postLive(context, points, now) else cancelLive(context)
         if (p.headsUpOn) {

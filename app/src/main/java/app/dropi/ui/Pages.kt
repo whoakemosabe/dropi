@@ -67,6 +67,7 @@ fun MealsPage(state: AppState) {
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item(key = "draft") { MealDraftCard() }
         item(key = "log") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -151,8 +152,8 @@ private fun TotalsCard(state: AppState, today: LocalDate) {
 /** What the person's own meals show, once there's enough to say it. */
 @Composable
 private fun PatternsCard(state: AppState) {
-    val patterns = remember(state.readings, state.sensor, state.meals, state.unit) {
-        app.dropi.data.MealPatterns.find(state.readings, state.sensor, state.meals, state.unit)
+    val patterns = remember(state.measured, state.readings, state.meals, state.unit) {
+        app.dropi.data.MealPatterns.find(state.measured, state.readings, state.meals, state.unit)
     }
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("What your meals show", style = SectionLabel)
@@ -239,5 +240,56 @@ private fun PageTile(title: String, icon: Int, modifier: Modifier, lit: Boolean 
         ) { Ic(icon, if (lit) C.OnAccent else C.AccentText, 20.dp) }
         Spacer(Modifier.height(12.dp))
         Text(title, style = inter(15.sp, FontWeight.Bold).copy(lineHeight = 19.sp))
+    }
+}
+
+/**
+ * A meal being worked out or waiting to be checked, after its screen was closed: one tap back to
+ * it, so a swipe never loses it.
+ */
+@Composable
+fun MealDraftCard() {
+    val d = MealWork.draft ?: return
+    if (MealWork.open) return
+    val (title, sub) = when (val s = d.status) {
+        is MealWork.Status.Working -> "Working out your meal…" to "Dropi lets you know when it's done."
+        is MealWork.Status.Ready -> {
+            val m = d.meal
+            if (m == null || m.items.isEmpty()) "A meal isn't saved yet" to "Add its foods and save it."
+            else "Your meal is ready to check" to "About ${app.dropi.data.Grams.text(m.carbs)} g carbs. Not saved yet."
+        }
+        is MealWork.Status.Failed -> "Couldn't make out your meal" to "Say what you ate, or add the foods yourself."
+        else -> "A meal isn't finished" to "Pick up where you left off."
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(C.AccentText.copy(alpha = 0.12f))
+            .border(1.dp, C.AccentText.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Ic(R.drawable.lc_utensils, C.AccentText, 20.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
+            Text(title, style = inter(15.sp, FontWeight.SemiBold))
+            Text(sub, style = inter(13.sp, color = C.TextSecondary))
+        }
+        if (d.status !is MealWork.Status.Working) {
+            Text(
+                "Discard",
+                style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
+                modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).semantics { role = Role.Button }
+                    .tap { MealWork.discard() }.padding(horizontal = 10.dp, vertical = 14.dp),
+            )
+        }
+        Text(
+            "Open",
+            style = inter(14.sp, FontWeight.Bold, C.OnAccent),
+            modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).background(C.Accent).semantics { role = Role.Button }
+                .tap { MealWork.open = true }.padding(horizontal = 16.dp, vertical = 14.dp),
+        )
     }
 }

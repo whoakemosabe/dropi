@@ -130,7 +130,8 @@ fun DropiRoot(state: AppState) {
         val deletedMeal = state.lastDeletedMeal
         LaunchedEffect(deleted, deletedMeal) {
             if (deleted != null || deletedMeal != null) {
-                kotlinx.coroutines.delay(5_000)
+                // Long enough to reach with TalkBack.
+                kotlinx.coroutines.delay(10_000)
                 if (state.lastDeleted == deleted) state.lastDeleted = null
                 if (state.lastDeletedMeal == deletedMeal) state.lastDeletedMeal = null
             }
@@ -144,11 +145,12 @@ fun DropiRoot(state: AppState) {
             Row(
                 Modifier
                     .navigationBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, bottom = 96.dp)
+                    .padding(start = 24.dp, end = 24.dp, bottom = 118.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(C.Text)
+                    .semantics(mergeDescendants = false) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
                     .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -187,7 +189,7 @@ fun DropiRoot(state: AppState) {
                 style = inter(14.sp, FontWeight.SemiBold, C.Bg),
                 modifier = Modifier
                     .navigationBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, bottom = 96.dp)
+                    .padding(start = 24.dp, end = 24.dp, bottom = 118.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
@@ -207,8 +209,10 @@ fun DropiRoot(state: AppState) {
         AskSheet(state)
         ChangelogSheet(state)
         AddPanel(state)
-        MealSheet(state)
         LogSheetHost(state)
+        // Over the log sheet, so a meal opened from a notification or shortcut is in front and
+        // back closes it first.
+        MealSheet(state)
         MealLaunchers(state)
 
         // First run: welcome, unit and every permission, over everything else.
@@ -232,6 +236,9 @@ fun DropiRoot(state: AppState) {
                 state.askOpen = false
                 state.foodsOpen = false
                 state.changelogOpen = false
+                state.historyOpen = false
+                state.addOpen = false
+                app.dropi.work.MealWork.open = false
                 state.startNew(if (want == "new") null else MealTag.fromKey(want))
             }
         }
@@ -240,6 +247,7 @@ fun DropiRoot(state: AppState) {
         LaunchedEffect(wantTrends) {
             if (wantTrends) {
                 Launch.openTrends.value = false
+                state.closeSheets()
                 state.trendsDays = 7
                 state.tab = Tab.TRENDS
             }

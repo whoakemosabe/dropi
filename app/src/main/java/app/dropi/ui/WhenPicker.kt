@@ -54,7 +54,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
         initialMinute = start.minute,
         is24Hour = android.text.format.DateFormat.is24HourFormat(context),
     )
-    val picked = day.atStartOfDay(zone).plusHours(time.hour.toLong()).plusMinutes(time.minute.toLong()).toInstant().toEpochMilli()
+    val picked = day.atTime(time.hour, time.minute).atZone(zone).toInstant().toEpochMilli()
     val future = picked > System.currentTimeMillis() + 60_000
     val dayName = DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH)
 

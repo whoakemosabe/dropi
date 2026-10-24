@@ -350,7 +350,15 @@ object Label {
     data class Per100(
         val carbs: Double?, val sugars: Double?, val fibre: Double?, val name: String = "",
         val protein: Double? = null, val fat: Double? = null, val us: Boolean = false,
+        /** A US label's serving size in grams: its numbers are per serving, not per 100 g. */
+        val serving: Double? = null,
     ) {
+        /** The numbers per 100 g, when they were read per serving (a US label with its serving size). */
+        fun toPer100(): Per100 {
+            val s = serving?.takeIf { us && it > 0 } ?: return this
+            fun f(v: Double?) = v?.let { it * 100.0 / s }
+            return copy(carbs = f(carbs), sugars = f(sugars), fibre = f(fibre), protein = f(protein), fat = f(fat), serving = null)
+        }
         /** Carbs that raise blood sugar: fibre taken off on a US label. */
         val netCarbs: Double? get() = carbs?.let { if (us && fibre != null) (it - fibre).coerceAtLeast(0.0) else it }
     }
@@ -412,7 +420,14 @@ object Label {
         // Fat: never a carbs row ("kolvetni" holds "vet") or a saturated-fat row ("þar af mettuð fita").
         val fatClean = find(fatWords, skip = carbWords + sugarWords + saturatedWords)
         if (carbs == null && sugars == null) return null
-        return Per100(carbs, sugars, fibre, protein = protein, fat = fatClean, us = isUs(clean))
+        val us = isUs(clean)
+        return Per100(carbs, sugars, fibre, protein = protein, fat = fatClean, us = us, serving = if (us) servingGrams(clean) else null)
+    }
+
+    /** "Serving size 1 cup (40g)" → 40. */
+    fun servingGrams(lines: List<String>): Double? {
+        val l = lines.firstOrNull { it.contains("serving size") } ?: return null
+        return Regex("(\\d{1,4}(?:\\.\\d)?)\\s*g\\b").find(l)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it in 1.0..2000.0 }
     }
 
     /** A US-style label, where carbs include fibre. */
@@ -434,7 +449,7 @@ object Label {
         "This is text read by a camera from a food packet's nutrition label (it may be Icelandic, English or another " +
             "European language, with decimal commas). Find the values per 100 g or 100 ml, and the product's name if it's there. " +
             "Reply with only JSON: {\"name\":\"granola\",\"carbs\":60.5,\"sugars\":22,\"fibre\":7,\"protein\":9,\"fat\":12}. " +
-            "Give the numbers as printed. Use null for anything missing.\n\n" +
+            "Use a dot for decimals (60.5, not 60,5). Use null for anything missing.\n\n" +
             text.take(1500)
 
     /** Reads the model's reply to [prompt]. */
@@ -443,7 +458,8 @@ object Label {
         val a = reply.indexOf('{'); val b = reply.lastIndexOf('}')
         if (a < 0 || b <= a) return null
         return try {
-            val o = org.json.JSONObject(reply.substring(a, b + 1))
+            // A decimal comma ("60,5") would break the JSON: make it a point first.
+            val o = org.json.JSONObject(reply.substring(a, b + 1).replace(Regex("(\\d),(\\d)"), "$1.$2"))
             fun d(k: String) = if (o.isNull(k)) null else o.optDouble(k).takeIf { !it.isNaN() && it in 0.0..100.0 }
             val p = Per100(
                 d("carbs"), d("sugars"), d("fibre"), o.optString("name").takeIf { it != "null" }.orEmpty().take(40),
@@ -489,10 +505,14 @@ object MealHistory {
      * The usual peak after meals sharing a food with [foods]: the median rise of those past meals
      * on top of [start]. Null with fewer than two such meals (one meal is a story, two a pattern).
      */
-    fun estimate(start: Double, foods: List<String>, readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Estimate? {
+    fun estimate(start: Double, foods: List<String>, readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Estimate? =
+        estimate(start, foods, Foods.meals(readings, sensor, meals))
+
+    /** The same, from meals already measured (leave out the meal being looked at). */
+    fun estimate(start: Double, foods: List<String>, measured: List<Foods.Meal>): Estimate? {
         if (foods.isEmpty()) return null
         val wanted = foods.toSet()
-        val past = Foods.meals(readings, sensor, meals).filter { m -> m.rise != null && m.foods.any { it in wanted } }
+        val past = measured.filter { m -> m.rise != null && m.foods.any { it in wanted } }
         if (past.size < Foods.MIN_MEALS) return null
         val shared = past.flatMap { m -> m.foods.filter { it in wanted } }.distinct()
         return Estimate(start, Foods.median(past.mapNotNull { it.rise }), past.size, shared)
@@ -503,8 +523,12 @@ object MealHistory {
         val rise get() = peak - start
     }
 
-    fun outcome(e: MealEntry, readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Outcome? {
-        val m = Foods.meals(readings, sensor, meals).firstOrNull { it.entryId == e.id } ?: return null
+    fun outcome(e: MealEntry, readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Outcome? =
+        outcome(Foods.meals(readings, sensor, meals).firstOrNull { it.entryId == e.id })
+
+    /** How a measured meal went (null when nothing came after it yet). */
+    fun outcome(m: Foods.Meal?): Outcome? {
+        if (m == null) return null
         val best = m.after.filter { it.first in 45..180 }.maxByOrNull { it.second } ?: return null
         return Outcome(m.start, m.start + best.second, m.at + best.first * 60_000L, m.startAt)
     }

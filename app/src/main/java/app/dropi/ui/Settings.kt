@@ -145,13 +145,13 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
         SheetSection("Your targets") {
             val t = state.targets
             val step = 0.1
-            TargetStepper("Fasting and before meals: from", v(t.beforeLow),
+            TargetStepper("On waking and before eating: from", v(t.beforeLow),
                 { state.changeTargets(t.copy(beforeLow = t.beforeLow - step)) },
                 { state.changeTargets(t.copy(beforeLow = t.beforeLow + step)) })
-            TargetStepper("Fasting and before meals: up to", v(t.beforeHigh),
+            TargetStepper("On waking and before eating: up to", v(t.beforeHigh),
                 { state.changeTargets(t.copy(beforeHigh = t.beforeHigh - step)) },
                 { state.changeTargets(t.copy(beforeHigh = t.beforeHigh + step)) })
-            TargetStepper("1–2 h after a meal: under", v(t.afterHigh),
+            TargetStepper("1–2 h after eating: under", v(t.afterHigh),
                 { state.changeTargets(t.copy(afterHigh = t.afterHigh - step)) },
                 { state.changeTargets(t.copy(afterHigh = t.afterHigh + step)) })
             SheetHint(

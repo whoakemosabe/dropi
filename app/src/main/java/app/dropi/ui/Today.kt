@@ -111,6 +111,7 @@ fun TodayPage(state: AppState) {
             Column {
                 UpdateBanner()
                 if (state.demo) DemoBanner(state)
+                MealDraftCard()
                 AiBanner(state)
                 CrashCard(state)
             }
@@ -141,7 +142,7 @@ fun TodayPage(state: AppState) {
         if (todays.isEmpty()) {
             item(key = "today-empty") {
                 Text(
-                    if (all.isEmpty()) "Your readings will appear here. Tap Log reading to add your first one."
+                    if (all.isEmpty()) "Your readings will appear here. Tap + to add your first one."
                     else "Nothing logged yet today.",
                     style = inter(14.sp, color = C.TextSecondary),
                     modifier = Modifier.fillMaxWidth().card().padding(18.dp),
@@ -428,15 +429,14 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 contentAlignment = Alignment.Center,
             ) { Box(Modifier.size(10.dp).clip(CircleShape).background(col)) }
         }
-        // Meals sit on the line as small squares at the time they were eaten.
+        // Meals sit on the line as small squares at the time they were eaten. They're marks, not
+        // buttons (the meals card below opens them), so they never take a tap meant for a check.
         todaysMeals.forEach { m ->
             val x = xOf(hourOf(m.at))
             Box(
                 Modifier
-                    .offset(x = x - 22.dp, y = lineY - 22.dp + 9.dp)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .tap { app.dropi.work.MealWork.edit(m) }
+                    .offset(x = x - 6.dp, y = lineY - 6.dp + 9.dp)
+                    .size(12.dp)
                     .semantics { contentDescription = "${m.name} at ${fmt.time(m.at)}: ${m.foods.joinToString(", ")}" },
                 contentAlignment = Alignment.Center,
             ) {
@@ -522,7 +522,7 @@ fun MealsCard(state: AppState, meals: List<app.dropi.data.MealEntry>, now: Long,
 
 @Composable
 private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt: Fmt, dayTimes: Boolean) {
-    val out = app.dropi.data.MealHistory.outcome(m, state.readings, state.sensor, state.meals)
+    val out = state.outcome(m)
     val rise = out?.let { app.dropi.data.Rise.of(it.rise) }
     val before = app.dropi.data.MealLink.before(m, state.readings)
     val foods = m.meal.items.joinToString(", ") { app.dropi.data.Foods.display(it.name) }

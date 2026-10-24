@@ -209,7 +209,7 @@ fun WelcomeFlow(state: AppState) {
                                 Badge(R.drawable.lc_clock)
                                 Title("Notifications")
                                 Text("Dropi only uses them for things you'd want to know:", style = body())
-                                Point(R.drawable.lc_clock, "Reminders at your check times, and the after-meal check")
+                                Point(R.drawable.lc_clock, "Reminders at your check times, and a check after you eat")
                                 Point(R.drawable.lc_circle_alert, "A re-check reminder after a low")
                                 Point(R.drawable.lc_activity, "Your live sensor value and a heads-up before lows, if you use a CGM")
                                 Point(R.drawable.lc_download, "When an update is ready")

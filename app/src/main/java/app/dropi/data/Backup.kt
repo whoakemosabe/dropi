@@ -61,7 +61,13 @@ object Backup {
                 c.targets?.let { put("targets", JSONObject().put("beforeLow", it.beforeLow).put("beforeHigh", it.beforeHigh).put("afterHigh", it.afterHigh)) }
                 put("labA1c", JSONArray(A1c.toJson(c.labA1c)))
                 put("meals", JSONArray().apply {
-                    c.meals.forEach { m -> put(JSONObject().put("at", m.at).put("name", m.name).put("meal", JSONObject(m.meal.toJson()))) }
+                    val readingAt = c.readings.associate { it.id to it.at }
+                    c.meals.forEach { m ->
+                        put(JSONObject().put("at", m.at).put("name", m.name).put("meal", JSONObject(m.meal.toJson())).apply {
+                            // The chosen start reading, by its time (ids differ between phones).
+                            m.before?.let { id -> readingAt[id]?.let { put("before_at", it) } }
+                        })
+                    }
                 })
             }
             .toString()
@@ -103,7 +109,9 @@ object Backup {
                 (0 until ms.length()).mapNotNull { i ->
                     val m = ms.optJSONObject(i) ?: return@mapNotNull null
                     val meal = Meal.fromJson(m.optJSONObject("meal")?.toString()) ?: return@mapNotNull null
-                    MealEntry(at = m.optLong("at"), name = m.optString("name", "Meal").take(20), meal = meal)
+                    // [MealEntry.before] holds the start reading's time here; the restore turns it into an id.
+                    MealEntry(at = m.optLong("at"), name = m.optString("name", "Meal").take(20), meal = meal,
+                        before = if (m.has("before_at")) m.optLong("before_at") else null)
                 }
             } ?: emptyList(),
         )

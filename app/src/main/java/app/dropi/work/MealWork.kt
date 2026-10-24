@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -48,10 +49,15 @@ object MealWork {
         val name: String? = null,
         /** The reading it starts from, when the person chose one. */
         val before: Long? = null,
+        /** Which meal this is (kept through changes), so late results never land on another one. */
+        val session: Long = 0,
     )
 
     var draft by mutableStateOf<Draft?>(null)
         private set
+
+    /** Dropi is on screen (set as it comes and goes); when it isn't, a finished meal is a notification. */
+    @Volatile var visible = true
 
     /** The meal screen is showing. */
     var open by mutableStateOf(false)
@@ -69,7 +75,7 @@ object MealWork {
 
     private fun start(status: Status, meal: Meal? = null, photo: Uri? = null): Long {
         val id = ++counter
-        draft = Draft(id, status, meal, photo)
+        draft = Draft(id, status, meal, photo, session = id)
         open = true
         return id
     }
@@ -78,7 +84,7 @@ object MealWork {
     private fun land(id: Long, d: Draft) {
         val now = draft
         // The time it started and the meal being changed carry over.
-        if (now?.id == id) draft = d.copy(started = now.started, forMeal = d.forMeal ?: now.forMeal, name = d.name ?: now.name, before = d.before ?: now.before)
+        if (now?.id == id) draft = d.copy(started = now.started, forMeal = d.forMeal ?: now.forMeal, name = d.name ?: now.name, before = d.before ?: now.before, session = now.session)
     }
 
     fun usual(context: Context): Map<String, Usual> = Prefs(context).usualFoods
@@ -103,7 +109,8 @@ object MealWork {
         val id = start(Status.Working("Looking at your plate…"), photo = uri)
         job(ctx) {
             val meal = try { Ai.mealFromPhoto(ctx, uri) } catch (e: Throwable) { null }
-            try { File(File(ctx.cacheDir, "scans"), "plate.jpg").delete() } catch (e: Exception) { }
+            // Only our own copy of the photo is deleted, and only this job's.
+            if (uri.authority == "${ctx.packageName}.files") try { File(File(ctx.cacheDir, "scans"), uri.lastPathSegment ?: "").takeIf { it.isFile }?.delete() } catch (e: Exception) { }
             finish(ctx, id, meal, "Couldn't make out the meal. Say what you ate instead, or add the foods yourself.")
         }
     }
@@ -150,8 +157,10 @@ object MealWork {
      */
     fun fillIn(context: Context, item: MealItem) {
         if (item.carbs > 0 || item.protein != null || item.fat != null) return
+        val session = draft?.session
         fun put(found: MealItem) {
             val d = draft ?: return
+            if (d.session != session) return // a different meal by now
             val m = d.meal ?: return
             val portion = if (item.portion == "1 portion") found.portion else item.portion
             val filled = item.copy(
@@ -169,8 +178,11 @@ object MealWork {
         job(ctx) {
             val m = try { Ai.mealFromWords(ctx, MealAi.words("${item.portion} of ${item.name}"), "typed") } catch (e: Throwable) { null }
             val found = m?.items?.firstOrNull() ?: basic
-            if (found != null) put(found)
-            filling = filling - item.key
+            // Back on the main thread, where the screen changes the draft too.
+            withContext(Dispatchers.Main) {
+                if (found != null) put(found)
+                filling = filling - item.key
+            }
         }
     }
 
@@ -222,7 +234,7 @@ object MealWork {
     /** A logged meal, opened for changes. */
     fun edit(entry: app.dropi.data.MealEntry) {
         val id = ++counter
-        draft = Draft(id, Status.Ready, entry.meal, forMeal = entry, started = entry.at, name = entry.name, before = entry.before)
+        draft = Draft(id, Status.Ready, entry.meal, forMeal = entry, started = entry.at, name = entry.name, before = entry.before, session = id)
         open = true
     }
 
@@ -255,12 +267,12 @@ object MealWork {
         if (draft?.id != id) return
         if (meal == null) {
             land(id, Draft(id, Status.Failed(failed)))
-            if (!open) Alerts.postMealFailed(ctx)
+            if (!open || !visible) Alerts.postMealFailed(ctx)
             return
         }
         val withUsual = MealAi.applyUsual(meal, usual(ctx))
         land(id, Draft(id, Status.Ready, withUsual, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()))
         // Worked out while the screen was closed: a notification to come back and check it.
-        if (!open) Alerts.postMealReady(ctx, app.dropi.data.Grams.text(withUsual.carbs), withUsual.foods, null)
+        if (!open || !visible) Alerts.postMealReady(ctx, app.dropi.data.Grams.text(withUsual.carbs), withUsual.foods, null)
     }
 }

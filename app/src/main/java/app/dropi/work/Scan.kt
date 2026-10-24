@@ -22,6 +22,8 @@ object Scan {
     /** Where the camera app saves the photo, shared with it through our FileProvider. */
     fun photoUri(context: Context, name: String = "meter.jpg"): Uri {
         val dir = File(context.cacheDir, "scans").apply { mkdirs() }
+        // Photos left over from a day ago (a job that never finished) are cleared out.
+        try { dir.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }?.forEach { it.delete() } } catch (e: Exception) { }
         val f = File(dir, name).apply { delete() }
         return FileProvider.getUriForFile(context, "${context.packageName}.files", f)
     }

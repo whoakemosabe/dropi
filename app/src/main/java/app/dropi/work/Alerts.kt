@@ -42,7 +42,7 @@ object Alerts {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         nm.createNotificationChannel(
             NotificationChannel(CH_REMINDERS, "Check reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Your planned check times, after-meal checks and low re-checks"
+                description = "Your planned check times, after-eating checks and low re-checks"
             }
         )
         nm.createNotificationChannel(

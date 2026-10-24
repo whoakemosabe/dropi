@@ -20,6 +20,7 @@ import app.dropi.data.Tagging
 import app.dropi.data.Targets
 import app.dropi.data.Ask
 import app.dropi.data.MealLink
+import app.dropi.data.Foods
 import app.dropi.data.SensorPoint
 import app.dropi.work.HealthSync
 import app.dropi.work.LiveCgm
@@ -125,6 +126,14 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     /** "Breakfast logged" after a meal is saved, for a moment. */
     var mealNote by mutableStateOf<String?>(null)
 
+    /** Closes every sheet (a notification asking for a page). */
+    fun closeSheets() {
+        settingsOpen = false; scheduleOpen = false; exportOpen = false; historyOpen = false; backupOpen = false
+        liveOpen = false; askOpen = false; changelogOpen = false; foodsOpen = false; addOpen = false
+        editing = null
+        app.dropi.work.MealWork.open = false
+    }
+
     /** Any sheet over the page (the tab bar hides). */
     val sheetOpen get() = !onboarded || editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
         liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || app.dropi.work.MealWork.open
@@ -163,6 +172,8 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             Db.wipeDemo(context)
             prefs.demo = true
             demo = true
+            // Reminders belong to the log in use; the demo month starts with none.
+            prefs.oneOffs = emptyList()
             val demoData = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                 app.dropi.data.Demo.make(System.currentTimeMillis(), zone)
             }
@@ -186,6 +197,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         scope.launch {
             prefs.demo = false
             demo = false
+            prefs.oneOffs = emptyList()
             Db.wipeDemo(context)
             reload()
             Reminders.rescheduleAsync(context)
@@ -203,15 +215,45 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         scope.launch { LiveCgm.ticks.collect { if (it > 0) reloadSensor() } }
     }
 
+    // ---- Measured meals: worked out once per change, off the main thread ----
+
+    /** Every meal with a start reading and what followed it (see [Foods.meals]). */
+    var measured by mutableStateOf<List<Foods.Meal>>(emptyList())
+        private set
+    var measuredById by mutableStateOf<Map<Long, Foods.Meal>>(emptyMap())
+        private set
+    /** Food scores (Your plate), from [measured]. */
+    var foodScores by mutableStateOf<List<Foods.Score>>(emptyList())
+        private set
+
+    /** How a logged meal went, from the shared measurements. */
+    fun outcome(e: MealEntry) = app.dropi.data.MealHistory.outcome(measuredById[e.id])
+
+    private suspend fun measure(rs: List<Reading>, sp: List<SensorPoint>, ms: List<MealEntry>) =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val all = try { Foods.meals(rs, sp, ms) } catch (e: Exception) { emptyList() }
+            Triple(all, all.associateBy { it.entryId }, try { Foods.scores(all) } catch (e: Exception) { emptyList() })
+        }
+
     private suspend fun reloadSensor() {
-        sensor = try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() }
+        val sp = try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() }
+        val (all, byId, scores) = measure(readings, sp, meals)
+        sensor = sp
+        measured = all; measuredById = byId; foodScores = scores
     }
 
-    private suspend fun reload() {
+    /**
+     * Loads the log. Everything is read and worked out first, then shown in one go, so the screen
+     * redraws once. The sensor is only re-read when asked (a saved reading or meal doesn't change it).
+     */
+    private suspend fun reload(withSensor: Boolean = true) {
         val since = LocalDate.now(zone).minusDays(90).atStartOfDay(zone).toInstant().toEpochMilli()
-        readings = try { db.since(since) } catch (e: Exception) { emptyList() }
-        meals = try { db.mealsSince(since) } catch (e: Exception) { emptyList() }
-        reloadSensor()
+        val rs = try { db.since(since) } catch (e: Exception) { emptyList() }
+        val ms = try { db.mealsSince(since) } catch (e: Exception) { emptyList() }
+        val sp = if (withSensor) try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() } else sensor
+        val (all, byId, scores) = measure(rs, sp, ms)
+        readings = rs; meals = ms; sensor = sp
+        measured = all; measuredById = byId; foodScores = scores
         if (historyOpen) loadHistory()
     }
 
@@ -226,6 +268,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
 
     /** Coming back to the app: the day may have changed and an update may be out. */
     fun onOpen() {
+        app.dropi.work.MealWork.visible = true
         scope.launch {
             reload()
             if (healthSync) syncHealth()
@@ -237,6 +280,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
 
     /** Leaving the app: stop the once-a-minute Health Connect look. */
     fun onLeave() {
+        app.dropi.work.MealWork.visible = false
         livePoll?.cancel()
         livePoll = null
     }
@@ -280,9 +324,9 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun saveMeal(meal: app.dropi.data.Meal, at: Long, name: String, before: Long?, id: Long = 0) {
         scope.launch {
             val saved = try { db.saveMeal(MealEntry(id, at, name, meal, before)) } catch (e: Exception) { null } ?: return@launch
-            reload()
+            reload(withSensor = false)
             val now = System.currentTimeMillis()
-            prefs.oneOffs = Schedule.afterMeal(prefs.oneOffs, saved.at, Schedule.gapFor(saved, prefs.afterMealMinutes), prefs.afterMealOn, now)
+            prefs.oneOffs = Schedule.afterMeal(prefs.oneOffs, saved.at, Schedule.gapFor(saved, prefs.afterMealMinutes), prefs.afterMealOn, now, saved.id)
             Reminders.rescheduleAsync(context)
             mealNote = if (id == 0L) "${saved.name} logged" else "${saved.name} changed"
         }
@@ -296,7 +340,8 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         lastDeleted = null
         scope.launch {
             try { db.deleteMeal(e.id) } catch (x: Exception) { }
-            reload()
+            prefs.oneOffs = Schedule.withoutMeal(prefs.oneOffs, e.id)
+            reload(withSensor = false)
             Reminders.rescheduleAsync(context)
         }
     }
@@ -305,8 +350,12 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         val e = lastDeletedMeal ?: return
         lastDeletedMeal = null
         scope.launch {
-            try { db.saveMeal(e.copy(id = 0)) } catch (x: Exception) { }
-            reload()
+            val back = try { db.saveMeal(e.copy(id = 0)) } catch (x: Exception) { null }
+            reload(withSensor = false)
+            if (back != null) {
+                prefs.oneOffs = Schedule.afterMeal(prefs.oneOffs, back.at, Schedule.gapFor(back, prefs.afterMealMinutes), prefs.afterMealOn, System.currentTimeMillis(), back.id)
+                Reminders.rescheduleAsync(context)
+            }
         }
     }
 
@@ -324,7 +373,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     /** What a reading was taken around: "before breakfast", "2 h after lunch". */
     fun linkText(r: Reading): String? = MealLink.text(r, meals, readings)
 
-    fun askCtx() = Ask.Ctx(readings, sensor, unit, targets, LocalDate.now(zone), zone, meals)
+    fun askCtx() = Ask.Ctx(readings, sensor, unit, targets, LocalDate.now(zone), zone, meals, measured)
 
     fun status(r: Reading): Status = Glucose.status(r.mmol, r.tag, targets)
 
@@ -344,13 +393,15 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     /** Opens the log sheet for a new reading, with [tag] or one picked from the time of day. */
     fun startNew(tag: MealTag? = null) {
         val now = System.currentTimeMillis()
+        // A finished scan from an earlier sheet doesn't fill in this one.
+        if (meterScan?.busy != true) meterScan = null
         editing = Reading(at = now, mmol = 0.0, tag = tag ?: suggestTag(now))
     }
 
     fun save(r: Reading) {
         scope.launch {
             val saved = try { db.save(r) } catch (e: Exception) { null } ?: return@launch
-            reload()
+            reload(withSensor = false)
             if (r.id == 0L) {
                 // A new reading answers the reminders set before it, and a before-meal one sets
                 // the after-meal reminder.
@@ -374,7 +425,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         lastDeletedMeal = null
         scope.launch {
             try { db.delete(r.id) } catch (e: Exception) { }
-            reload()
+            reload(withSensor = false)
             Reminders.rescheduleAsync(context)
             try { HealthSync.remove(context, r) } catch (e: Exception) { }
         }
@@ -387,7 +438,9 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         if (r.imported) prefs.ignoredSources = prefs.ignoredSources - r.source
         scope.launch {
             val back = try { db.save(r.copy(id = 0)) } catch (e: Exception) { null } ?: return@launch
-            reload()
+            // Meals that started from this reading point at it again.
+            meals.filter { it.before == r.id }.forEach { m -> try { db.saveMeal(m.copy(before = back.id)) } catch (e: Exception) { } }
+            reload(withSensor = false)
             Reminders.rescheduleAsync(context)
             if (healthSync && !back.imported) try { HealthSync.push(context, listOf(back)) } catch (e: Exception) { }
         }
@@ -502,7 +555,9 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         }
         val added = Db.real(context).merge(c.readings)
         try {
-            Db.real(context).mergeMeals(c.meals)
+            // Each meal's chosen start comes as a reading time: find that reading here.
+            val byMinute = Db.real(context).all().associateBy { it.at / 60_000 }
+            Db.real(context).mergeMeals(c.meals.map { m -> m.copy(before = m.before?.let { t -> byMinute[t / 60_000]?.id }) })
             // Older backups kept foods on readings: those become meals too.
             Db.real(context).tidyMeals()
         } catch (e: Exception) { }

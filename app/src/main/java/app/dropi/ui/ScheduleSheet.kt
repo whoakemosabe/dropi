@@ -120,8 +120,8 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
                 }
             }
             ToggleRow(
-                "Remind me after meals",
-                "After a before-meal reading, a nudge for the after-meal check",
+                "Remind me after eating",
+                "A nudge for the after-eating check, counted from when you ate",
                 state.afterMealOn,
             ) { on ->
                 Haptics.toggle(view, on)
@@ -229,7 +229,7 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
         }
         if (s.tag == MealTag.AFTER_MEAL) {
             Text(
-                "Follows your meal: when you log a before-meal reading, this check moves to after it.",
+                "Follows your meal: when you log a meal (or a before-eating reading), this check moves to after it.",
                 style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
             )
         }

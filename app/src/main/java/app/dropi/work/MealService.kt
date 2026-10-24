@@ -25,10 +25,8 @@ class MealService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == STOP || jobs.get() <= 0) {
-            stop()
-            return START_NOT_STICKY
-        }
+        // Always become a foreground service first: Android requires it after
+        // startForegroundService, even if the work has already finished by now.
         Alerts.createChannels(this)
         val n = NotificationCompat.Builder(this, Alerts.CH_AI)
             .setSmallIcon(R.drawable.ic_stat_drop)
@@ -46,6 +44,11 @@ class MealService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        running = this
+        if (jobs.get() <= 0) {
+            stop()
+            return START_NOT_STICKY
+        }
         if (wake == null) {
             wake = (getSystemService(POWER_SERVICE) as PowerManager)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dropi:meal")
@@ -54,12 +57,15 @@ class MealService : Service() {
         return START_NOT_STICKY
     }
 
-    /** Android 14+: a short service gets about three minutes; stop cleanly when that's up. */
+    /** A short service gets about three minutes; stop cleanly when that's up (Android 14 and 15+). */
+    @Deprecated("Android 14 form")
+    override fun onTimeout(startId: Int) = stop()
     override fun onTimeout(startId: Int, fgsType: Int) = stop()
 
-    private fun stop() {
+    internal fun stop() {
         try { wake?.takeIf { it.isHeld }?.release() } catch (e: Exception) { }
         wake = null
+        if (running === this) running = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -71,7 +77,6 @@ class MealService : Service() {
 
     companion object {
         private const val ID = 4100
-        private const val STOP = "stop"
         private val jobs = AtomicInteger(0)
 
         /** A meal job started (call while Dropi is on screen, where starting a service is allowed). */
@@ -82,14 +87,15 @@ class MealService : Service() {
             } catch (e: Exception) { }
         }
 
-        /** A meal job finished. */
+        /** A meal job finished: the last one stops the service (on the main thread, where it lives). */
         fun release(context: Context) {
-            if (jobs.decrementAndGet() <= 0) {
-                jobs.set(0)
-                try { context.startService(Intent(context, MealService::class.java).setAction(STOP)) } catch (e: Exception) {
-                    try { context.stopService(Intent(context, MealService::class.java)) } catch (_: Exception) { }
-                }
+            if (jobs.decrementAndGet() > 0) return
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                // A new job may have started meanwhile; it keeps the service.
+                if (jobs.get() <= 0) running?.stop()
             }
         }
+
+        @Volatile private var running: MealService? = null
     }
 }

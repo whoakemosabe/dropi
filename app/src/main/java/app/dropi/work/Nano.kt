@@ -52,6 +52,7 @@ object Nano {
                 else -> State.UNAVAILABLE
             }
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             State.UNAVAILABLE
         }
         return state
@@ -69,6 +70,7 @@ object Nano {
             }
             refresh() == State.READY && end !is DownloadStatus.DownloadFailed
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             refresh()
             false
         }
@@ -94,6 +96,7 @@ object Nano {
             )
             Plate.parse(res.candidates.firstOrNull()?.text)
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         } finally {
             bitmap.recycle()
@@ -108,6 +111,7 @@ object Nano {
             val res = client().generateContent(generateContentRequest(ImagePart(bitmap), TextPart(prompt)) { temperature = 0.2f })
             res.candidates.firstOrNull()?.text
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         } finally {
             bitmap.recycle()
@@ -120,6 +124,7 @@ object Nano {
         try {
             client().generateContent(generateContentRequest(TextPart(prompt)) { temperature = 0.2f }).candidates.firstOrNull()?.text
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
     }
@@ -135,6 +140,7 @@ object Nano {
             )
             res.candidates.firstOrNull()?.text?.trim()?.takeIf { it.isNotEmpty() }
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
     }

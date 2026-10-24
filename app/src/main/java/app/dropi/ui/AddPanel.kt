@@ -165,14 +165,14 @@ fun MealLaunchers(state: AppState) {
     var labelShot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var meterShot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    var note by remember { mutableStateOf<String?>(null) }
     // What to do once the on-device model is ready (null: nothing waiting).
     var afterAi by remember { mutableStateOf<String?>(null) }
 
     // Some camera apps report "cancelled" even after saving the photo, so the file itself decides.
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = shot
-        if (u != null && (ok || Scan.saved(context, "plate.jpg"))) MealWork.fromPhoto(context, android.net.Uri.parse(u))
+        val uri = u?.let { android.net.Uri.parse(it) }
+        if (uri != null && (ok || Scan.saved(context, uri.lastPathSegment ?: ""))) MealWork.fromPhoto(context, uri)
     }
     val labelCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = labelShot
@@ -197,16 +197,17 @@ fun MealLaunchers(state: AppState) {
     fun run(action: String) {
         when (action) {
             "camera" -> {
-                val u = Scan.photoUri(context, "plate.jpg")
+                // A file per photo, so a second photo never replaces one still being looked at.
+                val u = Scan.photoUri(context, "plate-${System.currentTimeMillis()}.jpg")
                 shot = u.toString()
-                try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
+                try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
             }
             "pick" -> picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             "words" -> MealWork.words()
             "label" -> {
                 val u = Scan.photoUri(context, "label.jpg")
                 labelShot = u.toString()
-                try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
+                try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
             }
             "meter" -> {
                 val u = Scan.photoUri(context, "meter.jpg")
@@ -216,6 +217,7 @@ fun MealLaunchers(state: AppState) {
                 }
             }
             "draft" -> if (MealWork.draft != null) MealWork.open = true
+                else state.mealNote = "That meal was lost when Android closed Dropi. Please log it again."
             else -> if (action.startsWith("shared:")) MealWork.fromPhoto(context, android.net.Uri.parse(action.removePrefix("shared:")))
         }
     }
@@ -244,8 +246,5 @@ fun MealLaunchers(state: AppState) {
             afterAi = null
             run(pending)
         }
-    }
-    note?.let { n ->
-        LaunchedEffect(n) { kotlinx.coroutines.delay(3000); note = null }
     }
 }

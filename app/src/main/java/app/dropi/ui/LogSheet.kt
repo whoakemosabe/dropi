@@ -202,7 +202,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                 }
             }
             Box(
-                Modifier.size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
+                Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
                 contentAlignment = Alignment.Center,
             ) { Ic(R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
         }

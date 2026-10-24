@@ -18,7 +18,9 @@ object Foods {
     const val MIN_MEALS = 2
 
     fun normalize(s: String): String =
-        s.replace('|', ' ').trim().lowercase(Locale.ROOT).replace(Regex("\\s+"), " ").take(40)
+        s.replace('|', ' ').trim().lowercase(Locale.ROOT).replace(SPACES, " ").take(40)
+
+    private val SPACES = Regex("\\s+")
 
     fun display(s: String): String = s.replaceFirstChar { it.titlecase(Locale.ROOT) }
 
@@ -57,31 +59,47 @@ object Foods {
      * eating until 4 hours later or the next meal, whichever comes first.
      */
     fun meals(readings: List<Reading>, sensor: List<SensorPoint>, entries: List<MealEntry>): List<Meal> {
-        val sorted = readings.sortedBy { it.at }
-        val sensorSorted = sensor.sortedBy { it.at }
+        // The log comes from the database oldest first; only sort what isn't already in order.
+        val sorted = if (readings.zipWithNext().all { (a, b) -> a.at <= b.at }) readings else readings.sortedBy { it.at }
+        val sensorSorted = if (sensor.zipWithNext().all { (a, b) -> a.at <= b.at }) sensor else sensor.sortedBy { it.at }
         val ordered = entries.filter { it.foods.isNotEmpty() }.sortedBy { it.at }
+        val readingTimes = LongArray(sorted.size) { sorted[it].at }
+        val sensorTimes = LongArray(sensorSorted.size) { sensorSorted[it].at }
+        // First index with a time after [t].
+        fun after(times: LongArray, t: Long): Int {
+            var lo = 0; var hi = times.size
+            while (lo < hi) { val mid = (lo + hi) ushr 1; if (times[mid] <= t) lo = mid + 1 else hi = mid }
+            return lo
+        }
         return ordered.mapIndexedNotNull { i, e ->
             val start = MealLink.before(e, sorted) ?: return@mapIndexedNotNull null
-            val nextMeal = ordered.drop(i + 1).firstOrNull { it.at > e.at + 30 * MIN }?.at ?: Long.MAX_VALUE
+            var nextMeal = Long.MAX_VALUE
+            for (k in i + 1 until ordered.size) if (ordered[k].at > e.at + 30 * MIN) { nextMeal = ordered[k].at; break }
             val end = minOf(e.at + 240 * MIN, nextMeal)
             val from = maxOf(e.at, start.at)
-            val after = ArrayList<Pair<Int, Double>>()
-            for (x in sorted) {
-                if (x.at <= from || x.at > end || x.id == start.id) continue
-                after += ((x.at - e.at) / MIN).toInt() to (x.mmol - start.mmol)
+            val out = ArrayList<Pair<Int, Double>>()
+            var k = after(readingTimes, from)
+            while (k < sorted.size && sorted[k].at <= end) {
+                val x = sorted[k++]
+                if (x.id != start.id) out += ((x.at - e.at) / MIN).toInt() to (x.mmol - start.mmol)
             }
-            for (p in sensorSorted) {
-                if (p.at <= from || p.at > end) continue
-                after += ((p.at - e.at) / MIN).toInt() to (p.mmol - start.mmol)
+            k = after(sensorTimes, from)
+            while (k < sensorSorted.size && sensorSorted[k].at <= end) {
+                val p = sensorSorted[k++]
+                out += ((p.at - e.at) / MIN).toInt() to (p.mmol - start.mmol)
             }
-            Meal(e.at, start.mmol, e.foods, after.sortedBy { it.first }, e.id, start.at)
+            Meal(e.at, start.mmol, e.foods, out.sortedBy { it.first }, e.id, start.at)
         }
     }
 
     /** Every food with at least one measured meal, gentlest first. */
-    fun scores(readings: List<Reading>, sensor: List<SensorPoint>, entries: List<MealEntry>): List<Score> {
+    fun scores(readings: List<Reading>, sensor: List<SensorPoint>, entries: List<MealEntry>): List<Score> =
+        scores(meals(readings, sensor, entries))
+
+    /** The same, from meals already measured with [meals]. */
+    fun scores(measured: List<Meal>): List<Score> {
         val byFood = HashMap<String, MutableList<Meal>>()
-        for (m in meals(readings, sensor, entries)) {
+        for (m in measured) {
             if (m.rise == null) continue
             for (f in m.foods.distinct()) byFood.getOrPut(f) { ArrayList() } += m
         }

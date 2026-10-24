@@ -149,9 +149,9 @@ object Analytics {
         if (after.size >= 3) {
             val over = after.count { it.mmol > targets.afterHigh }
             out += when {
-                over * 2 >= after.size -> Insight(InsightKind.ATTENTION, "After-meal readings were over ${v(targets.afterHigh)} in $over of ${after.size}.")
-                over == 0 -> Insight(InsightKind.GOOD, "Every after-meal reading stayed under ${v(targets.afterHigh)}.")
-                else -> Insight(InsightKind.INFO, "After-meal readings were over ${v(targets.afterHigh)} in $over of ${after.size}.")
+                over * 2 >= after.size -> Insight(InsightKind.ATTENTION, "After-eating readings were over ${v(targets.afterHigh)} in $over of ${after.size}.")
+                over == 0 -> Insight(InsightKind.GOOD, "Every after-eating reading stayed under ${v(targets.afterHigh)}.")
+                else -> Insight(InsightKind.INFO, "After-eating readings were over ${v(targets.afterHigh)} in $over of ${after.size}.")
             }
         }
 

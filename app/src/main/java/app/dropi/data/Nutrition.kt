@@ -109,9 +109,13 @@ object MealCurve {
      * How much the person rises per gram of carbs: the median over past meals with at least 15 g
      * and an after reading. Null with fewer than four such meals.
      */
-    fun perGram(readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Double? {
+    fun perGram(readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Double? =
+        perGram(Foods.meals(readings, sensor, meals), meals)
+
+    /** The same, from meals already measured. */
+    fun perGram(measured: List<Foods.Meal>, meals: List<MealEntry>): Double? {
         val byId = meals.associateBy { it.id }
-        val ratios = Foods.meals(readings, sensor, meals).mapNotNull { m ->
+        val ratios = measured.mapNotNull { m ->
             val e = byId[m.entryId] ?: return@mapNotNull null
             val rise = m.rise ?: return@mapNotNull null
             if (e.carbs < 15) null else rise.coerceAtLeast(0.0) / e.carbs
@@ -174,9 +178,9 @@ object MealPatterns {
 
     private data class Measured(val e: MealEntry, val rise: Double, val peakMin: Int)
 
-    private fun measured(readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): List<Measured> {
+    private fun measured(all: List<Foods.Meal>, meals: List<MealEntry>): List<Measured> {
         val byId = meals.associateBy { it.id }
-        return Foods.meals(readings, sensor, meals).mapNotNull { m ->
+        return all.mapNotNull { m ->
             val e = byId[m.entryId] ?: return@mapNotNull null
             val rise = m.rise ?: return@mapNotNull null
             val peak = m.after.filter { it.first in 30..240 }.maxByOrNull { it.second }?.first ?: return@mapNotNull null
@@ -184,8 +188,12 @@ object MealPatterns {
         }
     }
 
-    fun find(readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>, unit: GlucoseUnit, minEach: Int = 3): List<Pattern> {
-        val ms = measured(readings, sensor, meals)
+    fun find(readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>, unit: GlucoseUnit, minEach: Int = 3): List<Pattern> =
+        find(Foods.meals(readings, sensor, meals), readings, meals, unit, minEach)
+
+    /** The same, from meals already measured with [Foods.meals]. */
+    fun find(all: List<Foods.Meal>, readings: List<Reading>, meals: List<MealEntry>, unit: GlucoseUnit, minEach: Int = 3): List<Pattern> {
+        val ms = measured(all, meals)
         val out = ArrayList<Pattern>()
         fun d(v: Double) = Foods.delta(abs(v), unit).removePrefix("+")
         fun compareRise(yes: List<Measured>, no: List<Measured>, say: (less: Boolean, diff: String, n: Int) -> String) {
@@ -219,13 +227,14 @@ object MealPatterns {
         // Alcohol: the next morning's fasting reading.
         val zone = ZoneId.systemDefault()
         fun nextFasting(e: MealEntry): Reading? {
-            val day = Instant.ofEpochMilli(e.at).atZone(zone).toLocalDate().plusDays(1)
+            // A drink after midnight still belongs to that evening: the morning after is the same day.
+            val day = Instant.ofEpochMilli(e.at - 6 * 3_600_000L).atZone(zone).toLocalDate().plusDays(1)
             return readings.firstOrNull { it.tag == MealTag.FASTING && it.date(zone) == day }
         }
         val drinksDays = meals.filter { "alcohol" in it.meal.tags }.mapNotNull { nextFasting(it) }.distinct()
         val dryDays = readings.filter { it.tag == MealTag.FASTING }.filter { f ->
             val prev = f.date(zone).minusDays(1)
-            meals.none { "alcohol" in it.meal.tags && Instant.ofEpochMilli(it.at).atZone(zone).toLocalDate() == prev }
+            meals.none { "alcohol" in it.meal.tags && Instant.ofEpochMilli(it.at - 6 * 3_600_000L).atZone(zone).toLocalDate() == prev }
         }
         if (drinksDays.size >= minEach && dryDays.size >= minEach) {
             val diff = Foods.median(drinksDays.map { it.mmol }) - Foods.median(dryDays.map { it.mmol })

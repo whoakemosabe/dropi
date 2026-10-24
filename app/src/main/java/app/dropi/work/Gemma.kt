@@ -307,6 +307,9 @@ object Gemma {
                     }
                     e.createConversation(ConversationConfig(samplerConfig = sampler)).use { it.sendMessage(contents()).toString() }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // The caller stopped waiting (e.g. more typing): the engine is fine, keep it.
+                throw e
             } catch (e: Throwable) {
                 // A native failure can leave the engine unusable; start fresh next time.
                 closeEngine()
@@ -324,6 +327,7 @@ object Gemma {
     private fun open(context: Context, f: File): Engine? {
         for (gpu in listOf(true, false)) {
             val backend: Backend = if (gpu) Backend.GPU() else Backend.CPU()
+            var made: Engine? = null
             try {
                 val e = Engine(
                     EngineConfig(
@@ -335,12 +339,14 @@ object Gemma {
                         cacheDir = context.cacheDir.absolutePath,
                     )
                 )
+                made = e
                 e.initialize()
                 engine = e
                 loaded = true
                 return e
             } catch (t: Throwable) {
-                // Try the next backend.
+                // Free what the failed backend took, then try the next one.
+                try { made?.close() } catch (_: Throwable) { }
             }
         }
         return null

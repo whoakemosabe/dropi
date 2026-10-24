@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -36,7 +38,11 @@ class MainActivity : ComponentActivity() {
         Alerts.createChannels(this)
         Scheduler.ensure(this)
         UpdateWatch.load(this)
-        handleIntent(intent)
+        // A restart (Android closed Dropi while the camera was open, or it's opened from Recents)
+        // hands back the original request: acting on it again would reopen the camera and wipe
+        // the photo just taken.
+        val replayed = savedInstanceState != null || (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        if (!replayed) handleIntent(intent)
         setContent {
             val scope = rememberCoroutineScope()
             val s = remember { AppState(this, scope) }
@@ -117,16 +123,21 @@ class MainActivity : ComponentActivity() {
             val src = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
             intent.action = Intent.ACTION_MAIN
             if (src != null) {
-                val copy = try {
-                    val dir = java.io.File(cacheDir, "scans").apply { mkdirs() }
-                    val f = java.io.File(dir, "plate.jpg")
-                    contentResolver.openInputStream(src)?.use { input ->
-                        // Up to 20 MB: a photo, not anything else.
-                        f.outputStream().use { out -> input.copyTo(out, 1 shl 16) }
+                // Copied off the main thread: a big photo would otherwise freeze the screen.
+                lifecycleScope.launch {
+                    val copy = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val dir = java.io.File(cacheDir, "scans").apply { mkdirs() }
+                            val f = java.io.File(dir, "plate-${System.currentTimeMillis()}.jpg")
+                            contentResolver.openInputStream(src)?.use { input ->
+                                // Up to 20 MB: a photo, not anything else.
+                                f.outputStream().use { out -> input.copyTo(out, 1 shl 16) }
+                            }
+                            if (f.length() in 1..20_000_000L) androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.files", f) else null
+                        } catch (e: Exception) { null }
                     }
-                    if (f.length() in 1..20_000_000L) androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", f) else null
-                } catch (e: Exception) { null }
-                if (copy != null) Launch.mealAction.value = "shared:$copy"
+                    if (copy != null) Launch.mealAction.value = "shared:$copy"
+                }
             }
         }
         // "On-device AI is ready" opens Ask Dropi.

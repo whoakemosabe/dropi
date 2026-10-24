@@ -50,7 +50,7 @@ private fun riseTone(mmol: Double): Pair<String, Color> = when {
  */
 @Composable
 fun FoodsCard(state: AppState) {
-    val scores = remember(state.readings, state.sensor, state.meals) { Foods.scores(state.readings, state.sensor, state.meals) }
+    val scores = state.foodScores
     val ranked = scores.filter { it.ranked }
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -126,7 +126,7 @@ fun FoodsSheet(state: AppState) {
 
 @Composable
 private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
-    val scores = remember(state.readings, state.sensor, state.meals) { Foods.scores(state.readings, state.sensor, state.meals) }
+    val scores = state.foodScores
     StickySheetBody("Your plate", close) {
         Text(
             "How each food tends to move your numbers: the rise from your reading before eating to the highest " +

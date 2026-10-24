@@ -184,8 +184,8 @@ object Reminders {
             return
         }
         val now = System.currentTimeMillis()
-        val saved = Db.get(app).save(Reading(at = now, mmol = mmol, tag = tag))
-        val meals = try { Db.get(app).mealsSince(now - 3 * 3_600_000L) } catch (e: Exception) { emptyList() }
+        val saved = Db.real(app).save(Reading(at = now, mmol = mmol, tag = tag))
+        val meals = try { Db.real(app).mealsSince(now - 3 * 3_600_000L) } catch (e: Exception) { emptyList() }
         p.oneOffs = Schedule.afterSave(p.oneOffs, saved, p.afterMealOn, p.afterMealMinutes, now, meals)
         clearShown(app)
         val status = Glucose.status(mmol, tag, p.targets)
