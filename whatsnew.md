@@ -4,6 +4,4 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- Label and barcode scans now open big camera photos (50–200 MP) without running out of memory
-- If a label or barcode photo won't read, you can pick one from your photos instead
-- Problem reports now say exactly what went wrong when a photo won't open
+- Label, barcode and meter scans finally work: the release build was breaking Google's text and barcode reader inside the app. Tested reading a label and a barcode on a real Android build before shipping

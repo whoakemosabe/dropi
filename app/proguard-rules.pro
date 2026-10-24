@@ -17,3 +17,12 @@
 # input data), and it reads its own JSON with Gson.
 -keep class com.google.ai.edge.litertlm.** { *; }
 -dontwarn com.google.ai.edge.litertlm.**
+
+# ML Kit (text reader, barcode reader, Gemini Nano): R8 full mode rewrote ML Kit's internals so
+# InputImage.fromBitmap threw a NullPointerException (inside its usage logging) in release builds,
+# and every label, barcode and meter scan failed. Proven on an emulator: with these rules the
+# release build reads text and barcodes. Costs about 0.3 MB.
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
+-keep class com.google.firebase.components.** { *; }
+-keep class com.google.android.odml.** { *; }
