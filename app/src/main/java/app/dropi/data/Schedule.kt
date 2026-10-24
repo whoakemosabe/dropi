@@ -339,7 +339,9 @@ object Schedule {
             val mine = mealId != null && o.mealId == mealId
             // A reading-set reminder around this meal is replaced too (it's for the same eating).
             val near = o.kind == OneOff.Kind.AFTER_MEAL && o.mealId == null && o.at in mealAt - 60 * MIN..mealAt + 5 * 60 * MIN
-            !mine && !near
+            // So is another meal's due before this one's (dessert after dinner: one check, after both).
+            val sooner = o.kind == OneOff.Kind.AFTER_MEAL && o.mealId != null && o.at in mealAt - 30 * MIN..mealAt + gap * MIN
+            !mine && !near && !sooner
         }.toMutableList()
         val at = mealAt + gap * MIN
         if (afterMealOn && at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now, mealId)

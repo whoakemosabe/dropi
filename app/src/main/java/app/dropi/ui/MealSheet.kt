@@ -926,6 +926,8 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
     var edited by remember { mutableStateOf<MealItem?>(null) }
 
     LaunchedEffect(key, if (other) otherPortion else "") {
+        // A different food or amount: numbers typed for the old one don't carry over.
+        edited = null
         looking = false
         if (key.length < 2) { base = null; return@LaunchedEffect }
         val portion = otherPortion.trim().takeIf { other && it.isNotEmpty() }

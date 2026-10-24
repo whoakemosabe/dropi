@@ -251,6 +251,9 @@ private fun PageTile(title: String, icon: Int, modifier: Modifier, lit: Boolean 
 fun MealDraftCard() {
     val d = MealWork.draft ?: return
     if (MealWork.open) return
+    // A logged meal opened just to look at it, or an empty start, isn't anything waiting.
+    if (d.forMeal != null && d.meal == d.forMeal.meal) return
+    if (d.status is MealWork.Status.Ready && d.meal?.items.isNullOrEmpty()) return
     val (title, sub) = when (val s = d.status) {
         is MealWork.Status.Working -> "Working out your meal…" to "Dropi lets you know when it's done."
         is MealWork.Status.Ready -> {

@@ -30,6 +30,7 @@ import app.dropi.work.Reminders
 import app.dropi.work.UpdateWatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -235,7 +236,10 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
             Triple(all, all.associateBy { it.entryId }, try { Foods.scores(all) } catch (e: Exception) { emptyList() })
         }
 
-    private suspend fun reloadSensor() {
+    /** One load at a time, so a sensor value arriving mid-save can't leave a mix of old and new. */
+    private val loading = kotlinx.coroutines.sync.Mutex()
+
+    private suspend fun reloadSensor() = loading.withLock {
         val sp = try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() }
         val (all, byId, scores) = measure(readings, sp, meals)
         sensor = sp
@@ -246,7 +250,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
      * Loads the log. Everything is read and worked out first, then shown in one go, so the screen
      * redraws once. The sensor is only re-read when asked (a saved reading or meal doesn't change it).
      */
-    private suspend fun reload(withSensor: Boolean = true) {
+    private suspend fun reload(withSensor: Boolean = true) = loading.withLock {
         val since = LocalDate.now(zone).minusDays(90).atStartOfDay(zone).toInstant().toEpochMilli()
         val rs = try { db.since(since) } catch (e: Exception) { emptyList() }
         val ms = try { db.mealsSince(since) } catch (e: Exception) { emptyList() }

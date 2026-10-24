@@ -445,8 +445,12 @@ object Label {
     }
 
     /** Prompt for the on-device model: the label's text in, per-100 g numbers out. */
-    fun prompt(text: String) =
-        "This is text read by a camera from a food packet's nutrition label (it may be Icelandic, English or another " +
+    fun prompt(text: String, us: Boolean = false) =
+        if (us) "This is text read by a camera from a US \"Nutrition Facts\" label. Find the values per serving as printed, " +
+            "the serving size in grams, and the product's name if it's there. " +
+            "Reply with only JSON: {\"name\":\"granola\",\"serving\":40,\"carbs\":24,\"sugars\":9,\"fibre\":3,\"protein\":4,\"fat\":5}. " +
+            "Use a dot for decimals. Use null for anything missing.\n\n" + text.take(1500)
+        else "This is text read by a camera from a food packet's nutrition label (it may be Icelandic, English or another " +
             "European language, with decimal commas). Find the values per 100 g or 100 ml, and the product's name if it's there. " +
             "Reply with only JSON: {\"name\":\"granola\",\"carbs\":60.5,\"sugars\":22,\"fibre\":7,\"protein\":9,\"fat\":12}. " +
             "Use a dot for decimals (60.5, not 60,5). Use null for anything missing.\n\n" +
@@ -464,6 +468,7 @@ object Label {
             val p = Per100(
                 d("carbs"), d("sugars"), d("fibre"), o.optString("name").takeIf { it != "null" }.orEmpty().take(40),
                 protein = d("protein"), fat = d("fat"),
+                serving = if (o.isNull("serving")) null else o.optDouble("serving").takeIf { !it.isNaN() && it in 1.0..2000.0 },
             )
             if (p.carbs == null && p.sugars == null) null else p
         } catch (e: Exception) { null }

@@ -199,12 +199,14 @@ object MealWork {
             // The on-device model reads the same text when the table didn't parse cleanly, and
             // fills in what's missing (sugars, fibre, the product's name).
             val ai = if (lines.isNotEmpty() && Ai.usable && (found?.carbs == null || found.sugars == null || found.fibre == null || found.protein == null || found.fat == null)) {
-                try { Label.parseAi(Ai.text(ctx, Label.prompt(lines.joinToString("\n")))) } catch (e: Throwable) { null }
+                // A US label is read per serving (with its serving size), the same as the parser reads it.
+                try { Label.parseAi(Ai.text(ctx, Label.prompt(lines.joinToString("\n"), us = Label.isUs(lines)))) } catch (e: Throwable) { null }
             } else null
             val p = when {
                 found?.carbs != null -> found.copy(
                     sugars = found.sugars ?: ai?.sugars, fibre = found.fibre ?: ai?.fibre, name = ai?.name.orEmpty(),
                     protein = found.protein ?: ai?.protein, fat = found.fat ?: ai?.fat,
+                    serving = found.serving ?: ai?.serving,
                 )
                 ai?.carbs != null -> ai.copy(us = Label.isUs(lines))
                 else -> null
