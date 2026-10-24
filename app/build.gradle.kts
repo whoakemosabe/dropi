@@ -95,7 +95,9 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.2.0")
     implementation("androidx.health.connect:connect-client:1.1.0")
     // On-device text recognition for Scan meter, through Google Play services (small APK).
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    // The text reader is bundled in the APK. The Play services version downloads its model on
+    // first use, which never happened on sideloaded installs, so label and meter scans read nothing.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
     // Gemini Nano on the phone (meal photos, Ask Dropi); does nothing on phones without AICore.
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
     // Phones without Nano: Gemma 4 E2B run by LiteRT-LM. The model itself (2.6 GB) is downloaded

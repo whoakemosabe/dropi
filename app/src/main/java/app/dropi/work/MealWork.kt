@@ -29,7 +29,7 @@ object MealWork {
         data object Ready : Status
         data class Failed(val message: String) : Status
         /** A label was read (or couldn't be, [read] false: the numbers are typed); how much was eaten is still needed. */
-        data class NeedsGrams(val per100: Label.Per100, val read: Boolean = true) : Status
+        data class NeedsGrams(val per100: Label.Per100, val read: Boolean = true, val why: String? = null) : Status
         /** Waiting for the person to say what they ate. */
         data object Words : Status
     }
@@ -151,7 +151,8 @@ object MealWork {
                 ai?.carbs != null -> ai.copy(us = Label.isUs(lines))
                 else -> null
             }
-            land(id, Draft(id, if (p != null) Status.NeedsGrams(p) else Status.NeedsGrams(Label.Per100(null, null, null), read = false)))
+            val why = if (lines.isEmpty()) Scan.problem else "Found text, but no carbs or sugars in it."
+            land(id, Draft(id, if (p != null) Status.NeedsGrams(p) else Status.NeedsGrams(Label.Per100(null, null, null, us = Label.isUs(lines)), read = false, why = why)))
         }
     }
 

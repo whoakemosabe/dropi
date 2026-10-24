@@ -33,16 +33,37 @@ object Scan {
         try { File(File(context.cacheDir, "scans"), "plate.jpg").delete() } catch (e: Exception) { }
     }
 
+    /** The file behind [photoUri] for [name], to check the camera actually saved something. */
+    fun shotFile(context: Context, name: String) = File(File(context.cacheDir, "scans"), name)
+
+    /** True when the camera saved a photo, whatever result code it returned. */
+    fun saved(context: Context, name: String) = shotFile(context, name).let { it.exists() && it.length() > 0 }
+
+    /**
+     * The photo as ML Kit input: upright, and no bigger than 2400 px on its long side (a 50 MP
+     * photo decoded whole runs the phone out of memory, and the text is just as readable).
+     */
+    private fun image(context: Context, uri: Uri): InputImage? {
+        val bmp = Nano.loadScaled(context, uri, 2400) ?: return null
+        return InputImage.fromBitmap(bmp, 0)
+    }
+
+    /** Why the last scan read nothing, for the screen (null when it worked). */
+    @Volatile var problem: String? = null
+        private set
+
     /** The reading in mmol/L, or null if no plausible number was found. */
     suspend fun read(context: Context, uri: Uri, unit: GlucoseUnit): Double? = withContext(Dispatchers.Default) {
-        val pieces = try { recognise(context, uri) } catch (e: Exception) { emptyList() }
+        val pieces = try { recognise(context, uri) } catch (e: Throwable) { problem = "Couldn't open the photo."; emptyList() }
         try { photoFile(context).delete() } catch (e: Exception) { }
         MeterScan.pick(pieces, unit)
     }
 
     /** Every line of text on a photo, top to bottom (nutrition labels). The photo is then deleted. */
     suspend fun lines(context: Context, uri: Uri): List<String> = withContext(Dispatchers.Default) {
-        val image = try { InputImage.fromFilePath(context, uri) } catch (e: Exception) { return@withContext emptyList() }
+        problem = null
+        val image = try { image(context, uri) } catch (e: Throwable) { null }
+        if (image == null) { problem = "Couldn't open the photo."; return@withContext emptyList() }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         try {
             suspendCancellableCoroutine { cont ->
@@ -63,11 +84,13 @@ object Scan {
                         val out = ArrayList<String>()
                         rows.forEach { r -> out += r.sortedBy { it.boundingBox?.left ?: 0 }.joinToString(" ") { it.text } }
                         all.forEach { out += it.text }
+                        if (out.isEmpty()) problem = "No text found on the photo."
                         cont.resume(out)
                     }
-                    .addOnFailureListener { cont.resume(emptyList()) }
+                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; cont.resume(emptyList()) }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            problem = "The text reader failed."
             emptyList()
         } finally {
             recognizer.close()
@@ -76,7 +99,8 @@ object Scan {
     }
 
     private suspend fun recognise(context: Context, uri: Uri): List<MeterScan.Piece> {
-        val image = InputImage.fromFilePath(context, uri)
+        problem = null
+        val image = image(context, uri) ?: run { problem = "Couldn't open the photo."; return emptyList() }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         return try {
             suspendCancellableCoroutine { cont ->
@@ -88,9 +112,10 @@ object Scan {
                             out += MeterScan.Piece(line.text, lh)
                             for (el in line.elements) out += MeterScan.Piece(el.text, el.boundingBox?.height() ?: lh)
                         }
+                        if (out.isEmpty()) problem = "No text found on the photo."
                         cont.resume(out)
                     }
-                    .addOnFailureListener { cont.resume(emptyList()) }
+                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; cont.resume(emptyList()) }
             }
         } finally {
             recognizer.close()

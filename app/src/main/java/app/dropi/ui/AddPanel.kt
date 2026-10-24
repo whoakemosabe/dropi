@@ -46,6 +46,7 @@ import app.dropi.data.Foods
 import app.dropi.work.Ai
 import app.dropi.work.MealWork
 import app.dropi.work.Scan
+import kotlinx.coroutines.launch
 
 /**
  * The + panel: a reading, a photo of the meal, the meal in words, or a packet's label, as four
@@ -162,17 +163,32 @@ fun MealLaunchers(state: AppState) {
     // and the photo's address must survive that or the result is lost.
     var shot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var labelShot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    var meterShot by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var note by remember { mutableStateOf<String?>(null) }
     // What to do once the on-device model is ready (null: nothing waiting).
     var afterAi by remember { mutableStateOf<String?>(null) }
 
+    // Some camera apps report "cancelled" even after saving the photo, so the file itself decides.
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = shot
-        if (ok && u != null) MealWork.fromPhoto(context, android.net.Uri.parse(u))
+        if (u != null && (ok || Scan.saved(context, "plate.jpg"))) MealWork.fromPhoto(context, android.net.Uri.parse(u))
     }
     val labelCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = labelShot
-        if (ok && u != null) MealWork.fromLabel(context, android.net.Uri.parse(u))
+        if (u != null && (ok || Scan.saved(context, "label.jpg"))) MealWork.fromLabel(context, android.net.Uri.parse(u))
+    }
+    // Scan meter: here rather than in the log sheet, so the result still lands if Android closed
+    // Dropi while the camera was open (the log sheet opens again with the number in it).
+    val meterCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val u = meterShot
+        if (u == null || !(ok || Scan.saved(context, "meter.jpg"))) return@rememberLauncherForActivityResult
+        if (state.editing == null) state.startNew()
+        state.meterScan = AppState.MeterScan(busy = true)
+        scope.launch {
+            val v = try { Scan.read(context, android.net.Uri.parse(u), state.unit) } catch (e: Throwable) { null }
+            state.meterScan = AppState.MeterScan(value = v, problem = if (v == null) Scan.problem else null)
+        }
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) MealWork.fromPhoto(context, uri)
@@ -192,6 +208,13 @@ fun MealLaunchers(state: AppState) {
                 labelShot = u.toString()
                 try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { note = "No camera app found." }
             }
+            "meter" -> {
+                val u = Scan.photoUri(context, "meter.jpg")
+                meterShot = u.toString()
+                try { meterCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) {
+                    state.meterScan = AppState.MeterScan(problem = "No camera app found.")
+                }
+            }
             "draft" -> if (MealWork.draft != null) MealWork.open = true
             else -> if (action.startsWith("shared:")) MealWork.fromPhoto(context, android.net.Uri.parse(action.removePrefix("shared:")))
         }
@@ -202,8 +225,8 @@ fun MealLaunchers(state: AppState) {
         if (want == null) return@LaunchedEffect
         Launch.mealAction.value = null
         state.addOpen = false
-        // A label is read by the text scanner and works on every phone; the rest needs the model.
-        val needsModel = want != "label" && want != "draft"
+        // A label or meter is read by the text scanner and works on every phone; the rest needs the model.
+        val needsModel = want != "label" && want != "draft" && want != "meter"
         if (needsModel && !Ai.usable) {
             Ai.refresh(context)
             if (!Ai.usable) { afterAi = want; return@LaunchedEffect }

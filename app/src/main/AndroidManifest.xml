@@ -100,11 +100,6 @@
             android:name="libvndksupport.so"
             android:required="false" />
 
-        <!-- The text-recognition model for Scan meter comes with Google Play services at install. -->
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr" />
-
         <!-- The on-device AI model finished downloading (sent by Android's download manager). It
              only starts a check of Dropi's own file; nothing in the broadcast is used. -->
         <receiver

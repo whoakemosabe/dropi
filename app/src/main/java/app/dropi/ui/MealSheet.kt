@@ -132,7 +132,7 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
             GhostButton("Add the foods myself", Modifier.fillMaxWidth()) { MealWork.manual() }
         }
 
-        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read)
+        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read, s.why)
 
         is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d, close)
     }
@@ -189,7 +189,7 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
  * label when it couldn't read them), what it is, and how much was eaten.
  */
 @Composable
-private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean) {
+private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: String? = null) {
     fun fmt(d: Double?) = d?.let { Glucose.formatNumber(Math.round(it * 10) / 10.0) }.orEmpty()
     var name by remember { mutableStateOf(found.name) }
     var carbs by remember { mutableStateOf(fmt(found.carbs)) }
@@ -204,6 +204,7 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean) {
         else "Couldn't read the numbers clearly. Type them from the label's \"per 100 g\" column, or take the photo again straight on.",
         style = inter(15.sp, FontWeight.SemiBold).copy(lineHeight = 22.sp),
     )
+    if (!read && why != null) Text(why, style = inter(13.sp, color = C.TextMuted))
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Carbs per 100 g", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))

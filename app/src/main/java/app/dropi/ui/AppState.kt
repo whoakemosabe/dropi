@@ -118,6 +118,10 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var foodOpen by mutableStateOf<String?>(null)
     /** The + panel: reading, meal photo, words, label. */
     var addOpen by mutableStateOf(false)
+    /** A meter photo being read, or what it found, for the log sheet. */
+    data class MeterScan(val busy: Boolean = false, val value: Double? = null, val problem: String? = null)
+    var meterScan by mutableStateOf<MeterScan?>(null)
+
     /** "Breakfast logged" after a meal is saved, for a moment. */
     var mealNote by mutableStateOf<String?>(null)
 

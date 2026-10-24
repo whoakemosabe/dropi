@@ -119,24 +119,25 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     // Optional details, edited in their own window.
     var details by remember { mutableStateOf(Details(initial.carbs, initial.insulin, initial.insulinKind, initial.meds, initial.exercise, initial.foods, initial.meal)) }
 
-    // Scan the meter: the camera app takes a photo, the number is read on the phone.
-    val scope = rememberCoroutineScope()
-    var scanUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    // Scan the meter: the camera app takes a photo (launched app-wide, see MealLaunchers), and
+    // the number read on the phone comes back here.
     var scanNote by remember { mutableStateOf<String?>(null) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val u = scanUri
-        if (ok && u != null) {
-            scanNote = "Reading the number…"
-            scope.launch {
-                val v = Scan.read(context, u, unit)
-                if (v != null) {
-                    text = Glucose.format(v, unit)
-                    scanNote = "Scanned. Check it matches your meter."
-                    Haptics.confirm(view)
-                } else {
-                    scanNote = "Couldn't read the number. Type it instead."
-                    Haptics.reject(view)
-                }
+    val scan = state.meterScan
+    LaunchedEffect(scan) {
+        if (scan == null || !isNew) return@LaunchedEffect
+        when {
+            scan.busy -> scanNote = "Reading the number…"
+            scan.value != null -> {
+                text = Glucose.format(scan.value, unit)
+                scanNote = "Scanned. Check it matches your meter."
+                Haptics.confirm(view)
+                state.meterScan = null
+            }
+            else -> {
+                scanNote = "Couldn't read the number" + (scan.problem?.let { " ($it)" } ?: "") +
+                    ". Try again closer, straight on and without glare, or type it."
+                Haptics.reject(view)
+                state.meterScan = null
             }
         }
     }
@@ -171,11 +172,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                         .minimumInteractiveComponentSize()
                         .clip(RoundedCornerShape(50))
                         .background(C.SurfaceLight)
-                        .tap {
-                            val u = Scan.photoUri(context)
-                            scanUri = u
-                            try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { scanNote = "No camera app found." }
-                        }
+                        .tap { Launch.mealAction.value = "meter" }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
