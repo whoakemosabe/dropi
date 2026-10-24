@@ -32,7 +32,15 @@ object MealWork {
         data object Ready : Status
         data class Failed(val message: String) : Status
         /** A label was read (or couldn't be, [read] false: the numbers are typed); how much was eaten is still needed. */
-        data class NeedsGrams(val per100: Label.Per100, val read: Boolean = true, val why: String? = null, val text: List<String> = emptyList()) : Status
+        data class NeedsGrams(
+            val per100: Label.Per100, val read: Boolean = true, val why: String? = null, val text: List<String> = emptyList(),
+            /** The packet's barcode, so the numbers checked or typed are kept for next time. */
+            val code: String? = null,
+            /** Where the numbers came from: "label", "off" (Open Food Facts), "saved" (scanned before) or "barcode" (nothing found). */
+            val source: String = "label",
+            /** The packet's own serving in grams, as the first guess for how much was eaten. */
+            val portion: Double? = null,
+        ) : Status
         /** Waiting for the person to say what they ate. */
         data object Words : Status
     }
@@ -248,14 +256,74 @@ object MealWork {
                 else -> null
             }
             val why = if (lines.isEmpty()) Scan.problem else "Found text, but no carbs or sugars in it."
+            if (p == null) Diag.log(ctx, "Label: nothing usable (${why ?: "?"}; ${Scan.lastText.size} lines read; AI ${if (ai != null) "answered" else if (Ai.usable) "had no answer" else "not ready"})")
+            else if (found?.carbs == null) Diag.log(ctx, "Label: the parser missed it, the AI read it (${Scan.lastText.size} lines)")
             val seen = Scan.lastText
-            land(id, Draft(id, if (p != null) Status.NeedsGrams(p, text = seen) else Status.NeedsGrams(Label.Per100(null, null, null, us = Label.isUs(lines)), read = false, why = why, text = seen)))
+            // The label of a packet whose barcode wasn't found: what's read here is kept for that barcode.
+            val code = missing?.takeIf { System.currentTimeMillis() - missingAt < 15 * 60_000L }
+            if (p == null) {
+                // The table couldn't be read, but the photo may show the barcode.
+                val bc = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
+                val r = bc?.let { Barcodes.lookup(ctx, it) }
+                if (r is Barcodes.Result.Ok) {
+                    land(id, Draft(id, Status.NeedsGrams(r.found.per100, text = seen, code = r.code, source = if (r.saved) "saved" else "off", portion = r.found.serving)))
+                    return@job
+                }
+            }
+            land(id, Draft(id, if (p != null) Status.NeedsGrams(p, text = seen, code = code) else Status.NeedsGrams(Label.Per100(null, null, null, us = Label.isUs(lines)), read = false, why = why, text = seen, code = code)))
+        }
+    }
+
+    /** A barcode that Open Food Facts didn't know, so a label scanned next can be kept for it. */
+    @Volatile private var missing: String? = null
+    @Volatile private var missingAt = 0L
+
+    /**
+     * Scan a barcode: the number is read on the phone and looked up in Open Food Facts (only the
+     * number is sent). Packets seen before come from the phone. Not found: type the numbers or
+     * scan the label, and they're kept for that barcode.
+     */
+    fun fromBarcode(context: Context, uri: Uri) {
+        val ctx = context.applicationContext
+        val id = start(Status.Working("Reading the barcode…"))
+        job(ctx) {
+            val code = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
+            if (code == null) {
+                Diag.log(ctx, "Barcode: none found on the photo")
+                land(id, Draft(id, Status.NeedsGrams(
+                    Label.Per100(null, null, null), read = false, source = "barcode",
+                    why = "No barcode found on the photo. Take it again closer, with the stripes filling most of the frame, or scan the label instead.",
+                )))
+                return@job
+            }
+            land(id, Draft(id, Status.Working("Looking up the packet…")))
+            val blank = Label.Per100(null, null, null)
+            land(id, Draft(id, when (val r = Barcodes.lookup(ctx, code)) {
+                is Barcodes.Result.Ok -> Status.NeedsGrams(r.found.per100, code = code, source = if (r.saved) "saved" else "off", portion = r.found.serving)
+                is Barcodes.Result.NotListed -> {
+                    missing = code; missingAt = System.currentTimeMillis()
+                    Diag.log(ctx, "Barcode: $code isn't in Open Food Facts")
+                    Status.NeedsGrams(blank, read = false, code = code, source = "barcode",
+                        why = "This packet isn't in Open Food Facts yet. Type the numbers from its label, or scan the label. Dropi keeps them for next time.")
+                }
+                is Barcodes.Result.Offline -> {
+                    missing = code; missingAt = System.currentTimeMillis()
+                    Status.NeedsGrams(blank, read = false, code = code, source = "barcode",
+                        why = "Couldn't reach Open Food Facts. Check the internet connection and try again, or type the numbers from the label.")
+                }
+                Barcodes.Result.NoBarcode -> Status.NeedsGrams(blank, read = false, source = "barcode", why = "No barcode found on the photo.")
+            }))
         }
     }
 
     /** How much of the labelled food was eaten, with the per-100 g numbers as checked or typed. */
-    fun labelGrams(name: String, grams: Int, p: Label.Per100) {
+    fun labelGrams(context: Context, name: String, grams: Int, p: Label.Per100, code: String? = null, portion: Double? = null) {
         val d = draft ?: return
+        // A packet's numbers, as checked or typed, are kept for its barcode.
+        if (code != null && p.carbs != null) {
+            Barcodes.remember(context, code, app.dropi.data.Packet.Found(p.copy(carbs = p.netCarbs, us = false, serving = null, name = name), portion))
+            if (missing == code) missing = null
+        }
         val item = Label.item(name, grams, p)
         draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), (item.fat ?: 0.0) >= 25 || (item.protein ?: 0.0) >= 40, "label"))
     }
@@ -319,6 +387,7 @@ object MealWork {
     private fun finish(ctx: Context, id: Long, meal: Meal?, failed: String) {
         if (draft?.id != id) return
         if (meal == null) {
+            Diag.log(ctx, "Meal: couldn't be worked out (${draft?.status?.let { (it as? Status.Working)?.what } ?: "?"}, AI ${if (Ai.usable) Ai.name else "not ready"})")
             land(id, Draft(id, Status.Failed(failed)))
             if (!open || !visible) Alerts.postMealFailed(ctx)
             return

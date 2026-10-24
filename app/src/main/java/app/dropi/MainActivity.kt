@@ -115,7 +115,7 @@ class MainActivity : ComponentActivity() {
         // worked-out meal (its notification). Only these known actions are followed.
         intent.getStringExtra(Alerts.EXTRA_OPEN_MEAL)?.let { a ->
             intent.removeExtra(Alerts.EXTRA_OPEN_MEAL)
-            if (a in setOf("camera", "words", "label", "draft", "pick")) Launch.mealAction.value = a
+            if (a in setOf("camera", "words", "label", "barcode", "draft", "pick")) Launch.mealAction.value = a
         }
         // A photo shared from another app: copied in, then looked at like a meal photo.
         if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {

@@ -208,6 +208,7 @@ fun DropiRoot(state: AppState) {
         FoodsSheet(state)
         AskSheet(state)
         ChangelogSheet(state)
+        ReportSheet(state)
         AddPanel(state)
         LogSheetHost(state)
         // Over the log sheet, so a meal opened from a notification or shortcut is in front and

@@ -91,6 +91,22 @@ fun AddPanel(state: AppState) {
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.dp, C.Border, RoundedCornerShape(16.dp))
                     .semantics { role = Role.Button }
+                    .tap { go("barcode") }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Ic(R.drawable.lc_scan_barcode, C.AccentText, 20.dp)
+                Spacer(Modifier.width(12.dp))
+                Text("Scan a packet's barcode", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(1.dp, C.Border, RoundedCornerShape(16.dp))
+                    .semantics { role = Role.Button }
                     .tap { go("pick") }
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -177,6 +193,10 @@ fun MealLaunchers(state: AppState) {
         val uri = u?.let { android.net.Uri.parse(it) }
         if (uri != null && (ok || Scan.saved(context, uri.lastPathSegment ?: ""))) MealWork.fromPhoto(context, uri)
     }
+    val barcodeCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val u = labelShot
+        if (u != null && (ok || Scan.saved(context, "barcode.jpg"))) MealWork.fromBarcode(context, android.net.Uri.parse(u))
+    }
     val labelCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val u = labelShot
         if (u != null && (ok || Scan.saved(context, "label.jpg"))) MealWork.fromLabel(context, android.net.Uri.parse(u))
@@ -214,6 +234,11 @@ fun MealLaunchers(state: AppState) {
                 labelShot = u.toString()
                 try { labelCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
             }
+            "barcode" -> {
+                val u = Scan.photoUri(context, "barcode.jpg")
+                labelShot = u.toString()
+                try { barcodeCamera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
+            }
             "meter" -> {
                 val u = Scan.photoUri(context, "meter.jpg")
                 meterShot = u.toString()
@@ -233,7 +258,7 @@ fun MealLaunchers(state: AppState) {
         Launch.mealAction.value = null
         state.addOpen = false
         // A label or meter is read by the text scanner and works on every phone; the rest needs the model.
-        val needsModel = want != "label" && want != "draft" && want != "meter"
+        val needsModel = want != "label" && want != "barcode" && want != "draft" && want != "meter"
         if (needsModel && !Ai.usable) {
             Ai.refresh(context)
             if (!Ai.usable) { afterAi = want; return@LaunchedEffect }

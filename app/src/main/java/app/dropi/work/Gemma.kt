@@ -354,11 +354,15 @@ object Gemma {
                     suspend fun once(held: Boolean): String = try {
                         stream(context, e, sampler, held, schema, maxOut, stopAtJson, partial, contents)
                     } catch (x: SpecFailed) {
+                        Diag.log(context, "Gemma: speculative decoding failed, turned off")
                         stream(context, e, sampler, held, schema, maxOut, stopAtJson, partial, contents)
                     }
                     if (schema != null) {
                         // Held to the JSON shape where the engine supports it; plain otherwise.
-                        val held = try { once(true) } catch (c: kotlinx.coroutines.CancellationException) { throw c } catch (t: Throwable) { null }
+                        val held = try { once(true) } catch (c: kotlinx.coroutines.CancellationException) { throw c } catch (t: Throwable) {
+                            Diag.log(context, "Gemma: held-to-shape answer failed (${t.javaClass.simpleName}: ${t.message?.take(120)}), asking plainly")
+                            null
+                        }
                         if (!held.isNullOrBlank()) return@withContext held
                     }
                     once(false)
@@ -368,6 +372,7 @@ object Gemma {
                 throw e
             } catch (e: Throwable) {
                 // A native failure can leave the engine unusable; start fresh next time.
+                Diag.log(context, "Gemma: answer failed (${e.javaClass.simpleName}: ${e.message?.take(160)}); model unloaded")
                 closeEngine()
                 null
             } finally {
@@ -482,6 +487,7 @@ object Gemma {
                 return e
             } catch (t: Throwable) {
                 // Free what the failed backend took, then try the next one.
+                Diag.log(context, "Gemma: couldn't load on ${if (gpu) "GPU" else "CPU"} (${t.javaClass.simpleName}: ${t.message?.take(160)})")
                 try { made?.close() } catch (_: Throwable) { }
             }
         }

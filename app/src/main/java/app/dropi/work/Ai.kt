@@ -60,6 +60,7 @@ object Ai {
             else -> null
         }
         app.dropi.data.MealAi.parse(raw, "photo")?.let { return it }
+        Diag.log(context, "Meal photo: reply couldn't be read: ${raw?.take(200) ?: "(no reply)"}")
         // A reply that went wrong part way still has the foods it finished: use those rather than start over.
         app.dropi.data.MealAi.partial(raw, "photo")?.let { return it }
         // The held-to-shape reply didn't come out usable: ask again without holding it.

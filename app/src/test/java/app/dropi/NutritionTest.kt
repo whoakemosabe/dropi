@@ -183,3 +183,36 @@ class FastLookupTest {
         assertTrue(app.dropi.data.Basics.find("appelsín")!!.drink)
     }
 }
+
+class PacketTest {
+    @Test
+    fun readsOpenFoodFacts() {
+        val f = app.dropi.data.Packet.parse(
+            """{"code":"5690527000052","status":1,"product":{"product_name":"Skyr vanilla","product_name_is":"Vanillu skyr",
+               "serving_quantity":"170","countries_tags":["en:iceland"],
+               "nutriments":{"carbohydrates_100g":10.5,"sugars_100g":"10,5","fiber_100g":0,"proteins_100g":9.8,"fat_100g":0.2}}}"""
+        )!!
+        assertEquals("Vanillu skyr", f.per100.name)
+        assertEquals(10.5, f.per100.carbs!!, 0.01)
+        assertEquals(10.5, f.per100.sugars!!, 0.01)
+        assertEquals(170.0, f.serving!!, 0.01)
+        assertEquals(f, app.dropi.data.Packet.fromJson(app.dropi.data.Packet.toJson(f)))
+    }
+
+    @Test
+    fun usCarbsLoseTheirFibre() {
+        val f = app.dropi.data.Packet.parse(
+            """{"status":1,"product":{"product_name":"Oat cereal","countries_tags":["en:united-states"],
+               "nutriments":{"carbohydrates_100g":70,"fiber_100g":10}}}"""
+        )!!
+        assertEquals(60.0, f.per100.carbs!!, 0.01)
+    }
+
+    @Test
+    fun notFoundOrNoCarbs() {
+        assertEquals(null, app.dropi.data.Packet.parse("""{"status":0,"status_verbose":"product not found"}"""))
+        assertEquals(null, app.dropi.data.Packet.parse("""{"status":1,"product":{"product_name":"Water","nutriments":{}}}"""))
+        assertTrue(app.dropi.data.Packet.valid("5690527000052"))
+        assertFalse(app.dropi.data.Packet.valid("abc"))
+    }
+}

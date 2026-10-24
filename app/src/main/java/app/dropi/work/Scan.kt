@@ -45,7 +45,7 @@ object Scan {
      * The photo as ML Kit input: upright, and no bigger than 2400 px on its long side (a 50 MP
      * photo decoded whole runs the phone out of memory, and the text is just as readable).
      */
-    private fun image(context: Context, uri: Uri): InputImage? {
+    internal fun image(context: Context, uri: Uri): InputImage? {
         val bmp = Nano.loadScaled(context, uri, 2400) ?: return null
         return InputImage.fromBitmap(bmp, 0)
     }
@@ -60,9 +60,9 @@ object Scan {
 
     /** The reading in mmol/L, or null if no plausible number was found. */
     suspend fun read(context: Context, uri: Uri, unit: GlucoseUnit): Double? = withContext(Dispatchers.Default) {
-        val pieces = try { recognise(context, uri) } catch (e: Throwable) { problem = "Couldn't open the photo."; emptyList() }
+        val pieces = try { recognise(context, uri) } catch (e: Throwable) { problem = "Couldn't open the photo."; Diag.log(context, "Meter: couldn't open the photo (${e.javaClass.simpleName})"); emptyList() }
         try { photoFile(context).delete() } catch (e: Exception) { }
-        MeterScan.pick(pieces, unit)
+        MeterScan.pick(pieces, unit).also { if (it == null) Diag.log(context, "Meter: no reading found among ${pieces.size} pieces of text (${pieces.take(12).joinToString(" | ") { p -> p.text }})") }
     }
 
     /** Every line of text on a photo, top to bottom (nutrition labels). The photo is then deleted. */
@@ -92,7 +92,7 @@ object Scan {
                         if (out.isEmpty()) problem = "No text found on the photo."
                         cont.resume(out)
                     }
-                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; cont.resume(emptyList()) }
+                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
             }
         } catch (e: Throwable) {
             problem = "The text reader failed."
@@ -120,7 +120,7 @@ object Scan {
                         if (out.isEmpty()) problem = "No text found on the photo."
                         cont.resume(out)
                     }
-                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; cont.resume(emptyList()) }
+                    .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
             }
         } finally {
             recognizer.close()

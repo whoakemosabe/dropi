@@ -41,5 +41,15 @@ object CrashLog {
 
     fun read(context: Context): String? = try { file(context).takeIf { it.exists() }?.readText() } catch (e: Exception) { null }
 
-    fun clear(context: Context) { try { file(context).delete() } catch (e: Exception) { } }
+    /** Dismissed from the screen, but kept (as the last seen crash) for a problem report. */
+    fun clear(context: Context) {
+        try {
+            val f = file(context)
+            if (f.exists()) f.copyTo(seen(context), overwrite = true)
+            f.delete()
+        } catch (e: Exception) { }
+    }
+
+    private fun seen(context: Context) = File(context.applicationContext.filesDir, "last-crash-seen.txt")
+    fun readSeen(context: Context): String? = try { seen(context).takeIf { it.exists() }?.readText() } catch (e: Exception) { null }
 }

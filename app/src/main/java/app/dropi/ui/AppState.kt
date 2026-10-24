@@ -115,6 +115,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var liveOpen by mutableStateOf(false)
     var askOpen by mutableStateOf(false)
     var changelogOpen by mutableStateOf(false)
+    var reportOpen by mutableStateOf(false)
     /** The food scores sheet, and the food opened in it (null: the list). */
     var foodsOpen by mutableStateOf(false)
     var foodOpen by mutableStateOf<String?>(null)
@@ -130,14 +131,14 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     /** Closes every sheet (a notification asking for a page). */
     fun closeSheets() {
         settingsOpen = false; scheduleOpen = false; exportOpen = false; historyOpen = false; backupOpen = false
-        liveOpen = false; askOpen = false; changelogOpen = false; foodsOpen = false; addOpen = false
+        liveOpen = false; askOpen = false; changelogOpen = false; foodsOpen = false; addOpen = false; reportOpen = false
         editing = null
         app.dropi.work.MealWork.open = false
     }
 
     /** Any sheet over the page (the tab bar hides). */
     val sheetOpen get() = !onboarded || editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
-        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || app.dropi.work.MealWork.open
+        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || reportOpen || app.dropi.work.MealWork.open
 
     // ---- Live sensor ----
 

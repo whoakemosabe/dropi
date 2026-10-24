@@ -143,7 +143,7 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
             GhostButton("Add the foods myself", Modifier.fillMaxWidth()) { MealWork.manual() }
         }
 
-        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read, s.why, s.text)
+        is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read, s.why, s.text, s.code, s.source, s.portion)
 
         is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d, close)
     }
@@ -200,7 +200,11 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
  * label when it couldn't read them), what it is, and how much was eaten.
  */
 @Composable
-private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: String? = null, seen: List<String> = emptyList()) {
+private fun LabelGrams(
+    found: app.dropi.data.Label.Per100, read: Boolean, why: String? = null, seen: List<String> = emptyList(),
+    code: String? = null, source: String = "label", portion: Double? = null,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     fun fmt(d: Double?) = d?.let { Glucose.formatNumber(Math.round(it * 10) / 10.0) }.orEmpty()
     // US labels give their numbers per serving; European ones per 100 g.
     val us = found.us
@@ -212,14 +216,20 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: S
     var protein by remember { mutableStateOf(fmt(found.protein)) }
     var fat by remember { mutableStateOf(fmt(found.fat)) }
     var serving by remember { mutableStateOf(fmt(found.serving)) }
-    var grams by remember { mutableStateOf(found.serving?.let { Math.round(it).toInt() }?.takeIf { us } ?: 100) }
+    val packetG = portion?.let { Math.round(it).toInt() }?.takeIf { !us && it in 5..2000 }
+    var grams by remember { mutableStateOf(found.serving?.let { Math.round(it).toInt() }?.takeIf { us } ?: packetG ?: 100) }
     fun num(t: String) = t.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..(if (us) 400.0 else 100.0) }
     Text(
-        if (read) "Read from the label. Check the numbers match the \"$per\" column."
-        else "Couldn't read the numbers clearly. Type them from the label's \"$per\" column, or take the photo again straight on.",
+        when {
+            source == "off" -> "Found in Open Food Facts. Check the numbers match the packet's \"$per\" column."
+            source == "saved" -> "A packet you've scanned before, with the numbers you checked."
+            source == "barcode" -> why ?: "Type the numbers from the label's \"$per\" column."
+            read -> "Read from the label. Check the numbers match the \"$per\" column."
+            else -> "Couldn't read the numbers clearly. Type them from the label's \"$per\" column, or take the photo again straight on."
+        },
         style = inter(15.sp, FontWeight.SemiBold).copy(lineHeight = 22.sp),
     )
-    if (!read && why != null) Text(why, style = inter(13.sp, color = C.TextMuted))
+    if (!read && why != null && source != "barcode") Text(why, style = inter(13.sp, color = C.TextMuted))
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Carbs $per", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
@@ -258,7 +268,12 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: S
     FieldBox(name, "What is it? (e.g. granola)", label = "What is it?", onChange = { name = it.take(40) })
     Text("How much did you eat?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
     val servingG = serving.replace(',', '.').toDoubleOrNull()?.takeIf { it in 1.0..2000.0 }
-    val options = if (us && servingG != null) listOf(1.0, 1.5, 2.0).map { Math.round(servingG * it).toInt() }.distinct() else listOf(25, 50, 100, 150)
+    val options = when {
+        us && servingG != null -> listOf(1.0, 1.5, 2.0).map { Math.round(servingG * it).toInt() }.distinct()
+        // A packet's serving first (e.g. a 170 g skyr pot), then the usual amounts.
+        packetG != null -> (listOf(packetG) + listOf(25, 50, 100, 150).filter { it != packetG }).take(4)
+        else -> listOf(25, 50, 100, 150)
+    }
     ChoiceGrid(
         options.map { g -> Choice(if (us && servingG != null) "${app.dropi.data.Meal.qtyText(g / servingG)} (${g} g)" else "$g g") },
         options.indexOf(grams).takeIf { it >= 0 }, columns = options.size, compact = true,
@@ -279,9 +294,17 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: S
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
     PrimaryButton("Next", Modifier.fillMaxWidth(), enabled = ready) {
-        MealWork.labelGrams(Foods.normalize(name), grams, checked)
+        MealWork.labelGrams(context, Foods.normalize(name), grams, checked, code, packetG?.toDouble())
     }
-    GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
+    if (source == "label") GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
+    else if (!read) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        GhostButton("Scan the label", Modifier.weight(1f), color = C.AccentText) { Launch.mealAction.value = "label" }
+        GhostButton("Barcode again", Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
+    }
+    if (code != null) Text(
+        if (source == "off") "Barcode $code · data from Open Food Facts (ODbL)" else "Barcode $code",
+        style = inter(12.sp, color = C.TextMuted),
+    )
     // What the camera actually read, so a label that won't work can be checked (and sent to fix it).
     if (seen.isNotEmpty()) {
         var show by remember { mutableStateOf(false) }

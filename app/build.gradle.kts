@@ -98,6 +98,8 @@ dependencies {
     // The text reader is bundled in the APK. The Play services version downloads its model on
     // first use, which never happened on sideloaded installs, so label and meter scans read nothing.
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    // Packet barcodes, read on the phone (bundled, no download), then looked up in Open Food Facts.
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     // Gemini Nano on the phone (meal photos, Ask Dropi); does nothing on phones without AICore.
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
     // Phones without Nano: Gemma 4 E2B run by LiteRT-LM. The model itself (2.6 GB) is downloaded

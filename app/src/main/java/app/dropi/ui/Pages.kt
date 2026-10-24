@@ -75,8 +75,24 @@ fun MealsPage(state: AppState) {
                     PageTile("Say what you ate", R.drawable.lc_mic, Modifier.weight(1f)) { Launch.mealAction.value = "words" }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PageTile("Scan a barcode", R.drawable.lc_scan_barcode, Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
                     PageTile("Scan a label", R.drawable.lc_scan_text, Modifier.weight(1f)) { Launch.mealAction.value = "label" }
-                    PageTile("Add foods myself", R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, C.GlassBorder, RoundedCornerShape(16.dp))
+                        .semantics { role = Role.Button }
+                        .tap { MealWork.manual() }
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Ic(R.drawable.lc_pencil, C.AccentText, 18.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Add foods myself", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
                 }
             }
         }
@@ -191,6 +207,7 @@ fun MorePage(state: AppState) {
         Triple("Backup", R.drawable.lc_archive) { state.backupOpen = true },
         Triple("Settings", R.drawable.lc_settings) { state.settingsOpen = true },
         Triple("What's changed", R.drawable.lc_sparkles) { state.changelogOpen = true },
+        Triple("Report a problem", R.drawable.lc_circle_alert) { state.reportOpen = true },
     )
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
