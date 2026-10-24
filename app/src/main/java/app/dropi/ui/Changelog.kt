@@ -32,10 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.work.Updater
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /** Settings › Updates › What's changed: every release's highlights on a timeline, newest first. */
 @Composable
@@ -56,17 +55,17 @@ private fun ColumnScope.ChangelogContent(close: () -> Unit) {
         val got = Updater.fetchChangelog()
         if (got == null) failed = true else log = got
     }
-    val day = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()) }
+    val day = remember { dayPattern("d MMM yyyy") }
 
-    StickySheetBody("What's changed", close) {
+    StickySheetBody(tr("What's changed"), close) {
         val list = log
         when {
             list == null && failed -> {
-                Text("Couldn't reach GitHub for the list of changes.", style = inter(15.sp, color = C.TextSecondary))
-                Chip("Try again", icon = R.drawable.lc_refresh_cw) { attempt++ }
+                Text(tr("Couldn't reach GitHub for the list of changes."), style = inter(15.sp, color = C.TextSecondary))
+                Chip(tr("Try again"), icon = R.drawable.lc_refresh_cw) { attempt++ }
             }
-            list == null -> Text("Loading…", style = inter(15.sp, color = C.TextMuted))
-            list.isEmpty() -> Text("No releases yet.", style = inter(15.sp, color = C.TextSecondary))
+            list == null -> Text(tr("Loading…"), style = inter(15.sp, color = C.TextMuted))
+            list.isEmpty() -> Text(tr("No releases yet."), style = inter(15.sp, color = C.TextSecondary))
             else -> list.forEachIndexed { i, r ->
                 val current = r.version == installed
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
@@ -87,7 +86,7 @@ private fun ColumnScope.ChangelogContent(close: () -> Unit) {
                             Text(d, style = inter(13.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
                             if (current) {
                                 Text(
-                                    "On your phone",
+                                    tr("On your phone"),
                                     style = inter(13.sp, FontWeight.SemiBold, C.OnAccent),
                                     modifier = Modifier.clip(RoundedCornerShape(50)).background(C.Accent).padding(horizontal = 8.dp, vertical = 4.dp),
                                 )

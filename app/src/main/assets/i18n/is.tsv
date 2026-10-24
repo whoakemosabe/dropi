@@ -16,3 +16,90 @@ Yesterday {0}	Í gær {0}
 just now	rétt í þessu
 {0} min ago	fyrir {0} mín.
 {0} h ago	fyrir {0} klst.
+Backed up. Keep the password safe: without it the file can't be opened.	Afrit vistað. Geymdu lykilorðið vel: án þess er ekki hægt að opna skrána.
+Couldn't save the backup there. Try another place.	Ekki tókst að vista afritið þar. Prófaðu annan stað.
+Backup	Afrit
+Your readings, check times, targets and lab results in one file locked with a password. Save it to Drive or Files and you can restore it on a new phone.	Mælingarnar þínar, mælingartímar, markgildi og niðurstöður úr blóðprufum í einni skrá sem er læst með lykilorði. Vistaðu hana á Drive eða í Files og þá geturðu endurheimt hana á nýjum síma.
+Back up	Taka afrit
+Password (6 characters or more)	Lykilorð (6 stafir eða fleiri)
+The same password again	Sama lykilorð aftur
+The passwords don't match.	Lykilorðin passa ekki saman.
+Back up now	Taka afrit núna
+Restore	Endurheimta
+Choose a backup file	Veldu afritsskrá
+No file picker found.	Ekkert forrit fannst til að velja skrá.
+File chosen. Enter its password.	Skrá valin. Sláðu inn lykilorðið hennar.
+Backup password	Lykilorð afrits
+Restored. Every reading in the backup was already here.	Endurheimt lokið. Allar mælingar í afritinu voru þegar hér.
+Restored {0} reading.	{0} mæling endurheimt.
+Restored {0} readings.	{0} mælingar endurheimtar.
+That password doesn't open this file (or the file is damaged).	Þetta lykilorð opnar ekki skrána (eða skráin er skemmd).
+That file isn't a Dropi backup.	Þessi skrá er ekki afrit úr Dropa.
+Couldn't read that file.	Ekki tókst að lesa skrána.
+Choose a different file	Velja aðra skrá
+Fixes and improvements	Lagfæringar og endurbætur
+GitHub can't see the releases (is the repo public?).	GitHub sér ekki útgáfurnar (er safnið opinbert?).
+The latest release has no APK yet.	Nýjasta útgáfan er ekki enn með APK-skrá.
+Couldn't reach GitHub.	Ekki náðist samband við GitHub.
+Download failed. Tap to try again.	Niðurhal mistókst. Ýttu til að reyna aftur.
+Allow Dropi to install updates, then tap again.	Leyfðu Dropa að setja upp uppfærslur og ýttu svo aftur.
+Dropi {0} is ready	Dropi {0} er tilbúinn
+See what's new	Sjá hvað er nýtt
+Checking…	Athugar…
+Downloading… {0}%	Sækir… {0}%
+Downloaded. Tap to install	Sótt. Ýttu til að setja upp
+Install	Setja upp
+Update	Uppfæra
+Hide this update	Fela þessa uppfærslu
+Hide	Fela
+Update ready	Uppfærsla tilbúin
+30+ updates behind	30+ uppfærslum á eftir
+{0} update behind	{0} uppfærslu á eftir
+{0} updates behind	{0} uppfærslum á eftir
+What's new since your version	Hvað er nýtt frá þinni útgáfu
+What's new in v{0}	Hvað er nýtt í v{0}
+Installing v{0} brings you fully up to date.	Með því að setja upp v{0} verður allt komið í nýjustu útgáfu.
+Keep using Dropi	Halda áfram í Dropa
+Later	Seinna
+Try again	Reyna aftur
+Update now	Uppfæra núna
+What's changed	Hvað hefur breyst
+Couldn't reach GitHub for the list of changes.	Ekki náðist í GitHub til að sækja lista yfir breytingar.
+Loading…	Hleður…
+No releases yet.	Engar útgáfur enn.
+On your phone	Í símanum þínum
+Report a problem	Tilkynna vandamál
+Say what didn't work, then send it. Dropi adds what it knows about the problem, so it can be fixed without guessing.	Segðu hvað virkaði ekki og sendu svo. Dropi bætir við því sem hann veit um vandamálið svo hægt sé að laga það án ágiskana.
+e.g. I scanned the skyr label and it said it couldn't read the numbers	t.d. ég skannaði næringartöfluna á skyrinu og það kom að ekki væri hægt að lesa tölurnar
+What happened	Hvað gerðist
+Also included: the app version and phone, the on-device AI's state and which chip it runs on, your settings, the text from the last label scan, recent problems and the last crash. Not included: your readings, meals or notes.	Líka með: útgáfa forritsins og síminn, staða gervigreindarinnar í símanum og hvaða örgjörva hún keyrir á, stillingarnar þínar, textinn úr síðustu skönnun á næringartöflu, nýleg vandamál og síðasta hrun. Ekki með: mælingarnar þínar, máltíðir eða athugasemdir.
+Send report	Senda skýrslu
+Send the report	Senda skýrsluna
+Copied	Afritað
+Copy instead	Afrita í staðinn
+Hide what's sent	Fela það sem er sent
+See what's sent	Sjá það sem er sent
+Clear the problem list	Hreinsa vandamálalistann
+Share a report	Deila skýrslu
+Made on your phone and shared however you choose: email, Messenger, Drive, a print-out.	Búin til í símanum og deilt eins og þú vilt: í tölvupósti, á Messenger, á Drive eða útprentuð.
+Demo data is on: a report now is made from made-up readings. Don't send it to your care team.	Kveikt er á prufugögnum: skýrsla núna er gerð úr tilbúnum mælingum. Ekki senda hana til heilbrigðisteymisins.
+14 days	14 dagar
+30 days	30 dagar
+90 days	90 dagar
+{0} reading in this period	{0} mæling á þessu tímabili
+{0} readings in this period	{0} mælingar á þessu tímabili
+PDF report for your doctor	PDF-skýrsla fyrir lækninn
+Blood glucose report	Blóðsykursskýrsla
+Couldn't make the report.	Ekki tókst að búa til skýrsluna.
+Readings as a spreadsheet (CSV)	Mælingar sem töflureiknisskjal (CSV)
+Blood glucose readings	Blóðsykursmælingar
+Couldn't make the file.	Ekki tókst að búa til skrána.
+Dropi and your health data	Dropi og heilsufarsgögnin þín
+Dropi only asks Health Connect for blood glucose. Nothing else.	Dropi biður Health Connect eingöngu um blóðsykur. Ekkert annað.
+Reading: blood glucose other apps saved (a sensor or another meter app) is copied into Dropi so your log, trends and reports are complete.	Lestur: blóðsykur sem önnur forrit vistuðu (nemi eða annað mælaforrit) er afritaður í Dropa svo skráin þín, þróunin og skýrslurnar séu heildstæðar.
+Writing: readings you log in Dropi are saved to Health Connect so your other health apps can use them.	Ritun: mælingar sem þú skráir í Dropa eru vistaðar í Health Connect svo önnur heilsuforrit þín geti notað þær.
+Everything stays on your phone. Dropi has no account and no servers, and never sends your readings anywhere. It only goes online to check GitHub for app updates and, if you ask for it, to download the on-device AI model once.	Allt verður eftir í símanum þínum. Dropi hefur engan aðgang og enga netþjóna og sendir mælingarnar þínar aldrei neitt. Hann fer aðeins á netið til að athuga uppfærslur á GitHub og, ef þú biður um það, til að sækja gervigreindarlíkanið í símann einu sinni.
+Reports you share (PDF or CSV) go only where you send them.	Skýrslur sem þú deilir (PDF eða CSV) fara aðeins þangað sem þú sendir þær.
+Turn sync off any time in Dropi's Settings, or remove its access in Health Connect.	Þú getur slökkt á samstillingu hvenær sem er í stillingum Dropa eða fjarlægt aðgang hans í Health Connect.
+Done	Lokið
+On the range bar: {0} {1}	Á sviðsstikunni: {0} {1}

@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.dropi.R
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.work.UpdateUi
 import app.dropi.work.UpdateWatch
 import kotlinx.coroutines.launch
@@ -100,13 +102,13 @@ fun UpdateBanner() {
                 ) { Ic(R.drawable.lc_download, C.OnAccent, 16.dp) }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Dropi $shownVersion is ready", style = inter(15.sp, FontWeight.Bold, C.Text))
+                    Text(tr("Dropi {0} is ready", shownVersion.orEmpty()), style = inter(15.sp, FontWeight.Bold, C.Text))
                     Text(
                         when (ui) {
-                            UpdateUi.Idle, UpdateUi.UpToDate, is UpdateUi.Available -> "See what's new"
-                            UpdateUi.Checking -> "Checking…"
-                            is UpdateUi.Downloading -> "Downloading… ${(UpdateWatch.progress * 100).toInt()}%"
-                            is UpdateUi.Ready -> ui.note ?: "Downloaded. Tap to install"
+                            UpdateUi.Idle, UpdateUi.UpToDate, is UpdateUi.Available -> tr("See what's new")
+                            UpdateUi.Checking -> tr("Checking…")
+                            is UpdateUi.Downloading -> tr("Downloading… {0}%", (UpdateWatch.progress * 100).toInt())
+                            is UpdateUi.Ready -> ui.note ?: tr("Downloaded. Tap to install")
                             is UpdateUi.Error -> ui.message
                         },
                         style = inter(13.sp, color = C.TextSecondary),
@@ -114,7 +116,7 @@ fun UpdateBanner() {
                 }
                 if (ui !is UpdateUi.Downloading) {
                     Text(
-                        if (ui is UpdateUi.Ready) "Install" else "Update",
+                        if (ui is UpdateUi.Ready) tr("Install") else tr("Update"),
                         style = inter(13.sp, FontWeight.Bold, C.OnAccent),
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
@@ -128,11 +130,11 @@ fun UpdateBanner() {
                     style = inter(22.sp, FontWeight.Light, C.TextMuted),
                     modifier = Modifier
                         .minimumInteractiveComponentSize()
-                        .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = "Hide this update") {
+                        .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = tr("Hide this update")) {
                             Haptics.tap(view)
                             UpdateWatch.bannerHidden = shownVersion
                         }
-                        .semantics { contentDescription = "Hide" },
+                        .semantics { contentDescription = tr("Hide") },
                 )
             }
             if (ui is UpdateUi.Downloading) {
@@ -154,7 +156,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
     val view = LocalView.current
     val scope = rememberCoroutineScope()
     val ui = UpdateWatch.ui
-    val lines = notes.ifEmpty { listOf("Fixes and improvements") }
+    val lines = notes.ifEmpty { listOf(tr("Fixes and improvements")) }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val shape = RoundedCornerShape(Corner.XL)
         // The card rises in, then the lines arrive one after another.
@@ -190,10 +192,10 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                         contentAlignment = Alignment.Center,
                     ) { Ic(R.drawable.lc_zap, C.OnAccent, 16.dp) }
                     Spacer(Modifier.width(12.dp))
-                    Text("Update ready", style = SectionLabel.copy(color = C.AccentText), modifier = Modifier.weight(1f))
+                    Text(tr("Update ready"), style = SectionLabel.copy(color = C.AccentText), modifier = Modifier.weight(1f))
                     if (behind > 1) {
                         Text(
-                            (if (behind >= 30) "30+" else "$behind") + " updates behind",
+                            if (behind >= 30) tr("30+ updates behind") else trn(behind, "{0} update behind", "{0} updates behind"),
                             style = inter(13.sp, FontWeight.SemiBold, C.High),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(Corner.S))
@@ -204,10 +206,10 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     }
                 }
                 Text(
-                    if (behind > 1) "What's new since your version" else "What's new in v$version",
+                    if (behind > 1) tr("What's new since your version") else tr("What's new in v{0}", version),
                     style = heading(22.sp),
                 )
-                if (behind > 1) Text("Installing v$version brings you fully up to date.", style = inter(13.sp, color = C.TextSecondary))
+                if (behind > 1) Text(tr("Installing v{0} brings you fully up to date.", version), style = inter(13.sp, color = C.TextSecondary))
             }
           }
 
@@ -228,29 +230,29 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 when (ui) {
                     is UpdateUi.Downloading -> {
                         Text(
-                            "Downloading… ${(UpdateWatch.progress * 100).toInt()}%",
+                            tr("Downloading… {0}%", (UpdateWatch.progress * 100).toInt()),
                             style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
                             modifier = Modifier.padding(horizontal = 4.dp),
                         )
                         ProgressLine(UpdateWatch.progress)
-                        GhostButton("Keep using Dropi", Modifier.fillMaxWidth()) { onClose() }
+                        GhostButton(tr("Keep using Dropi"), Modifier.fillMaxWidth()) { onClose() }
                     }
                     is UpdateUi.Ready -> {
                         ui.note?.let {
                             Text(it, style = inter(13.sp, color = C.High), modifier = Modifier.padding(horizontal = 4.dp))
                         }
-                        PrimaryButton("Install", Modifier.fillMaxWidth(), icon = R.drawable.lc_check) {
+                        PrimaryButton(tr("Install"), Modifier.fillMaxWidth(), icon = R.drawable.lc_check) {
                             Haptics.confirm(view)
                             scope.launch { UpdateWatch.tap(context) }
                         }
-                        GhostButton("Later", Modifier.fillMaxWidth()) { onClose() }
+                        GhostButton(tr("Later"), Modifier.fillMaxWidth()) { onClose() }
                     }
                     else -> {
                         if (ui is UpdateUi.Error) {
                             Text(ui.message, style = inter(13.sp, color = C.Low), modifier = Modifier.padding(horizontal = 4.dp))
                         }
                         PrimaryButton(
-                            if (ui is UpdateUi.Error) "Try again" else "Update now",
+                            if (ui is UpdateUi.Error) tr("Try again") else tr("Update now"),
                             Modifier.fillMaxWidth(),
                             icon = R.drawable.lc_download,
                             enabled = ui !is UpdateUi.Checking,
@@ -260,7 +262,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                                 if (ok) Haptics.confirm(view) else if (UpdateWatch.ui is UpdateUi.Error) Haptics.reject(view)
                             }
                         }
-                        GhostButton("Later", Modifier.fillMaxWidth()) { onClose() }
+                        GhostButton(tr("Later"), Modifier.fillMaxWidth()) { onClose() }
                     }
                 }
             }

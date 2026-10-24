@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
+import app.dropi.tr
 
 /**
  * The aurora behind the top of every page: three soft lights (green, cyan, violet) that fade
@@ -66,7 +67,7 @@ fun RangeRuler(mmol: Double, unit: GlucoseUnit, modifier: Modifier = Modifier) {
         modifier
             .fillMaxWidth()
             .height(48.dp)
-            .semantics { contentDescription = "On the range bar: ${Glucose.format(mmol, unit)} ${unit.label}" },
+            .semantics { contentDescription = tr("On the range bar: {0} {1}", Glucose.format(mmol, unit), unit.label) },
     ) {
         Canvas(Modifier.fillMaxWidth().height(34.dp)) {
             val bar = 10.dp.toPx()

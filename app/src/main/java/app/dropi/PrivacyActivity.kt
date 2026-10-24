@@ -46,19 +46,16 @@ class PrivacyActivity : ComponentActivity() {
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text("Dropi and your health data", style = inter(24.sp, FontWeight.ExtraBold))
+                    Text(tr("Dropi and your health data"), style = inter(24.sp, FontWeight.ExtraBold))
                     listOf(
-                        "Dropi only asks Health Connect for blood glucose. Nothing else.",
-                        "Reading: blood glucose other apps saved (a sensor or another meter app) is copied into Dropi so " +
-                            "your log, trends and reports are complete.",
-                        "Writing: readings you log in Dropi are saved to Health Connect so your other health apps can use them.",
-                        "Everything stays on your phone. Dropi has no account and no servers, and never sends your " +
-                            "readings anywhere. It only goes online to check GitHub for app updates and, if you ask for it, to download " +
-                            "the on-device AI model once.",
-                        "Reports you share (PDF or CSV) go only where you send them.",
-                        "Turn sync off any time in Dropi's Settings, or remove its access in Health Connect.",
+                        tr("Dropi only asks Health Connect for blood glucose. Nothing else."),
+                        tr("Reading: blood glucose other apps saved (a sensor or another meter app) is copied into Dropi so your log, trends and reports are complete."),
+                        tr("Writing: readings you log in Dropi are saved to Health Connect so your other health apps can use them."),
+                        tr("Everything stays on your phone. Dropi has no account and no servers, and never sends your readings anywhere. It only goes online to check GitHub for app updates and, if you ask for it, to download the on-device AI model once."),
+                        tr("Reports you share (PDF or CSV) go only where you send them."),
+                        tr("Turn sync off any time in Dropi's Settings, or remove its access in Health Connect."),
                     ).forEach { Text(it, style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 22.sp)) }
-                    PrimaryButton("Done", Modifier.padding(top = 8.dp)) { finish() }
+                    PrimaryButton(tr("Done"), Modifier.padding(top = 8.dp)) { finish() }
                 }
             }
         }

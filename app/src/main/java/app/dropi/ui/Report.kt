@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.work.Diag
 
 /**
@@ -56,9 +57,9 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
     var note by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
-    StickySheetBody("Report a problem", close) {
+    StickySheetBody(tr("Report a problem"), close) {
         Text(
-            "Say what didn't work, then send it. Dropi adds what it knows about the problem, so it can be fixed without guessing.",
+            tr("Say what didn't work, then send it. Dropi adds what it knows about the problem, so it can be fixed without guessing."),
             style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
         )
         Box(
@@ -70,33 +71,32 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
                 .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
                 .padding(16.dp),
         ) {
-            if (note.isEmpty()) Text("e.g. I scanned the skyr label and it said it couldn't read the numbers", style = inter(15.sp, color = C.TextMuted))
+            if (note.isEmpty()) Text(tr("e.g. I scanned the skyr label and it said it couldn't read the numbers"), style = inter(15.sp, color = C.TextMuted))
             BasicTextField(
                 value = note,
                 onValueChange = { note = it.take(2000) },
                 textStyle = inter(15.sp, color = C.Text),
                 cursorBrush = SolidColor(C.AccentText),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "What happened" },
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("What happened") },
             )
         }
         Text(
-            "Also included: the app version and phone, the on-device AI's state and which chip it runs on, your settings, " +
-                "the text from the last label scan, recent problems and the last crash. Not included: your readings, meals or notes.",
+            tr("Also included: the app version and phone, the on-device AI's state and which chip it runs on, your settings, the text from the last label scan, recent problems and the last crash. Not included: your readings, meals or notes."),
             style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
         )
-        PrimaryButton("Send report", Modifier.fillMaxWidth(), icon = R.drawable.lc_send) {
+        PrimaryButton(tr("Send report"), Modifier.fillMaxWidth(), icon = R.drawable.lc_send) {
             val text = Diag.report(context, note)
             val send = Intent(Intent.ACTION_SEND).setType("text/plain")
                 .putExtra(Intent.EXTRA_SUBJECT, "Dropi problem report")
                 .putExtra(Intent.EXTRA_TEXT, text)
-            try { context.startActivity(Intent.createChooser(send, "Send the report")) } catch (e: Exception) { copy(context, text); copied = true }
+            try { context.startActivity(Intent.createChooser(send, tr("Send the report"))) } catch (e: Exception) { copy(context, text); copied = true }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GhostButton(if (copied) "Copied" else "Copy instead", Modifier.weight(1f), color = C.AccentText) {
+            GhostButton(if (copied) tr("Copied") else tr("Copy instead"), Modifier.weight(1f), color = C.AccentText) {
                 copy(context, Diag.report(context, note)); copied = true
             }
-            GhostButton(if (preview) "Hide what's sent" else "See what's sent", Modifier.weight(1f), color = C.AccentText) { preview = !preview }
+            GhostButton(if (preview) tr("Hide what's sent") else tr("See what's sent"), Modifier.weight(1f), color = C.AccentText) { preview = !preview }
         }
         if (preview) {
             SelectionContainer {
@@ -107,7 +107,7 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
                 )
             }
         }
-        GhostButton("Clear the problem list", Modifier.fillMaxWidth()) { Diag.clear(context); preview = false }
+        GhostButton(tr("Clear the problem list"), Modifier.fillMaxWidth()) { Diag.clear(context); preview = false }
     }
 }
 

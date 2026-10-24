@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.work.Export
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -44,21 +46,21 @@ private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
     val from = today.minusDays((days - 1).toLong())
     val inPeriod = state.readings.filter { !it.date(state.zone).isBefore(from) }
 
-    StickySheetBody("Share a report", close) {
+    StickySheetBody(tr("Share a report"), close) {
         Text(
-            "Made on your phone and shared however you choose: email, Messenger, Drive, a print-out.",
+            tr("Made on your phone and shared however you choose: email, Messenger, Drive, a print-out."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
         if (state.demo) {
             Text(
-                "Demo data is on: a report now is made from made-up readings. Don't send it to your care team.",
+                tr("Demo data is on: a report now is made from made-up readings. Don't send it to your care team."),
                 style = inter(13.sp, FontWeight.SemiBold, C.High).copy(lineHeight = 19.sp),
             )
         }
-        SlidingSegments(listOf("14 days", "30 days", "90 days"), period, Modifier.fillMaxWidth()) { period = it }
-        Text("${plural(inPeriod.size, "reading")} in this period", style = inter(13.sp, FontWeight.Medium, C.TextMuted))
+        SlidingSegments(listOf(tr("14 days"), tr("30 days"), tr("90 days")), period, Modifier.fillMaxWidth()) { period = it }
+        Text(trn(inPeriod.size, "{0} reading in this period", "{0} readings in this period"), style = inter(13.sp, FontWeight.Medium, C.TextMuted))
         PrimaryButton(
-            "PDF report for your doctor",
+            tr("PDF report for your doctor"),
             Modifier.fillMaxWidth(),
             icon = R.drawable.lc_share,
             enabled = !busy && inPeriod.isNotEmpty(),
@@ -67,15 +69,15 @@ private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
             scope.launch {
                 try {
                     val f = Export.writePdf(context, state.readings, days, today, state.zone, state.unit, state.targets)
-                    Export.share(context, f, "application/pdf", "Blood glucose report")
+                    Export.share(context, f, "application/pdf", tr("Blood glucose report"))
                     note = null
                 } catch (e: Exception) {
-                    note = "Couldn't make the report."
+                    note = tr("Couldn't make the report.")
                 }
                 busy = false
             }
         }
-        GhostButton("Readings as a spreadsheet (CSV)", Modifier.fillMaxWidth(), color = C.AccentText) {
+        GhostButton(tr("Readings as a spreadsheet (CSV)"), Modifier.fillMaxWidth(), color = C.AccentText) {
             if (busy || inPeriod.isEmpty()) return@GhostButton
             busy = true
             scope.launch {
@@ -84,10 +86,10 @@ private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
                         context, inPeriod, state.zone, today,
                         state.meals.filter { !java.time.Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate().isBefore(from) },
                     )
-                    Export.share(context, f, "text/csv", "Blood glucose readings")
+                    Export.share(context, f, "text/csv", tr("Blood glucose readings"))
                     note = null
                 } catch (e: Exception) {
-                    note = "Couldn't make the file."
+                    note = tr("Couldn't make the file.")
                 }
                 busy = false
             }

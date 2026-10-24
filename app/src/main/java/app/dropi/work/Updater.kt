@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
 import app.dropi.Prefs
+import app.dropi.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -78,7 +79,7 @@ object Updater {
         for (i in 0 until arr.length()) {
             val r = arr.getJSONObject(i)
             if (r.optBoolean("draft") || r.optBoolean("prerelease")) continue
-            val notes = whatsNew(r.optString("body")).ifEmpty { listOf("Fixes and improvements") }
+            val notes = whatsNew(r.optString("body")).ifEmpty { listOf(tr("Fixes and improvements")) }
             out += Logged(r.optString("tag_name").removePrefix("v"), r.optString("published_at").take(10), notes)
         }
         return out.sortedWith { a, b -> if (isNewer(a.version, b.version)) -1 else if (isNewer(b.version, a.version)) 1 else 0 }
@@ -136,7 +137,7 @@ object Updater {
             val code = c.responseCode
             if (code == 404 || code == 401 || code == 403) {
                 c.disconnect()
-                return@withContext Check.Failed("GitHub can't see the releases (is the repo public?).")
+                return@withContext Check.Failed(tr("GitHub can't see the releases (is the repo public?)."))
             }
             if (code !in 200..299) throw IOException("GitHub returned $code")
             val json = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
@@ -148,7 +149,7 @@ object Updater {
                 val a = assets.getJSONObject(i)
                 if (a.optString("name").endsWith(".apk")) asset = a
             }
-            val apk = asset ?: return@withContext Check.Failed("The latest release has no APK yet.")
+            val apk = asset ?: return@withContext Check.Failed(tr("The latest release has no APK yet."))
             if (!isNewer(tag, installedVersion(context))) return@withContext Check.UpToDate
             val installed = installedVersion(context)
             val notes = try {
@@ -163,7 +164,7 @@ object Updater {
                 behind = notes?.second?.coerceAtLeast(1) ?: 1,
             ))
         } catch (e: Exception) {
-            Check.Failed("Couldn't reach GitHub.")
+            Check.Failed(tr("Couldn't reach GitHub."))
         }
     }
 
@@ -385,7 +386,7 @@ object UpdateWatch {
             ui = UpdateUi.Ready(f, release.version)
             true
         } catch (e: Exception) {
-            ui = UpdateUi.Error("Download failed. Tap to try again.")
+            ui = UpdateUi.Error(tr("Download failed. Tap to try again."))
             false
         }
     }
@@ -397,7 +398,7 @@ object UpdateWatch {
     suspend fun tap(context: Context): Boolean {
         when (val st = ui) {
             is UpdateUi.Ready -> {
-                if (!Updater.install(context, st.file)) ui = st.copy(note = "Allow Dropi to install updates, then tap again.")
+                if (!Updater.install(context, st.file)) ui = st.copy(note = tr("Allow Dropi to install updates, then tap again."))
                 return false
             }
             is UpdateUi.Available -> return download(context, st.release)

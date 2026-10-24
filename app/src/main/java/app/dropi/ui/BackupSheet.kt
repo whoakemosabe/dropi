@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
 import app.dropi.data.Backup
+import app.dropi.tr
+import app.dropi.trn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,10 +72,10 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
                 Haptics.confirm(view)
                 pass = ""
                 pass2 = ""
-                "Backed up. Keep the password safe: without it the file can't be opened."
+                tr("Backed up. Keep the password safe: without it the file can't be opened.")
             } catch (e: Exception) {
                 Haptics.reject(view)
-                "Couldn't save the backup there. Try another place."
+                tr("Couldn't save the backup there. Try another place.")
             }
             busy = false
         }
@@ -85,29 +87,28 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
         }
     }
 
-    StickySheetBody("Backup", close) {
+    StickySheetBody(tr("Backup"), close) {
         Text(
-            "Your readings, check times, targets and lab results in one file locked with a password. " +
-                "Save it to Drive or Files and you can restore it on a new phone.",
+            tr("Your readings, check times, targets and lab results in one file locked with a password. Save it to Drive or Files and you can restore it on a new phone."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
-        Text("Back up", style = SectionLabel, modifier = Modifier.padding(top = 4.dp))
-        PasswordField(pass, "Password (6 characters or more)") { pass = it }
-        PasswordField(pass2, "The same password again") { pass2 = it }
-        if (pass2.isNotEmpty() && pass != pass2) Text("The passwords don't match.", style = inter(13.sp, FontWeight.Medium, C.High))
-        PrimaryButton("Back up now", Modifier.fillMaxWidth(), icon = R.drawable.lc_download, enabled = passOk && !busy) {
+        Text(tr("Back up"), style = SectionLabel, modifier = Modifier.padding(top = 4.dp))
+        PasswordField(pass, tr("Password (6 characters or more)")) { pass = it }
+        PasswordField(pass2, tr("The same password again")) { pass2 = it }
+        if (pass2.isNotEmpty() && pass != pass2) Text(tr("The passwords don't match."), style = inter(13.sp, FontWeight.Medium, C.High))
+        PrimaryButton(tr("Back up now"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download, enabled = passOk && !busy) {
             create.launch("dropi-backup-${LocalDate.now(state.zone)}.dropi")
         }
 
-        Text("Restore", style = SectionLabel, modifier = Modifier.padding(top = 12.dp))
+        Text(tr("Restore"), style = SectionLabel, modifier = Modifier.padding(top = 12.dp))
         if (restoreUri == null) {
-            GhostButton("Choose a backup file", Modifier.fillMaxWidth(), color = C.AccentText) {
-                try { open.launch(arrayOf("*/*")) } catch (e: Exception) { note = "No file picker found." }
+            GhostButton(tr("Choose a backup file"), Modifier.fillMaxWidth(), color = C.AccentText) {
+                try { open.launch(arrayOf("*/*")) } catch (e: Exception) { note = tr("No file picker found.") }
             }
         } else {
-            Text("File chosen. Enter its password.", style = inter(13.sp, color = C.TextSecondary))
-            PasswordField(restorePass, "Backup password") { restorePass = it }
-            PrimaryButton("Restore", Modifier.fillMaxWidth(), enabled = restorePass.isNotEmpty() && !busy) {
+            Text(tr("File chosen. Enter its password."), style = inter(13.sp, color = C.TextSecondary))
+            PasswordField(restorePass, tr("Backup password")) { restorePass = it }
+            PrimaryButton(tr("Restore"), Modifier.fillMaxWidth(), enabled = restorePass.isNotEmpty() && !busy) {
                 val uri = restoreUri ?: return@PrimaryButton
                 busy = true
                 scope.launch {
@@ -124,22 +125,22 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
                         Haptics.confirm(view)
                         restoreUri = null
                         restorePass = ""
-                        if (added == 0) "Restored. Every reading in the backup was already here." else "Restored ${plural(added, "reading")}."
+                        if (added == 0) tr("Restored. Every reading in the backup was already here.") else trn(added, "Restored {0} reading.", "Restored {0} readings.")
                     } catch (e: Backup.WrongPassword) {
                         Haptics.reject(view)
-                        "That password doesn't open this file (or the file is damaged)."
+                        tr("That password doesn't open this file (or the file is damaged).")
                     } catch (e: Backup.NotABackup) {
                         Haptics.reject(view)
                         restoreUri = null
-                        "That file isn't a Dropi backup."
+                        tr("That file isn't a Dropi backup.")
                     } catch (e: Exception) {
                         Haptics.reject(view)
-                        "Couldn't read that file."
+                        tr("Couldn't read that file.")
                     }
                     busy = false
                 }
             }
-            GhostButton("Choose a different file", Modifier.fillMaxWidth()) { restoreUri = null; restorePass = "" }
+            GhostButton(tr("Choose a different file"), Modifier.fillMaxWidth()) { restoreUri = null; restorePass = "" }
         }
         note?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.Text)) }
     }
