@@ -4,5 +4,5 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- The timeline chart has a key that explains every mark on it: the shaded range, dots or day bars, meals and their rise, your targets and the sensor line. It only lists what's showing
-- Fixed: zooming the timeline out past your first reading closed the app
+- The timeline joins your readings with a smooth line, and dots get smaller as you zoom out, so a week no longer looks clumped
+- Zoomed out to a month, a line joins each day's average across the bars

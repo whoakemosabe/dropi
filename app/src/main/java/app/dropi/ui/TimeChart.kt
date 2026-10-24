@@ -115,6 +115,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val meal = C.AccentText
     val beforeBand = C.AccentText.copy(alpha = 0.08f)
     val trace = C.Aurora[1]
+    val joinLine = C.TextSecondary.copy(alpha = 0.45f)
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 10.sp, color = muted, fontWeight = FontWeight.Medium)
     val clock = remember { DateTimeFormatter.ofPattern(if (fmt.is24) "HH:mm" else "ha", Locale.ENGLISH) }
@@ -278,6 +279,11 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                     // One bar a day: lowest to highest, a dot at the average.
                     val days = readings.filter { it.at in start - DAY..end }.groupBy { it.date(zone) }
                     val w = (perDayPx * 0.45f).coerceIn(3.dp.toPx(), 10.dp.toPx())
+                    // The daily averages joined by a smooth line, under the bars.
+                    val avgs = days.entries.sortedBy { it.key }.map { (day, rs) ->
+                        Offset(xOf(day.atStartOfDay(zone).toInstant().toEpochMilli() + DAY / 2), yOf(rs.map { it.mmol }.average()))
+                    }
+                    drawPath(smoothPath(avgs), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                     days.forEach { (day, rs) ->
                         val mid = day.atStartOfDay(zone).toInstant().toEpochMilli() + DAY / 2
                         if (mid !in start..end) return@forEach
@@ -305,10 +311,32 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                             }
                         }
                     }
-                    val rad = if (perDayPx > 160.dp.toPx()) 5.dp.toPx() else 4.dp.toPx()
+                    // Smaller dots as more days share the width, so a week doesn't clump.
+                    val rad = when {
+                        perDayPx > 160.dp.toPx() -> 5.dp.toPx()
+                        perDayPx > 80.dp.toPx() -> 4.dp.toPx()
+                        else -> 3.dp.toPx()
+                    }
+                    // The readings joined by a smooth line (not through a long overnight gap). Left
+                    // out where the sensor trace already draws the line.
+                    val sensorHere = showSensor && sensor.any { it.at in start..end }
+                    if (!sensorHere) {
+                        val pts = readings.filter { it.at in start - 12 * HOUR..end + 12 * HOUR }.sortedBy { it.at }
+                        var run = ArrayList<Offset>()
+                        var prev = Long.MIN_VALUE
+                        for (rd in pts) {
+                            if (rd.at - prev > 10 * HOUR && run.isNotEmpty()) {
+                                drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                                run = ArrayList()
+                            }
+                            run += Offset(xOf(rd.at), yOf(rd.mmol))
+                            prev = rd.at
+                        }
+                        if (run.size >= 2) drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
                     visible.forEach { rd ->
                         val c = Offset(xOf(rd.at), yOf(rd.mmol))
-                        drawCircle(ring, rad + 2.dp.toPx(), c)
+                        drawCircle(ring, rad + (if (rad < 4.dp.toPx()) 1.5f else 2f).dp.toPx(), c)
                         drawCircle(C.status(Glucose.status(rd.mmol, rd.tag, state.targets)), rad, c)
                     }
                     selected?.takeIf { it.at in start..end }?.let { s ->
@@ -343,8 +371,13 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             KeyRow(KeyMark.BAND, C.InRange, "Shaded: in range, 3.9–10.0")
-            if (zoomedOut) KeyRow(KeyMark.BAR, C.TextSecondary, "Bar: one day, lowest to highest; dot is the average")
-            else KeyRow(KeyMark.DOT, C.InRange, "Dot: a reading, coloured by range (tap one)")
+            if (zoomedOut) {
+                KeyRow(KeyMark.BAR, C.TextSecondary, "Bar: one day, lowest to highest; dot is the average")
+                KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), "Grey line: joins each day's average")
+            } else {
+                KeyRow(KeyMark.DOT, C.InRange, "Dot: a reading, coloured by range (tap one)")
+                if (!(showSensor && inView)) KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), "Grey line: joins your readings in time order")
+            }
             if (showTargets) {
                 val t = state.targets
                 KeyRow(KeyMark.BAND, C.AccentText, "Light band: your before-meal target, ${Glucose.format(t.beforeLow, unit)}–${Glucose.format(t.beforeHigh, unit)}")
@@ -354,7 +387,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                 KeyRow(KeyMark.SQUARE, C.AccentText, "Square: a meal")
                 KeyRow(KeyMark.SLOPE_DASH, C.AccentText, "Sloped dashes: from before the meal up to its peak")
             }
-            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], "Line: sensor values")
+            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], "Coloured line: sensor values")
         }
 
         val s = selected
@@ -519,4 +552,32 @@ private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, tex
         Spacer(Modifier.width(10.dp))
         Text(text, style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 16.sp))
     }
+}
+
+/**
+ * A smooth line through [pts] (in x order) that never overshoots: monotone cubic curves
+ * (Fritsch–Carlson), so a smooth join never draws a peak or dip that wasn't measured.
+ */
+private fun smoothPath(pts: List<Offset>): Path {
+    val path = Path()
+    if (pts.isEmpty()) return path
+    path.moveTo(pts[0].x, pts[0].y)
+    if (pts.size == 1) return path
+    val n = pts.size
+    val d = FloatArray(n - 1) { i -> val dx = pts[i + 1].x - pts[i].x; if (dx == 0f) 0f else (pts[i + 1].y - pts[i].y) / dx }
+    val m = FloatArray(n)
+    m[0] = d[0]; m[n - 1] = d[n - 2]
+    for (i in 1 until n - 1) m[i] = if (d[i - 1] * d[i] <= 0f) 0f else (d[i - 1] + d[i]) / 2f
+    for (i in 0 until n - 1) {
+        if (d[i] == 0f) { m[i] = 0f; m[i + 1] = 0f; continue }
+        val a = m[i] / d[i]; val b = m[i + 1] / d[i]
+        val s = a * a + b * b
+        if (s > 9f) { val t = 3f / kotlin.math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i] }
+    }
+    for (i in 0 until n - 1) {
+        val p0 = pts[i]; val p1 = pts[i + 1]
+        val dx = (p1.x - p0.x) / 3f
+        path.cubicTo(p0.x + dx, p0.y + m[i] * dx, p1.x - dx, p1.y - m[i + 1] * dx, p1.x, p1.y)
+    }
+    return path
 }
