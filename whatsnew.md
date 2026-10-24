@@ -4,4 +4,5 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- Label, barcode and meter scans finally work: the release build was breaking Google's text and barcode reader inside the app. Tested reading a label and a barcode on a real Android build before shipping
+- Label, barcode and meter scans work again (Google's reader was being broken inside the app)
+- Dropi keeps using your downloaded Gemma instead of waiting to set up Gemini Nano

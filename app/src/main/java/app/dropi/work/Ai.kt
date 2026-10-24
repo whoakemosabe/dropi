@@ -10,9 +10,14 @@ import app.dropi.data.PlateGuess
  * Either way the work happens on the phone and nothing is uploaded.
  */
 object Ai {
-    /** Gemini Nano is on this phone (ready, or AICore will fetch it on first use). */
+    /**
+     * Use Gemini Nano: only when it's already on the phone, or when it's the only option (Gemma
+     * not downloaded). A downloaded Gemma is never passed over for a Nano that would first need
+     * a download of several minutes (some phones, like OPPO's, offer Nano as "downloadable").
+     */
     val nano: Boolean
-        get() = Nano.state == Nano.State.READY || Nano.state == Nano.State.NEEDS_DOWNLOAD || Nano.state == Nano.State.DOWNLOADING
+        get() = Nano.state == Nano.State.READY ||
+            ((Nano.state == Nano.State.NEEDS_DOWNLOAD || Nano.state == Nano.State.DOWNLOADING) && Gemma.state != Gemma.State.Ready)
 
     /** Meal photos and typed questions can be used right now. */
     val usable: Boolean get() = nano || Gemma.state == Gemma.State.Ready
@@ -27,14 +32,14 @@ object Ai {
     /** What to say while the first answer is on its way, when it takes longer than usual. */
     val warmUp: String?
         get() = when {
-            Nano.state == Nano.State.DOWNLOADING || Nano.state == Nano.State.NEEDS_DOWNLOAD -> "Getting Gemini Nano ready on your phone. The first time takes a few minutes…"
+            nano && (Nano.state == Nano.State.DOWNLOADING || Nano.state == Nano.State.NEEDS_DOWNLOAD) -> "Getting Gemini Nano ready on your phone. The first time takes a few minutes…"
             !nano && !Gemma.loaded -> "Loading Gemma on your phone. The first answer takes a few seconds…"
             else -> null
         }
 
     suspend fun refresh(context: Context) {
         Nano.refresh()
-        if (Nano.state == Nano.State.UNAVAILABLE) {
+        if (Nano.state != Nano.State.READY) {
             val g = Gemma.refresh(context)
             if (g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying) Gemma.watch(context)
         }
