@@ -3,6 +3,7 @@ package app.dropi.work
 import android.content.Context
 import android.net.Uri
 import app.dropi.data.PlateGuess
+import app.dropi.tr
 
 /**
  * The on-device model behind meal photos and typed questions. Gemini Nano when the phone has it
@@ -32,8 +33,8 @@ object Ai {
     /** What to say while the first answer is on its way, when it takes longer than usual. */
     val warmUp: String?
         get() = when {
-            nano && (Nano.state == Nano.State.DOWNLOADING || Nano.state == Nano.State.NEEDS_DOWNLOAD) -> "Getting Gemini Nano ready on your phone. The first time takes a few minutes…"
-            !nano && !Gemma.loaded -> "Loading Gemma on your phone. The first answer takes a few seconds…"
+            nano && (Nano.state == Nano.State.DOWNLOADING || Nano.state == Nano.State.NEEDS_DOWNLOAD) -> tr("Getting Gemini Nano ready on your phone. The first time takes a few minutes…")
+            !nano && !Gemma.loaded -> tr("Loading Gemma on your phone. The first answer takes a few seconds…")
             else -> null
         }
 

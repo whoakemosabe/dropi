@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
 import androidx.core.net.toUri
 import app.dropi.R
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
 import app.dropi.work.UpdateUi
@@ -59,27 +61,27 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
     val unit = state.unit
     fun v(mmol: Double) = Glucose.format(mmol, unit)
 
-    StickySheetBody("Settings", close) {
+    StickySheetBody(tr("Settings"), close) {
 
         // Always in both languages, so it can be found from either.
         SheetSection("Language · Tungumál") {
             LanguagePicker(Modifier.fillMaxWidth())
         }
 
-        SheetSection("Units") {
+        SheetSection(tr("Units")) {
             SlidingSegments(listOf("mmol/L", "mg/dL"), if (unit == GlucoseUnit.MMOL) 0 else 1, Modifier.fillMaxWidth()) {
                 state.changeUnit(if (it == 0) GlucoseUnit.MMOL else GlucoseUnit.MGDL)
             }
-            SheetHint("Readings are always saved exactly, so switching never changes them.")
+            SheetHint(tr("Readings are always saved exactly, so switching never changes them."))
         }
 
-        SheetSection("Appearance") {
+        SheetSection(tr("Appearance")) {
             val themes = listOf("system", "dark", "light", "dracula")
             ChoiceGrid(
                 listOf(
-                    Choice("System", R.drawable.lc_settings),
-                    Choice("Dark", R.drawable.lc_moon),
-                    Choice("Light", R.drawable.lc_sun),
+                    Choice(tr("System"), R.drawable.lc_settings),
+                    Choice(tr("Dark"), R.drawable.lc_moon),
+                    Choice(tr("Light"), R.drawable.lc_sun),
                     Choice("Dracula", R.drawable.lc_droplet),
                 ),
                 themes.indexOf(state.theme).coerceAtLeast(0),
@@ -89,7 +91,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                 state.changeTheme(themes[it])
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Haptics", style = inter(15.sp, FontWeight.Medium), modifier = Modifier.weight(1f))
+                Text(tr("Haptics"), style = inter(15.sp, FontWeight.Medium), modifier = Modifier.weight(1f))
                 Switch(
                     checked = state.haptics,
                     onCheckedChange = {
@@ -101,13 +103,13 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        SheetSection("Check times") {
+        SheetSection(tr("Check times")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("${plural(state.slots.count { it.enabled }, "check")} a day", style = inter(15.sp, FontWeight.SemiBold))
-                    Text(if (state.remindersOn) "Reminders on" else "Reminders off", style = inter(13.sp, color = C.TextSecondary))
+                    Text(trn(state.slots.count { it.enabled }, "{0} check a day", "{0} checks a day"), style = inter(15.sp, FontWeight.SemiBold))
+                    Text(if (state.remindersOn) tr("Reminders on") else tr("Reminders off"), style = inter(13.sp, color = C.TextSecondary))
                 }
-                Chip("Edit", icon = R.drawable.lc_clock) {
+                Chip(tr("Edit"), icon = R.drawable.lc_clock) {
                     state.settingsOpen = false
                     state.scheduleOpen = true
                 }
@@ -118,76 +120,76 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             HealthConnectRow(state)
         }
 
-        SheetSection("Live sensor") {
+        SheetSection(tr("Live sensor")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Dexcom, Libre and other CGMs", style = inter(15.sp, FontWeight.SemiBold))
+                    Text(tr("Dexcom, Libre and other CGMs"), style = inter(15.sp, FontWeight.SemiBold))
                     Text(
-                        if (state.liveOn) "Live mode on" else "Live number, trend arrow and a heads-up before lows",
+                        if (state.liveOn) tr("Live mode on") else tr("Live number, trend arrow and a heads-up before lows"),
                         style = inter(13.sp, color = C.TextSecondary),
                     )
                 }
-                Chip(if (state.liveOn) "Open" else "Set up", icon = R.drawable.lc_activity) {
+                Chip(if (state.liveOn) tr("Open") else tr("Set up"), icon = R.drawable.lc_activity) {
                     state.settingsOpen = false
                     state.liveOpen = true
                 }
             }
         }
 
-        SheetSection("Share with your care team") {
+        SheetSection(tr("Share with your care team")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("PDF report or CSV", style = inter(15.sp, FontWeight.SemiBold))
-                    Text("Summary, time in range and every reading", style = inter(13.sp, color = C.TextSecondary))
+                    Text(tr("PDF report or CSV"), style = inter(15.sp, FontWeight.SemiBold))
+                    Text(tr("Summary, time in range and every reading"), style = inter(13.sp, color = C.TextSecondary))
                 }
-                Chip("Share", icon = R.drawable.lc_share) {
+                Chip(tr("Share"), icon = R.drawable.lc_share) {
                     state.settingsOpen = false
                     state.exportOpen = true
                 }
             }
         }
 
-        SheetSection("Your targets") {
+        SheetSection(tr("Your targets")) {
             val t = state.targets
             val step = 0.1
-            TargetStepper("On waking and before eating: from", v(t.beforeLow),
+            TargetStepper(tr("On waking and before eating: from"), v(t.beforeLow),
                 { state.changeTargets(t.copy(beforeLow = t.beforeLow - step)) },
                 { state.changeTargets(t.copy(beforeLow = t.beforeLow + step)) })
-            TargetStepper("On waking and before eating: up to", v(t.beforeHigh),
+            TargetStepper(tr("On waking and before eating: up to"), v(t.beforeHigh),
                 { state.changeTargets(t.copy(beforeHigh = t.beforeHigh - step)) },
                 { state.changeTargets(t.copy(beforeHigh = t.beforeHigh + step)) })
-            TargetStepper("1–2 h after eating: under", v(t.afterHigh),
+            TargetStepper(tr("1–2 h after eating: under"), v(t.afterHigh),
                 { state.changeTargets(t.copy(afterHigh = t.afterHigh - step)) },
                 { state.changeTargets(t.copy(afterHigh = t.afterHigh + step)) })
             SheetHint(
-                if (t.isDefault) "American Diabetes Association targets for adults, in ${unit.label}. Set the ones your care team gave you."
-                else "Your own targets, in ${unit.label}. Colours, insights and reports follow them."
+                if (t.isDefault) tr("American Diabetes Association targets for adults, in {0}. Set the ones your care team gave you.", unit.label)
+                else tr("Your own targets, in {0}. Colours, insights and reports follow them.", unit.label)
             )
-            if (!t.isDefault) Chip("Reset to ADA targets") { state.changeTargets(app.dropi.data.Targets()) }
+            if (!t.isDefault) Chip(tr("Reset to ADA targets")) { state.changeTargets(app.dropi.data.Targets()) }
         }
 
-        SheetSection("Fixed thresholds") {
-            TargetLine("Time in range", "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", C.InRange)
-            TargetLine("Low", "under ${v(Glucose.LOW)}", C.Low)
-            TargetLine("Urgent low", "under ${v(Glucose.URGENT_LOW)}", C.UrgentLow)
-            TargetLine("Very high", "over ${v(Glucose.VERY_HIGH)}", C.VeryHigh)
-            SheetHint("International consensus values, the same for everyone so time in range compares with any clinic's.")
+        SheetSection(tr("Fixed thresholds")) {
+            TargetLine(tr("Time in range"), "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", C.InRange)
+            TargetLine(tr("Low"), tr("under {0}", v(Glucose.LOW)), C.Low)
+            TargetLine(tr("Urgent low"), tr("under {0}", v(Glucose.URGENT_LOW)), C.UrgentLow)
+            TargetLine(tr("Very high"), tr("over {0}", v(Glucose.VERY_HIGH)), C.VeryHigh)
+            SheetHint(tr("International consensus values, the same for everyone so time in range compares with any clinic's."))
         }
 
-        SheetSection("Backup") {
+        SheetSection(tr("Backup")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Back up or restore", style = inter(15.sp, FontWeight.SemiBold))
-                    Text("A password-locked file you keep in Drive or Files", style = inter(13.sp, color = C.TextSecondary))
+                    Text(tr("Back up or restore"), style = inter(15.sp, FontWeight.SemiBold))
+                    Text(tr("A password-locked file you keep in Drive or Files"), style = inter(13.sp, color = C.TextSecondary))
                 }
-                Chip("Open", icon = R.drawable.lc_download) {
+                Chip(tr("Open"), icon = R.drawable.lc_download) {
                     state.settingsOpen = false
                     state.backupOpen = true
                 }
             }
         }
 
-        SheetSection("Updates") {
+        SheetSection(tr("Updates")) {
             val ui = UpdateWatch.ui
             val waiting = UpdateWatch.waitingVersion
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -210,56 +212,55 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                     )
                     Text(
                         when {
-                            ui is UpdateUi.Checking -> "Checking…"
-                            ui is UpdateUi.Downloading -> "Downloading… ${(UpdateWatch.progress * 100).toInt()}%"
-                            ui is UpdateUi.Ready -> "Downloaded. Ready to install"
+                            ui is UpdateUi.Checking -> tr("Checking…")
+                            ui is UpdateUi.Downloading -> tr("Downloading… {0}%", (UpdateWatch.progress * 100).toInt())
+                            ui is UpdateUi.Ready -> tr("Downloaded. Ready to install")
                             ui is UpdateUi.Error -> ui.message
-                            waiting != null -> "Dropi $waiting is ready"
-                            ui is UpdateUi.UpToDate -> "You're up to date"
-                            else -> "Checks GitHub every few hours"
+                            waiting != null -> tr("Dropi {0} is ready", waiting)
+                            ui is UpdateUi.UpToDate -> tr("You're up to date")
+                            else -> tr("Checks GitHub every few hours")
                         },
                         style = inter(13.sp, color = if (ui is UpdateUi.Error) C.Low else C.TextSecondary),
                     )
                 }
                 if (waiting != null || ui is UpdateUi.Ready) {
-                    Chip("See what's new", selected = true) { UpdateWatch.whatsNewOpen.value = true }
+                    Chip(tr("See what's new"), selected = true) { UpdateWatch.whatsNewOpen.value = true }
                 } else {
-                    Chip("Check now", icon = R.drawable.lc_refresh_cw) {
+                    Chip(tr("Check now"), icon = R.drawable.lc_refresh_cw) {
                         scope.launch { UpdateWatch.checkOnly(context) }
                     }
                 }
             }
-            Chip("What's changed", icon = R.drawable.lc_history) {
+            Chip(tr("What's changed"), icon = R.drawable.lc_history) {
                 state.settingsOpen = false
                 state.changelogOpen = true
             }
         }
 
-        SheetSection("On-device AI") { OnDeviceAiSection() }
+        SheetSection(tr("On-device AI")) { OnDeviceAiSection() }
 
         if (state.devUnlocked) {
-            SheetSection("Developer") {
+            SheetSection(tr("Developer")) {
                 Text(
-                    if (state.demo) "Demo data is on: you're looking at a made-up month. Your real log is safe and comes back when you leave."
-                    else "Load a made-up month of readings, meals and a sensor day to try every screen. It's kept apart from your real log, never synced to Health Connect, and never backed up.",
+                    if (state.demo) tr("Demo data is on: you're looking at a made-up month. Your real log is safe and comes back when you leave.")
+                    else tr("Load a made-up month of readings, meals and a sensor day to try every screen. It's kept apart from your real log, never synced to Health Connect, and never backed up."),
                     style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (state.demo) {
-                        Chip("Leave demo data", icon = R.drawable.lc_x, selected = true) { state.leaveDemo() }
-                        Chip("Fresh demo month", icon = R.drawable.lc_refresh_cw) { state.loadDemo() }
+                        Chip(tr("Leave demo data"), icon = R.drawable.lc_x, selected = true) { state.leaveDemo() }
+                        Chip(tr("Fresh demo month"), icon = R.drawable.lc_refresh_cw) { state.loadDemo() }
                     } else {
-                        Chip("Load demo data", icon = R.drawable.lc_download, selected = true) { state.loadDemo() }
-                        Chip("Hide developer") { state.unlockDev(false) }
+                        Chip(tr("Load demo data"), icon = R.drawable.lc_download, selected = true) { state.loadDemo() }
+                        Chip(tr("Hide developer")) { state.unlockDev(false) }
                     }
                 }
             }
         }
 
-        SheetSection("About") {
+        SheetSection(tr("About")) {
             Text(
-                "Dropi keeps your readings on this phone only. It is a log, not a medical device: it doesn't diagnose or " +
-                    "suggest doses. Always follow the plan you agreed with your care team.",
+                tr("Dropi keeps your readings on this phone only. It is a log, not a medical device: it doesn't diagnose or suggest doses. Always follow the plan you agreed with your care team."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
             )
         }
@@ -281,17 +282,17 @@ private fun HealthConnectRow(state: AppState) {
         androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         state.changeHealthSync(granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS))
-        if (!granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS)) state.healthNote = "Permission wasn't given"
+        if (!granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS)) state.healthNote = tr("Permission wasn't given")
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("Sync blood glucose", style = inter(15.sp, FontWeight.SemiBold))
+            Text(tr("Sync blood glucose"), style = inter(15.sp, FontWeight.SemiBold))
             Text(
                 when {
-                    !available && needsInstall -> "Install or update Health Connect to use this"
-                    !available -> "Health Connect isn't available on this phone"
-                    state.healthSync -> state.healthNote ?: "Readings go both ways with Health Connect"
-                    else -> state.healthNote ?: "Share readings with apps like a CGM or Google Fit"
+                    !available && needsInstall -> tr("Install or update Health Connect to use this")
+                    !available -> tr("Health Connect isn't available on this phone")
+                    state.healthSync -> state.healthNote ?: tr("Readings go both ways with Health Connect")
+                    else -> state.healthNote ?: tr("Share readings with apps like a CGM or Google Fit")
                 },
                 style = inter(13.sp, color = C.TextSecondary),
             )
@@ -304,14 +305,14 @@ private fun HealthConnectRow(state: AppState) {
                 if (!on) state.changeHealthSync(false)
                 else scope.launch {
                     if (app.dropi.work.HealthSync.granted(context)) state.changeHealthSync(true)
-                    else try { ask.launch(app.dropi.work.HealthSync.PERMISSIONS) } catch (e: Exception) { state.healthNote = "Couldn't open Health Connect" }
+                    else try { ask.launch(app.dropi.work.HealthSync.PERMISSIONS) } catch (e: Exception) { state.healthNote = tr("Couldn't open Health Connect") }
                 }
             },
             colors = dropiSwitchColors(),
         )
     }
     if (!available && needsInstall) {
-        Chip("Get Health Connect", icon = R.drawable.lc_download) {
+        Chip(tr("Get Health Connect"), icon = R.drawable.lc_download) {
             val uri = "market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding".toUri()
             try {
                 context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri).setPackage("com.android.vending"))
@@ -321,7 +322,7 @@ private fun HealthConnectRow(state: AppState) {
         }
     }
     if (state.healthSync) {
-        Chip("Sync now", icon = R.drawable.lc_refresh_cw) { scope.launch { state.syncHealth() } }
+        Chip(tr("Sync now"), icon = R.drawable.lc_refresh_cw) { scope.launch { state.syncHealth() } }
     }
 }
 

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.work.Ai
 import app.dropi.work.Gemma
 import kotlinx.coroutines.delay
@@ -69,51 +70,48 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, rea
 
             when {
                 Ai.usable -> {
-                    Text("Ready", style = heading(24.sp))
-                    Text("${Ai.name} is on your phone.", style = body)
+                    Text(tr("Ready"), style = heading(24.sp))
+                    Text(tr("{0} is on your phone.", Ai.name), style = body)
                     PrimaryButton(readyAction, Modifier.fillMaxWidth(), icon = readyIcon) { onReady() }
                 }
                 Ai.checking -> {
-                    Text("One moment", style = heading(24.sp))
-                    Text("Checking what this phone can run…", style = body)
+                    Text(tr("One moment"), style = heading(24.sp))
+                    Text(tr("Checking what this phone can run…"), style = body)
                 }
                 g is Gemma.State.Unsupported -> {
-                    Text("Not on this phone", style = heading(24.sp))
+                    Text(tr("Not on this phone"), style = heading(24.sp))
                     Text(
-                        "$what needs an on-device AI model, and this phone can't run one: ${g.why}. " +
-                            "You can still add foods and carbs yourself.",
+                        tr("{0} needs an on-device AI model, and this phone can't run one: {1}. You can still add foods and carbs yourself.", what, g.shownWhy),
                         style = body,
                     )
-                    PrimaryButton("OK", Modifier.fillMaxWidth()) { onDismiss() }
+                    PrimaryButton(tr("OK"), Modifier.fillMaxWidth()) { onDismiss() }
                 }
                 g is Gemma.State.Downloading || g == Gemma.State.Verifying -> {
-                    Text("Downloading the model", style = heading(24.sp))
+                    Text(tr("Downloading the model"), style = heading(24.sp))
                     Text(
-                        if (g is Gemma.State.Downloading) "${Gemma.gb(g.done)} of ${Gemma.gb(Gemma.SIZE)} GB. It carries on in the background, " +
-                            "and this works as soon as it's done."
-                        else "Almost ready: setting it up on your phone…",
+                        if (g is Gemma.State.Downloading) tr("{0} of {1} GB. It carries on in the background, and this works as soon as it's done.", Gemma.gb(g.done), Gemma.gb(Gemma.SIZE))
+                        else tr("Almost ready: setting it up on your phone…"),
                         style = body,
                     )
                     if (g is Gemma.State.Downloading) ProgressLine((g.done.toFloat() / Gemma.SIZE).coerceIn(0f, 1f))
-                    GhostButton("Close", Modifier.fillMaxWidth()) { onDismiss() }
+                    GhostButton(tr("Close"), Modifier.fillMaxWidth()) { onDismiss() }
                 }
                 g == Gemma.State.WaitingForWifi -> {
-                    Text("Waiting for Wi-Fi", style = heading(24.sp))
-                    Text("The model downloads on Wi-Fi only. It starts by itself when you're connected.", style = body)
-                    GhostButton("Close", Modifier.fillMaxWidth()) { onDismiss() }
+                    Text(tr("Waiting for Wi-Fi"), style = heading(24.sp))
+                    Text(tr("The model downloads on Wi-Fi only. It starts by itself when you're connected."), style = body)
+                    GhostButton(tr("Close"), Modifier.fillMaxWidth()) { onDismiss() }
                 }
                 else -> {
-                    Text("Download the on-device model?", style = heading(24.sp))
+                    Text(tr("Download the on-device model?"), style = heading(24.sp))
                     Text(
-                        "$what uses Gemma 4, Google's on-device model. It's a one-time ${Gemma.gb(Gemma.SIZE)} GB download on Wi-Fi. " +
-                            "After that everything runs on your phone and nothing is uploaded. You can remove it any time in Settings.",
+                        tr("{0} uses Gemma 4, Google's on-device model. It's a one-time {1} GB download on Wi-Fi. After that everything runs on your phone and nothing is uploaded. You can remove it any time in Settings.", what, Gemma.gb(Gemma.SIZE)),
                         style = body,
                     )
-                    if (g is Gemma.State.Failed) Text(g.message, style = inter(15.sp, color = C.High))
-                    PrimaryButton("Download (${Gemma.gb(Gemma.SIZE)} GB)", Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
+                    if (g is Gemma.State.Failed) Text(g.shown, style = inter(15.sp, color = C.High))
+                    PrimaryButton(tr("Download ({0} GB)", Gemma.gb(Gemma.SIZE)), Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
                         scope.launch { Gemma.download(context) }
                     }
-                    GhostButton("Not now", Modifier.fillMaxWidth()) { onDismiss() }
+                    GhostButton(tr("Not now"), Modifier.fillMaxWidth()) { onDismiss() }
                 }
             }
         }

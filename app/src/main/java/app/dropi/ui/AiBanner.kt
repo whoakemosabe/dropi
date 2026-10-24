@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.work.Ai
 import app.dropi.work.Gemma
 import kotlinx.coroutines.launch
@@ -84,24 +85,24 @@ fun AiBanner(state: AppState) {
     ) {
         val done = (g as? Gemma.State.Downloading)?.done ?: 0L
         val title = when (kind) {
-            "progress" -> "Getting on-device AI…"
-            "wifi" -> "On-device AI is waiting for Wi-Fi"
-            "setup" -> "Almost ready"
-            "ready" -> "On-device AI is ready"
-            "failed" -> "On-device AI didn't finish"
+            "progress" -> tr("Getting on-device AI…")
+            "wifi" -> tr("On-device AI is waiting for Wi-Fi")
+            "setup" -> tr("Almost ready")
+            "ready" -> tr("On-device AI is ready")
+            "failed" -> tr("On-device AI didn't finish")
             else -> ""
         }
         val line = when (kind) {
-            "progress" -> "${Gemma.gb(done)} of ${Gemma.gb(Gemma.SIZE)} GB. It keeps going if you close Dropi."
-            "wifi" -> "It carries on by itself when you're on Wi-Fi."
-            "setup" -> "Setting it up on your phone. This takes about half a minute."
-            "ready" -> "Meal photos and questions now work on your phone, with nothing uploaded."
-            "failed" -> (g as? Gemma.State.Failed)?.message ?: "Something went wrong."
+            "progress" -> tr("{0} of {1} GB. It keeps going if you close Dropi.", Gemma.gb(done), Gemma.gb(Gemma.SIZE))
+            "wifi" -> tr("It carries on by itself when you're on Wi-Fi.")
+            "setup" -> tr("Setting it up on your phone. This takes about half a minute.")
+            "ready" -> tr("Meal photos and questions now work on your phone, with nothing uploaded.")
+            "failed" -> (g as? Gemma.State.Failed)?.shown ?: tr("Something went wrong.")
             else -> ""
         }
         val action = when (kind) {
-            "ready" -> "Try it"
-            "failed" -> "Try again"
+            "ready" -> tr("Try it")
+            "failed" -> tr("Try again")
             else -> null
         }
         fun act() {
@@ -160,11 +161,11 @@ fun AiBanner(state: AppState) {
                     style = inter(22.sp, FontWeight.Light, C.TextMuted),
                     modifier = Modifier
                         .minimumInteractiveComponentSize()
-                        .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = "Hide") {
+                        .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = tr("Hide")) {
                             Haptics.tap(view)
                             if (kind == "ready") Gemma.markReadySeen(context) else hidden = group
                         }
-                        .semantics { contentDescription = "Hide" },
+                        .semantics { contentDescription = tr("Hide") },
                 )
             }
             if (kind == "progress" || kind == "setup") {

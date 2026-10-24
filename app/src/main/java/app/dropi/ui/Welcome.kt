@@ -58,6 +58,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.GlucoseUnit
 import app.dropi.work.Alerts
 import app.dropi.work.HealthSync
@@ -118,7 +119,7 @@ fun WelcomeFlow(state: AppState) {
     ) { granted ->
         val ok = granted.containsAll(HealthSync.PERMISSIONS)
         state.changeHealthSync(ok)
-        if (ok) go(1) else hcNote = "Health Connect access wasn't given. You can turn it on later in Settings."
+        if (ok) go(1) else hcNote = tr("Health Connect access wasn't given. You can turn it on later in Settings.")
     }
     val openInstallSettings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         installOk = canInstall(context)
@@ -181,20 +182,19 @@ fun WelcomeFlow(state: AppState) {
                                 // First choice: the language, written in both so either reader finds theirs.
                                 Text("Language · Tungumál", style = SectionLabel)
                                 LanguagePicker(Modifier.fillMaxWidth(), height = 52.dp)
-                                Text("Welcome to Dropi", style = heading(36.sp).copy(lineHeight = 40.sp))
+                                Text(tr("Welcome to Dropi"), style = heading(36.sp).copy(lineHeight = 40.sp))
                                 Text(
-                                    "Your blood sugar, logged in seconds. Reminders at your check times, trends that " +
-                                        "make sense, and what your meals do to you.",
+                                    tr("Your blood sugar, logged in seconds. Reminders at your check times, trends that make sense, and what your meals do to you."),
                                     style = body(),
                                 )
-                                Point(R.drawable.lc_bookmark, "Everything stays on this phone. No account, nothing uploaded.")
-                                Point(R.drawable.lc_info, "Dropi is a log, not a medical device. Follow the plan you agreed with your care team.")
-                                Text("Next: a few quick choices and what Dropi needs your OK for.", style = inter(15.sp, color = C.TextMuted))
+                                Point(R.drawable.lc_bookmark, tr("Everything stays on this phone. No account, nothing uploaded."))
+                                Point(R.drawable.lc_info, tr("Dropi is a log, not a medical device. Follow the plan you agreed with your care team."))
+                                Text(tr("Next: a few quick choices and what Dropi needs your OK for."), style = inter(15.sp, color = C.TextMuted))
                             }
                             Step.UNITS -> {
                                 Badge(R.drawable.lc_droplet)
-                                Title("How does your meter show it?")
-                                Text("Readings are always saved exactly, so you can switch later without changing them.", style = body())
+                                Title(tr("How does your meter show it?"))
+                                Text(tr("Readings are always saved exactly, so you can switch later without changing them."), style = body())
                                 Spacer(Modifier.height(4.dp))
                                 SlidingSegments(
                                     listOf("mmol/L", "mg/dL"),
@@ -203,93 +203,89 @@ fun WelcomeFlow(state: AppState) {
                                     height = 52.dp,
                                 ) { state.changeUnit(if (it == 0) GlucoseUnit.MMOL else GlucoseUnit.MGDL) }
                                 Text(
-                                    if (state.unit == GlucoseUnit.MMOL) "Like 6.4, used in Europe, the UK, Canada and Australia."
-                                    else "Like 115, used in the US and much of Latin America and Asia.",
+                                    if (state.unit == GlucoseUnit.MMOL) tr("Like 6.4, used in Europe, the UK, Canada and Australia.")
+                                    else tr("Like 115, used in the US and much of Latin America and Asia."),
                                     style = inter(15.sp, color = C.TextMuted),
                                 )
                             }
                             Step.NOTIFY -> {
                                 Badge(R.drawable.lc_clock)
-                                Title("Notifications")
-                                Text("Dropi only uses them for things you'd want to know:", style = body())
-                                Point(R.drawable.lc_clock, "Reminders at your check times, and a check after you eat")
-                                Point(R.drawable.lc_circle_alert, "A re-check reminder after a low")
-                                Point(R.drawable.lc_activity, "Your live sensor value and a heads-up before lows, if you use a CGM")
-                                Point(R.drawable.lc_download, "When an update is ready")
-                                if (notifyOk) Allowed("Notifications are on")
+                                Title(tr("Notifications"))
+                                Text(tr("Dropi only uses them for things you'd want to know:"), style = body())
+                                Point(R.drawable.lc_clock, tr("Reminders at your check times, and a check after you eat"))
+                                Point(R.drawable.lc_circle_alert, tr("A re-check reminder after a low"))
+                                Point(R.drawable.lc_activity, tr("Your live sensor value and a heads-up before lows, if you use a CGM"))
+                                Point(R.drawable.lc_download, tr("When an update is ready"))
+                                if (notifyOk) Allowed(tr("Notifications are on"))
                             }
                             Step.HEALTH -> {
                                 Badge(R.drawable.lc_heart_pulse)
                                 Title("Health Connect")
                                 Text(
-                                    "Share blood glucose with other apps, both ways. Readings from a CGM or another meter app come " +
-                                        "into Dropi, and yours go out. Blood glucose only, nothing else.",
+                                    tr("Share blood glucose with other apps, both ways. Readings from a CGM or another meter app come into Dropi, and yours go out. Blood glucose only, nothing else."),
                                     style = body(),
                                 )
-                                if (!hcAvailable) Text("Health Connect needs installing or updating on this phone first.", style = inter(15.sp, color = C.TextMuted))
-                                if (state.healthSync) Allowed("Connected")
+                                if (!hcAvailable) Text(tr("Health Connect needs installing or updating on this phone first."), style = inter(15.sp, color = C.TextMuted))
+                                if (state.healthSync) Allowed(tr("Connected"))
                                 hcNote?.let { Text(it, style = inter(15.sp, color = C.High)) }
                             }
                             Step.UPDATES -> {
                                 Badge(R.drawable.lc_download)
-                                Title("Updates in one tap")
+                                Title(tr("Updates in one tap"))
                                 Text(
-                                    "Dropi isn't from the Play Store, so Android asks once whether it may install its own updates. " +
-                                        "Turn on \"Allow from this source\" on the next screen, then come back.",
+                                    tr("Dropi isn't from the Play Store, so Android asks once whether it may install its own updates. Turn on \"Allow from this source\" on the next screen, then come back."),
                                     style = body(),
                                 )
-                                Point(R.drawable.lc_check, "Only Dropi's own signed updates, checked before installing")
-                                if (installOk) Allowed("Allowed")
+                                Point(R.drawable.lc_check, tr("Only Dropi's own signed updates, checked before installing"))
+                                if (installOk) Allowed(tr("Allowed"))
                             }
                             Step.AI -> {
                                 Badge(R.drawable.lc_message_circle)
-                                Title("On-device AI")
+                                Title(tr("On-device AI"))
                                 if (Ai.nano || Ai.checking) {
                                     Text(
-                                        "Your phone can run Gemini Nano, Google's on-device model. Dropi uses it to guess the foods and " +
-                                            "carbs in a photo of your plate, and to answer questions about your numbers in your own words.",
+                                        tr("Your phone can run Gemini Nano, Google's on-device model. Dropi uses it to guess the foods and carbs in a photo of your plate, and to answer questions about your numbers in your own words."),
                                         style = body(),
                                     )
-                                    Point(R.drawable.lc_bookmark, "It runs on the phone. Photos and questions are never uploaded.")
-                                    Point(R.drawable.lc_download, "Android downloads it once, in the background.")
+                                    Point(R.drawable.lc_bookmark, tr("It runs on the phone. Photos and questions are never uploaded."))
+                                    Point(R.drawable.lc_download, tr("Android downloads it once, in the background."))
                                 } else {
                                     Text(
-                                        "Dropi can download Gemma 4, Google's open on-device model, to guess the foods and carbs in a " +
-                                            "photo of your plate and answer questions about your numbers in your own words.",
+                                        tr("Dropi can download Gemma 4, Google's open on-device model, to guess the foods and carbs in a photo of your plate and answer questions about your numbers in your own words."),
                                         style = body(),
                                     )
-                                    Point(R.drawable.lc_bookmark, "It runs on the phone. Photos and questions are never uploaded.")
-                                    Point(R.drawable.lc_download, "A one-time 2.6 GB download, on Wi-Fi only. You can remove it in Settings.")
+                                    Point(R.drawable.lc_bookmark, tr("It runs on the phone. Photos and questions are never uploaded."))
+                                    Point(R.drawable.lc_download, tr("A one-time 2.6 GB download, on Wi-Fi only. You can remove it in Settings."))
                                 }
                                 when {
-                                    Nano.state == Nano.State.READY -> Allowed("Gemini Nano is ready")
-                                    Nano.state == Nano.State.DOWNLOADING -> Allowed("Downloading. It'll finish in the background.")
-                                    Ai.checking -> Text("Checking this phone…", style = inter(15.sp, color = C.TextMuted))
+                                    Nano.state == Nano.State.READY -> Allowed(tr("Gemini Nano is ready"))
+                                    Nano.state == Nano.State.DOWNLOADING -> Allowed(tr("Downloading. It'll finish in the background."))
+                                    Ai.checking -> Text(tr("Checking this phone…"), style = inter(15.sp, color = C.TextMuted))
                                     Ai.nano -> {}
-                                    Gemma.state == Gemma.State.Ready -> Allowed("Gemma is ready")
+                                    Gemma.state == Gemma.State.Ready -> Allowed(tr("Gemma is ready"))
                                     Gemma.state is Gemma.State.Downloading || Gemma.state == Gemma.State.Verifying ->
-                                        Allowed("Downloading. It'll finish in the background.")
-                                    Gemma.state == Gemma.State.WaitingForWifi -> Allowed("Waiting for Wi-Fi, then it downloads by itself")
-                                    Gemma.state is Gemma.State.Failed -> Text((Gemma.state as Gemma.State.Failed).message, style = inter(15.sp, color = C.High))
+                                        Allowed(tr("Downloading. It'll finish in the background."))
+                                    Gemma.state == Gemma.State.WaitingForWifi -> Allowed(tr("Waiting for Wi-Fi, then it downloads by itself"))
+                                    Gemma.state is Gemma.State.Failed -> Text((Gemma.state as Gemma.State.Failed).shown, style = inter(15.sp, color = C.High))
                                 }
                             }
                             Step.DONE -> {
                                 Badge(R.drawable.lc_check, big = true)
-                                Title("You're all set")
-                                Text("Here's what Dropi can do on this phone:", style = body())
-                                CheckLine("Reminders and alerts", notifyOk)
-                                if (hcAvailable || hcInstall) CheckLine("Health Connect sync", state.healthSync)
-                                CheckLine("One-tap updates", installOk)
+                                Title(tr("You're all set"))
+                                Text(tr("Here's what Dropi can do on this phone:"), style = body())
+                                CheckLine(tr("Reminders and alerts"), notifyOk)
+                                if (hcAvailable || hcInstall) CheckLine(tr("Health Connect sync"), state.healthSync)
+                                CheckLine(tr("One-tap updates"), installOk)
                                 if (!skipped(Step.AI)) {
                                     val g = Gemma.state
                                     CheckLine(
-                                        "On-device AI",
+                                        tr("On-device AI"),
                                         Nano.state == Nano.State.READY || Nano.state == Nano.State.DOWNLOADING || g == Gemma.State.Ready ||
                                             g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying,
                                     )
                                 }
                                 Text(
-                                    "Anything you skipped is in Settings. Using a CGM? Settings › Live sensor connects it.",
+                                    tr("Anything you skipped is in Settings. Using a CGM? Settings › Live sensor connects it."),
                                     style = inter(15.sp, color = C.TextMuted).copy(lineHeight = 20.sp),
                                 )
                             }
@@ -299,59 +295,59 @@ fun WelcomeFlow(state: AppState) {
                     // The step's buttons, always at the bottom.
                     Column(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         when (s) {
-                            Step.WELCOME -> PrimaryButton("Get started", Modifier.fillMaxWidth()) { go(1) }
-                            Step.UNITS -> PrimaryButton("Continue", Modifier.fillMaxWidth()) { go(1) }
+                            Step.WELCOME -> PrimaryButton(tr("Get started"), Modifier.fillMaxWidth()) { go(1) }
+                            Step.UNITS -> PrimaryButton(tr("Continue"), Modifier.fillMaxWidth()) { go(1) }
                             Step.NOTIFY -> {
                                 if (notifyOk) {
-                                    PrimaryButton("Continue", Modifier.fillMaxWidth()) {
+                                    PrimaryButton(tr("Continue"), Modifier.fillMaxWidth()) {
                                         state.changeReminders(true)
                                         go(1)
                                     }
                                 } else {
-                                    PrimaryButton("Allow notifications", Modifier.fillMaxWidth(), icon = R.drawable.lc_check) {
+                                    PrimaryButton(tr("Allow notifications"), Modifier.fillMaxWidth(), icon = R.drawable.lc_check) {
                                         val needsAsk = Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
                                             context, Manifest.permission.POST_NOTIFICATIONS,
                                         ) != PackageManager.PERMISSION_GRANTED
                                         if (needsAsk) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
                                         else openAppNotifications(context)
                                     }
-                                    GhostButton("Not now", Modifier.fillMaxWidth()) { go(1) }
+                                    GhostButton(tr("Not now"), Modifier.fillMaxWidth()) { go(1) }
                                 }
                             }
                             Step.HEALTH -> {
                                 if (state.healthSync) {
-                                    PrimaryButton("Continue", Modifier.fillMaxWidth()) { go(1) }
+                                    PrimaryButton(tr("Continue"), Modifier.fillMaxWidth()) { go(1) }
                                 } else if (!hcAvailable) {
-                                    PrimaryButton("Get Health Connect", Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
+                                    PrimaryButton(tr("Get Health Connect"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
                                         openStore(context)
                                     }
-                                    GhostButton("Skip", Modifier.fillMaxWidth()) { go(1) }
+                                    GhostButton(tr("Skip"), Modifier.fillMaxWidth()) { go(1) }
                                 } else {
-                                    PrimaryButton("Connect Health Connect", Modifier.fillMaxWidth(), icon = R.drawable.lc_heart_pulse) {
+                                    PrimaryButton(tr("Connect Health Connect"), Modifier.fillMaxWidth(), icon = R.drawable.lc_heart_pulse) {
                                         scope.launch {
                                             if (HealthSync.granted(context)) {
                                                 state.changeHealthSync(true)
                                                 go(1)
                                             } else {
-                                                try { askHealth.launch(HealthSync.PERMISSIONS) } catch (e: Exception) { hcNote = "Couldn't open Health Connect." }
+                                                try { askHealth.launch(HealthSync.PERMISSIONS) } catch (e: Exception) { hcNote = tr("Couldn't open Health Connect.") }
                                             }
                                         }
                                     }
-                                    GhostButton("Skip", Modifier.fillMaxWidth()) { go(1) }
+                                    GhostButton(tr("Skip"), Modifier.fillMaxWidth()) { go(1) }
                                 }
                             }
                             Step.UPDATES -> {
                                 if (installOk) {
-                                    PrimaryButton("Continue", Modifier.fillMaxWidth()) { go(1) }
+                                    PrimaryButton(tr("Continue"), Modifier.fillMaxWidth()) { go(1) }
                                 } else {
-                                    PrimaryButton("Allow updates", Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
+                                    PrimaryButton(tr("Allow updates"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
                                         try {
                                             openInstallSettings.launch(
                                                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri())
                                             )
                                         } catch (e: Exception) { go(1) }
                                     }
-                                    GhostButton("Not now", Modifier.fillMaxWidth()) { go(1) }
+                                    GhostButton(tr("Not now"), Modifier.fillMaxWidth()) { go(1) }
                                 }
                             }
                             Step.AI -> {
@@ -360,21 +356,21 @@ fun WelcomeFlow(state: AppState) {
                                     (Gemma.state == Gemma.State.NotDownloaded || Gemma.state is Gemma.State.Failed)
                                 when {
                                     offerNano -> {
-                                        PrimaryButton("Download Gemini Nano", Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
+                                        PrimaryButton(tr("Download Gemini Nano"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
                                             Nano.startDownload()
                                         }
-                                        GhostButton("Not now", Modifier.fillMaxWidth()) { go(1) }
+                                        GhostButton(tr("Not now"), Modifier.fillMaxWidth()) { go(1) }
                                     }
                                     offerGemma -> {
-                                        PrimaryButton("Download Gemma (2.6 GB)", Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
+                                        PrimaryButton(tr("Download Gemma (2.6 GB)"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download) {
                                             scope.launch { Gemma.download(context) }
                                         }
-                                        GhostButton("Not now", Modifier.fillMaxWidth()) { go(1) }
+                                        GhostButton(tr("Not now"), Modifier.fillMaxWidth()) { go(1) }
                                     }
-                                    else -> PrimaryButton("Continue", Modifier.fillMaxWidth()) { go(1) }
+                                    else -> PrimaryButton(tr("Continue"), Modifier.fillMaxWidth()) { go(1) }
                                 }
                             }
-                            Step.DONE -> PrimaryButton("Start logging", Modifier.fillMaxWidth(), icon = R.drawable.lc_droplet) {
+                            Step.DONE -> PrimaryButton(tr("Start logging"), Modifier.fillMaxWidth(), icon = R.drawable.lc_droplet) {
                                 state.finishOnboarding()
                             }
                         }
@@ -451,9 +447,9 @@ private fun CheckLine(label: String, on: Boolean) {
         if (on) {
             Ic(R.drawable.lc_check, C.InRange, 18.dp)
             Spacer(Modifier.width(8.dp))
-            Text("On", style = inter(15.sp, FontWeight.SemiBold, C.InRange))
+            Text(tr("On"), style = inter(15.sp, FontWeight.SemiBold, C.InRange))
         } else {
-            Text("Skipped", style = inter(15.sp, color = C.TextMuted))
+            Text(tr("Skipped"), style = inter(15.sp, color = C.TextMuted))
         }
     }
 }

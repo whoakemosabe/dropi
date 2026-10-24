@@ -476,3 +476,166 @@ When did you take it?	Hvenær var þetta?
 That's in the future. Pick an earlier time.	Þetta er í framtíðinni. Veldu fyrri tíma.
 Set time	Stilla tíma
 e.g. hard boiled egg	t.d. harðsoðið egg
+Settings	Stillingar
+Units	Einingar
+Readings are always saved exactly, so switching never changes them.	Mælingar eru alltaf vistaðar nákvæmlega, svo skiptin breyta þeim aldrei.
+Appearance	Útlit
+System	Kerfi
+Dark	Dökkt
+Light	Ljóst
+Haptics	Titringur
+{0} check a day	{0} mælingartími á dag
+{0} checks a day	{0} mælingartímar á dag
+Reminders on	Kveikt á áminningum
+Reminders off	Slökkt á áminningum
+Edit	Breyta
+Dexcom, Libre and other CGMs	Dexcom, Libre og aðrir síritar
+Live mode on	Kveikt á lifandi ham
+Live number, trend arrow and a heads-up before lows	Lifandi gildi, stefnuör og viðvörun áður en blóðsykurinn verður of lágur
+Open	Opna
+Set up	Setja upp
+Share with your care team	Deildu með heilbrigðisteyminu
+PDF report or CSV	PDF-skýrsla eða CSV
+Summary, time in range and every reading	Samantekt, tími innan marka og allar mælingar
+Share	Deila
+Your targets	Markgildin þín
+On waking and before eating: from	Við vöknun og fyrir mat: frá
+On waking and before eating: up to	Við vöknun og fyrir mat: upp í
+1–2 h after eating: under	1–2 klst. eftir mat: undir
+American Diabetes Association targets for adults, in {0}. Set the ones your care team gave you.	Markgildi bandarísku sykursýkissamtakanna (ADA) fyrir fullorðna, í {0}. Settu inn þau sem heilbrigðisteymið þitt gaf þér.
+Your own targets, in {0}. Colours, insights and reports follow them.	Þín eigin markgildi, í {0}. Litir, ábendingar og skýrslur fylgja þeim.
+Reset to ADA targets	Endurstilla á markgildi ADA
+Fixed thresholds	Föst mörk
+Urgent low	Mjög lágt
+Very high	Mjög hátt
+under {0}	undir {0}
+over {0}	yfir {0}
+International consensus values, the same for everyone so time in range compares with any clinic's.	Alþjóðleg viðmiðunargildi, þau sömu fyrir alla, svo tími innan marka er sambærilegur við tölur hvaða heilsugæslu sem er.
+Back up or restore	Taka afrit eða endurheimta
+A password-locked file you keep in Drive or Files	Skrá læst með lykilorði sem þú geymir í Drive eða Files
+Updates	Uppfærslur
+Downloaded. Ready to install	Sótt. Tilbúið til uppsetningar
+You're up to date	Þú ert með nýjustu útgáfuna
+Checks GitHub every few hours	Athugar GitHub á nokkurra klukkustunda fresti
+Check now	Athuga núna
+Developer	Forritari
+Demo data is on: you're looking at a made-up month. Your real log is safe and comes back when you leave.	Kveikt er á prufugögnum: þú sérð tilbúinn mánuð. Raunverulega skráin þín er örugg og kemur aftur þegar þú hættir.
+Load a made-up month of readings, meals and a sensor day to try every screen. It's kept apart from your real log, never synced to Health Connect, and never backed up.	Hlaða inn tilbúnum mánuði af mælingum, máltíðum og einum degi með nema til að prófa alla skjái. Hann er geymdur aðskilinn frá raunverulegu skránni þinni, aldrei samstilltur við Health Connect og aldrei tekið afrit af honum.
+Leave demo data	Hætta í prufugögnum
+Fresh demo month	Nýr prufumánuður
+Load demo data	Hlaða inn prufugögnum
+Hide developer	Fela forritarahluta
+About	Um forritið
+Dropi keeps your readings on this phone only. It is a log, not a medical device: it doesn't diagnose or suggest doses. Always follow the plan you agreed with your care team.	Dropi geymir mælingarnar þínar eingöngu í þessum síma. Hann er dagbók, ekki lækningatæki: hann greinir ekki sjúkdóma og leggur ekki til skammta. Fylgdu alltaf áætluninni sem þú samþykktir með heilbrigðisteyminu þínu.
+Permission wasn't given	Leyfi var ekki veitt
+Sync blood glucose	Samstilla blóðsykur
+Install or update Health Connect to use this	Settu upp eða uppfærðu Health Connect til að nota þetta
+Health Connect isn't available on this phone	Health Connect er ekki í boði í þessum síma
+Readings go both ways with Health Connect	Mælingar fara í báðar áttir með Health Connect
+Share readings with apps like a CGM or Google Fit	Deildu mælingum með forritum eins og sírita eða Google Fit
+Couldn't open Health Connect	Ekki tókst að opna Health Connect
+Couldn't open Health Connect.	Ekki tókst að opna Health Connect.
+Get Health Connect	Sækja Health Connect
+Sync now	Samstilla núna
+Health Connect access wasn't given. You can turn it on later in Settings.	Aðgangur að Health Connect var ekki veittur. Þú getur kveikt á honum síðar í Stillingum.
+Welcome to Dropi	Velkomin í Dropa
+Your blood sugar, logged in seconds. Reminders at your check times, trends that make sense, and what your meals do to you.	Blóðsykurinn þinn, skráður á nokkrum sekúndum. Áminningar á mælingartímunum þínum, þróun sem er auðskilin og hvaða áhrif máltíðirnar hafa á þig.
+Everything stays on this phone. No account, nothing uploaded.	Allt helst í þessum síma. Enginn aðgangur, ekkert sent út.
+Dropi is a log, not a medical device. Follow the plan you agreed with your care team.	Dropi er dagbók, ekki lækningatæki. Fylgdu áætluninni sem þú samþykktir með heilbrigðisteyminu þínu.
+Next: a few quick choices and what Dropi needs your OK for.	Næst: nokkrir fljótlegir valkostir og það sem Dropi þarf leyfi þitt fyrir.
+How does your meter show it?	Hvernig sýnir mælirinn þinn blóðsykurinn?
+Readings are always saved exactly, so you can switch later without changing them.	Mælingar eru alltaf vistaðar nákvæmlega, svo þú getur skipt síðar án þess að þær breytist.
+Like 6.4, used in Europe, the UK, Canada and Australia.	Til dæmis 6,4. Notað í Evrópu, Bretlandi, Kanada og Ástralíu.
+Like 115, used in the US and much of Latin America and Asia.	Til dæmis 115. Notað í Bandaríkjunum og víða í Rómönsku Ameríku og Asíu.
+Dropi only uses them for things you'd want to know:	Dropi notar þær bara fyrir það sem þú vilt vita af:
+Reminders at your check times, and a check after you eat	Áminningar á mælingartímunum þínum og mæling eftir að þú borðar
+A re-check reminder after a low	Áminning um að mæla aftur eftir lágt gildi
+Your live sensor value and a heads-up before lows, if you use a CGM	Lifandi gildi nemans og viðvörun áður en blóðsykurinn verður of lágur, ef þú notar sírita
+When an update is ready	Þegar uppfærsla er tilbúin
+Notifications are on	Kveikt er á tilkynningum
+Share blood glucose with other apps, both ways. Readings from a CGM or another meter app come into Dropi, and yours go out. Blood glucose only, nothing else.	Deildu blóðsykri með öðrum forritum, í báðar áttir. Mælingar frá sírita eða öðru mælaforriti koma inn í Dropa og þínar fara út. Bara blóðsykur, ekkert annað.
+Health Connect needs installing or updating on this phone first.	Það þarf fyrst að setja upp eða uppfæra Health Connect í þessum síma.
+Connected	Tengt
+Updates in one tap	Uppfærslur með einum smelli
+Dropi isn't from the Play Store, so Android asks once whether it may install its own updates. Turn on "Allow from this source" on the next screen, then come back.	Dropi kemur ekki úr Play Store, svo Android spyr einu sinni hvort hann megi setja upp eigin uppfærslur. Kveiktu á „Leyfa frá þessum uppruna“ á næsta skjá og komdu svo aftur.
+Only Dropi's own signed updates, checked before installing	Aðeins undirritaðar uppfærslur frá Dropa, yfirfarnar fyrir uppsetningu
+Allowed	Leyft
+Your phone can run Gemini Nano, Google's on-device model. Dropi uses it to guess the foods and carbs in a photo of your plate, and to answer questions about your numbers in your own words.	Síminn þinn getur keyrt Gemini Nano, líkan frá Google sem keyrir í símanum. Dropi notar það til að giska á matinn og kolvetnin á mynd af diskinum þínum og til að svara spurningum um tölurnar þínar með þínum eigin orðum.
+It runs on the phone. Photos and questions are never uploaded.	Það keyrir í símanum. Myndir og spurningar eru aldrei sendar út.
+Android downloads it once, in the background.	Android sækir það einu sinni, í bakgrunni.
+Dropi can download Gemma 4, Google's open on-device model, to guess the foods and carbs in a photo of your plate and answer questions about your numbers in your own words.	Dropi getur sótt Gemma 4, opið líkan frá Google sem keyrir í símanum, til að giska á matinn og kolvetnin á mynd af diskinum þínum og svara spurningum um tölurnar þínar með þínum eigin orðum.
+A one-time 2.6 GB download, on Wi-Fi only. You can remove it in Settings.	2,6 GB niðurhal einu sinni, aðeins á Wi-Fi. Þú getur fjarlægt það í Stillingum.
+Gemini Nano is ready	Gemini Nano er tilbúið
+Downloading. It'll finish in the background.	Sæki. Það klárast í bakgrunni.
+Checking this phone…	Athuga þennan síma…
+Gemma is ready	Gemma er tilbúin
+Waiting for Wi-Fi, then it downloads by itself	Bíð eftir Wi-Fi, svo sækist það sjálfkrafa
+You're all set	Allt klárt
+Here's what Dropi can do on this phone:	Þetta getur Dropi gert í þessum síma:
+Reminders and alerts	Áminningar og viðvaranir
+Health Connect sync	Samstilling við Health Connect
+One-tap updates	Uppfærslur með einum smelli
+Anything you skipped is in Settings. Using a CGM? Settings › Live sensor connects it.	Allt sem þú slepptir er í Stillingum. Notarðu sírita? Stillingar › Lifandi nemi tengir hann.
+On	Kveikt
+Skipped	Sleppt
+Get started	Byrja
+Continue	Halda áfram
+Allow notifications	Leyfa tilkynningar
+Not now	Ekki núna
+Skip	Sleppa
+Connect Health Connect	Tengja Health Connect
+Allow updates	Leyfa uppfærslur
+Download Gemini Nano	Sækja Gemini Nano
+Download Gemma (2.6 GB)	Sækja Gemma (2,6 GB)
+Start logging	Byrja að skrá
+Gemini Nano is on this phone. Meal photos and typed questions work here, with nothing uploaded.	Gemini Nano er í þessum síma. Myndir af máltíðum og skrifaðar spurningar virka hér, án þess að neitt sé sent út.
+This phone doesn't have Gemini Nano, and Dropi's own model can't run here: {0}. Meal photos and typed questions are hidden. Everything else works.	Þessi sími er ekki með Gemini Nano og líkan Dropa getur ekki keyrt hér: {0}. Myndir af máltíðum og skrifaðar spurningar eru faldar. Allt annað virkar.
+This phone doesn't have Gemini Nano. Dropi can download Google's Gemma 4 model instead: 2.6 GB, once, on Wi-Fi. It runs on this phone, so meal photos and questions are never uploaded.	Þessi sími er ekki með Gemini Nano. Dropi getur í staðinn sótt Gemma 4-líkanið frá Google: 2,6 GB, einu sinni, á Wi-Fi. Það keyrir í þessum síma, svo myndir af máltíðum og spurningar eru aldrei sendar út.
+Download (2.6 GB)	Sækja (2,6 GB)
+Waiting for Wi-Fi. The download carries on when you're connected.	Bíð eftir Wi-Fi. Niðurhalið heldur áfram þegar síminn er tengdur.
+Downloading Gemma… {0} of {1} GB. It keeps going if you close Dropi.	Sæki Gemma… {0} af {1} GB. Það heldur áfram þótt þú lokir Dropa.
+Almost ready: setting up on-device AI on your phone (about half a minute)…	Næstum tilbúið: set upp gervigreind í símanum þínum (um hálf mínúta)…
+Gemma is ready. Meal photos and typed questions work on this phone, with nothing uploaded. It uses 2.6 GB of storage.	Gemma er tilbúin. Myndir af máltíðum og skrifaðar spurningar virka í þessum síma, án þess að neitt sé sent út. Líkanið tekur 2,6 GB af geymsluplássi.
+Runs on {0}.	Keyrir á {0}.
+Runs on: shown after its first answer.	Keyrir á: sést eftir fyrsta svarið.
+Tap again to remove	Ýttu aftur til að fjarlægja
+Remove model	Fjarlægja líkan
+the graphics chip (GPU), the fast way	grafíkkubbnum (GPU), sem er hraðasta leiðin
+the main processor (CPU). Slower: the graphics chip didn't work on this phone	aðalörgjörvanum (CPU). Hægara: grafíkkubburinn virkaði ekki í þessum síma
+Ready	Tilbúið
+{0} is on your phone.	{0} er í símanum þínum.
+One moment	Augnablik
+Checking what this phone can run…	Athuga hvað þessi sími getur keyrt…
+Not on this phone	Ekki í þessum síma
+{0} needs an on-device AI model, and this phone can't run one: {1}. You can still add foods and carbs yourself.	{0}: til þess þarf gervigreindarlíkan í símanum, og þessi sími getur ekki keyrt slíkt: {1}. Þú getur samt skráð mat og kolvetni handvirkt.
+OK	Í lagi
+Downloading the model	Sæki líkanið
+{0} of {1} GB. It carries on in the background, and this works as soon as it's done.	{0} af {1} GB. Það heldur áfram í bakgrunni og þetta virkar um leið og því lýkur.
+Almost ready: setting it up on your phone…	Næstum tilbúið: set það upp í símanum þínum…
+Waiting for Wi-Fi	Bíð eftir Wi-Fi
+The model downloads on Wi-Fi only. It starts by itself when you're connected.	Líkanið sækist aðeins á Wi-Fi. Það byrjar sjálfkrafa þegar síminn er tengdur.
+Download the on-device model?	Sækja líkanið í símann?
+{0} uses Gemma 4, Google's on-device model. It's a one-time {1} GB download on Wi-Fi. After that everything runs on your phone and nothing is uploaded. You can remove it any time in Settings.	{0}: til þess er notað Gemma 4, líkan frá Google sem keyrir í símanum. Það er {1} GB niðurhal, einu sinni, á Wi-Fi. Eftir það keyrir allt í símanum þínum og ekkert er sent út. Þú getur fjarlægt það hvenær sem er í Stillingum.
+Download ({0} GB)	Sækja ({0} GB)
+Getting on-device AI…	Sæki gervigreind í símann…
+On-device AI is waiting for Wi-Fi	Gervigreind í símanum bíður eftir Wi-Fi
+Almost ready	Næstum tilbúið
+On-device AI is ready	Gervigreind í símanum er tilbúin
+On-device AI didn't finish	Gervigreind í símanum kláraðist ekki
+{0} of {1} GB. It keeps going if you close Dropi.	{0} af {1} GB. Það heldur áfram þótt þú lokir Dropa.
+It carries on by itself when you're on Wi-Fi.	Það heldur sjálfkrafa áfram þegar þú ert á Wi-Fi.
+Setting it up on your phone. This takes about half a minute.	Set það upp í símanum þínum. Það tekur um hálfa mínútu.
+Meal photos and questions now work on your phone, with nothing uploaded.	Myndir af máltíðum og spurningar virka nú í símanum þínum, án þess að neitt sé sent út.
+Something went wrong.	Eitthvað fór úrskeiðis.
+Try it	Prófa
+Getting Gemini Nano ready on your phone. The first time takes a few minutes…	Geri Gemini Nano tilbúið í símanum þínum. Það tekur nokkrar mínútur í fyrsta skipti…
+Loading Gemma on your phone. The first answer takes a few seconds…	Hleð Gemma í símanum þínum. Fyrsta svarið tekur nokkrar sekúndur…
+it needs a 64-bit phone	það þarf 64 bita síma
+it needs a phone with at least 6 GB of memory	það þarf síma með minnst 6 GB vinnsluminni
+the phone's storage isn't available right now	geymslurými símans er ekki aðgengilegt núna
+Needs about {0} GB free; this phone has {1} GB.	Þarf um {0} GB laus; þessi sími er með {1} GB.
+Ran out of space. Free up about 3 GB and try again.	Plássið kláraðist. Losaðu um 3 GB og reyndu aftur.
+The download stopped. Try again on Wi-Fi.	Niðurhalið stöðvaðist. Reyndu aftur á Wi-Fi.
+The download didn't check out, so it was deleted. Try again.	Niðurhalið stóðst ekki yfirferð, svo því var eytt. Reyndu aftur.
+Dropi on-device AI	Gervigreind Dropa í símanum
+Gemma 4 model, 2.6 GB	Gemma 4-líkan, 2,6 GB

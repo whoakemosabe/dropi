@@ -13,8 +13,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import app.dropi.L
 import app.dropi.data.Plate
 import app.dropi.data.PlateGuess
+import app.dropi.tr
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -63,13 +65,35 @@ object Gemma {
 
     sealed interface State {
         data object Checking : State
-        data class Unsupported(val why: String) : State
+        /** [why] is English (problem reports); [shownWhy] is in the app's language. */
+        data class Unsupported(val why: String) : State {
+            val shownWhy: String get() = when (why) {
+                "it needs a 64-bit phone" -> tr("it needs a 64-bit phone")
+                "it needs a phone with at least 6 GB of memory" -> tr("it needs a phone with at least 6 GB of memory")
+                "the phone's storage isn't available right now" -> tr("the phone's storage isn't available right now")
+                else -> why
+            }
+        }
         data object NotDownloaded : State
         data object WaitingForWifi : State
         data class Downloading(val done: Long) : State
         data object Verifying : State
         data object Ready : State
-        data class Failed(val message: String) : State
+        /**
+         * [message] is English (problem reports); [shown] is in the app's language. [need] and
+         * [free] are set (bytes) when there wasn't room for the download.
+         */
+        data class Failed(val message: String, val need: Long = 0L, val free: Long = 0L) : State {
+            val shown: String get() = when {
+                need > 0L -> tr("Needs about {0} GB free; this phone has {1} GB.", Gemma.gb(need), Gemma.gb(free))
+                message == "Ran out of space. Free up about 3 GB and try again." -> tr("Ran out of space. Free up about 3 GB and try again.")
+                message == "The download stopped. Try again on Wi-Fi." -> tr("The download stopped. Try again on Wi-Fi.")
+                message == "The download didn't check out, so it was deleted. Try again." -> tr("The download didn't check out, so it was deleted. Try again.")
+                else -> message
+            }
+
+            override fun toString(): String = "Failed(message=$message)"
+        }
     }
 
     var state by mutableStateOf<State>(State.Checking)
@@ -222,12 +246,12 @@ object Gemma {
             f.delete()
             val free = StatFs(f.parentFile!!.path).availableBytes
             if (free < SIZE + SPARE) {
-                state = State.Failed("Needs about ${gb(SIZE + SPARE)} GB free; this phone has ${gb(free)} GB.")
+                state = State.Failed("Needs about ${gbPlain(SIZE + SPARE)} GB free; this phone has ${gbPlain(free)} GB.", SIZE + SPARE, free)
                 return@withLock
             }
             val req = DownloadManager.Request(URL.toUri())
-                .setTitle("Dropi on-device AI")
-                .setDescription("Gemma 4 model, 2.6 GB")
+                .setTitle(tr("Dropi on-device AI"))
+                .setDescription(tr("Gemma 4 model, 2.6 GB"))
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 .setDestinationInExternalFilesDir(ctx, Environment.DIRECTORY_DOWNLOADS, FILE)
                 .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
@@ -483,7 +507,7 @@ object Gemma {
                 e.initialize()
                 engine = e
                 loaded = true
-                backendName = if (gpu) "the graphics chip (GPU), the fast way" else "the main processor (CPU). Slower: the graphics chip didn't work on this phone"
+                backendName = if (gpu) GPU_TEXT else CPU_TEXT
                 prefs(context).edit { putBoolean("last_gpu", gpu) }
                 return e
             } catch (t: Throwable) {
@@ -499,7 +523,7 @@ object Gemma {
     fun lastBackend(context: Context): String? {
         val p = prefs(context)
         if (!p.contains("last_gpu")) return null
-        return if (p.getBoolean("last_gpu", true)) "the graphics chip (GPU), the fast way" else "the main processor (CPU). Slower: the graphics chip didn't work on this phone"
+        return if (p.getBoolean("last_gpu", true)) GPU_TEXT else CPU_TEXT
     }
 
     private fun closeEngine() {
@@ -521,7 +545,21 @@ object Gemma {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    fun gb(bytes: Long): String = "%.1f".format(bytes / 1_000_000_000.0)
+    /** Gigabytes with one decimal, as shown (decimal comma in Icelandic). */
+    fun gb(bytes: Long): String = gbPlain(bytes).replace('.', L.decimal)
+
+    /** Gigabytes with one decimal and a point, for problem reports. */
+    private fun gbPlain(bytes: Long): String = String.format(java.util.Locale.ROOT, "%.1f", bytes / 1_000_000_000.0)
+
+    private const val GPU_TEXT = "the graphics chip (GPU), the fast way"
+    private const val CPU_TEXT = "the main processor (CPU). Slower: the graphics chip didn't work on this phone"
+
+    /** [backendName] or [lastBackend] (English, also in problem reports) in the app's language. */
+    fun backendShown(english: String): String = when (english) {
+        GPU_TEXT -> tr("the graphics chip (GPU), the fast way")
+        CPU_TEXT -> tr("the main processor (CPU). Slower: the graphics chip didn't work on this phone")
+        else -> english
+    }
 }
 
 /**

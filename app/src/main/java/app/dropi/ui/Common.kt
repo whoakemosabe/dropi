@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.dropi.tr
 import kotlinx.coroutines.delay
 
 /** A Lucide icon from res/drawable, tinted. */
@@ -250,7 +251,7 @@ fun SheetTitle(title: String, close: () -> Unit, trailing: @Composable () -> Uni
         Box(
             Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
             contentAlignment = Alignment.Center,
-        ) { Ic(app.dropi.R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
+        ) { Ic(app.dropi.R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = tr("Close")) }
     }
 }
 
