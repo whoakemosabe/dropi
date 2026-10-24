@@ -45,12 +45,12 @@ private fun riseTone(mmol: Double): Pair<String, Color> = when {
 }
 
 /**
- * Trends › Your plate: foods ranked by how much they lift the person's own numbers. A short
+ * Meals › Your plate: foods ranked by how much they lift the person's own numbers. A short
  * ladder (gentlest at the top, biggest at the bottom) with the rise as a bar and a number.
  */
 @Composable
 fun FoodsCard(state: AppState) {
-    val scores = remember(state.readings, state.sensor) { Foods.scores(state.readings, state.sensor) }
+    val scores = remember(state.readings, state.sensor, state.meals) { Foods.scores(state.readings, state.sensor, state.meals) }
     val ranked = scores.filter { it.ranked }
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -68,9 +68,9 @@ fun FoodsCard(state: AppState) {
         }
         if (ranked.isEmpty()) {
             Text(
-                if (scores.isEmpty()) "Add what you ate to a before-meal reading (Details › What you ate), then log an " +
-                    "after-meal one. After two meals with a food, you'll see how it moves your numbers."
-                else "Almost there: each food needs two meals with an after-meal reading before it's ranked.",
+                if (scores.isEmpty()) "Log a meal with the + button, with a reading before you eat and one after. " +
+                    "After two meals with a food, you'll see how it moves your numbers."
+                else "Almost there: each food needs two meals with an after-eating reading before it's ranked.",
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
             )
             return@Column
@@ -126,15 +126,15 @@ fun FoodsSheet(state: AppState) {
 
 @Composable
 private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
-    val scores = remember(state.readings, state.sensor) { Foods.scores(state.readings, state.sensor) }
+    val scores = remember(state.readings, state.sensor, state.meals) { Foods.scores(state.readings, state.sensor, state.meals) }
     StickySheetBody("Your plate", close) {
         Text(
-            "How each food tends to move your numbers: the rise from your before-meal reading to the highest " +
+            "How each food tends to move your numbers: the rise from your reading before eating to the highest " +
                 "value 45 min–3 h later. Tap a food for its curve.",
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
         if (scores.isEmpty()) {
-            SheetHint("No meals with foods and an after-meal reading yet.")
+            SheetHint("No meals with a reading before and after yet.")
             return@StickySheetBody
         }
         val top = scores.maxOf { it.rise }.coerceAtLeast(1.0)

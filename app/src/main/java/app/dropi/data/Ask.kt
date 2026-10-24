@@ -27,6 +27,7 @@ object Ask {
         val targets: Targets,
         val today: LocalDate,
         val zone: ZoneId,
+        val meals: List<MealEntry> = emptyList(),
     ) {
         fun v(mmol: Double) = Glucose.format(mmol, unit)
         val u get() = unit.label
@@ -82,9 +83,9 @@ object Ask {
     }
 
     private fun foods(c: Ctx): String {
-        val s = Foods.scores(c.readings, c.sensor).filter { it.ranked }
+        val s = Foods.scores(c.readings, c.sensor, c.meals).filter { it.ranked }
         if (s.isEmpty()) {
-            return "No food scores yet. Add what you ate to a before-meal reading (Details), then log an after-meal " +
+            return "No food scores yet. Log a meal with the + button, with a reading before it, then log an after-eating " +
                 "reading. Once a food has two meals behind it, it gets a score."
         }
         val top = s.takeLast(3).reversed()
@@ -139,7 +140,13 @@ object Ask {
             if (d.isNotEmpty()) sb.append(" ($d)")
             sb.append('\n')
         }
-        val scores = Foods.scores(c.readings, c.sensor).filter { it.ranked }
+        if (c.meals.isNotEmpty()) {
+            sb.append("Latest meals:\n")
+            c.meals.sortedByDescending { it.at }.take(6).forEach { m ->
+                sb.append("- ${fmt.format(Instant.ofEpochMilli(m.at).atZone(c.zone))} ${m.name}: ${m.foods.joinToString(", ")}, ${m.carbs} g carbs\n")
+            }
+        }
+        val scores = Foods.scores(c.readings, c.sensor, c.meals).filter { it.ranked }
         if (scores.isNotEmpty()) {
             sb.append("Food rises (typical peak after eating): ")
             sb.append(scores.joinToString(", ") { "${it.food} ${Foods.delta(it.rise, c.unit)} over ${it.meals} meals" })

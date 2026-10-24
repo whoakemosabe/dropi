@@ -38,10 +38,14 @@ object Demo {
         Dish(listOf(MealItem("chicken", "1 breast", carbs = 0), MealItem("vegetables", "1 plate", carbs = 12, sugars = 6, fibre = 5)), false, 0.8),
     )
 
-    /** Readings for the [days] days up to now (oldest first), and sensor points for the last day. */
-    fun make(now: Long, zone: ZoneId, days: Int = 30): Pair<List<Reading>, List<SensorPoint>> {
+    /** [MealEntry.before] here holds the before reading's time (ids come when saved). */
+    data class Data(val readings: List<Reading>, val sensor: List<SensorPoint>, val meals: List<MealEntry>)
+
+    /** Readings and meals for the [days] days up to now (oldest first), and sensor points for the last day. */
+    fun make(now: Long, zone: ZoneId, days: Int = 30): Data {
         val rnd = Random(42)
         val out = ArrayList<Reading>()
+        val meals = ArrayList<MealEntry>()
         val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         fun at(day: LocalDate, h: Int, m: Int) = day.atStartOfDay(zone).plusMinutes((h * 60 + m).toLong()).toInstant().toEpochMilli()
         fun jitter(base: Int) = base + rnd.nextInt(-25, 26)
@@ -51,23 +55,33 @@ object Demo {
             val day = today.minusDays(k.toLong())
             // A slow improvement over the month, like someone getting into a routine.
             val drift = 0.9 * k / days
-            fun add(t: Long, v: Double, tag: MealTag, dish: Dish? = null) {
+            fun add(t: Long, v: Double, tag: MealTag) {
                 if (t > now) return
-                val meal = dish?.let { Meal(it.items, it.rich, "photo") }
-                out += Reading(at = t, mmol = round1(v.coerceIn(2.6, 22.0)), tag = tag, carbs = meal?.carbs, foods = meal?.foods.orEmpty(), meal = meal)
+                out += Reading(at = t, mmol = round1(v.coerceIn(2.6, 22.0)), tag = tag)
             }
+            fun eat(t: Long, name: String, dish: Dish, beforeAt: Long?) {
+                if (t > now) return
+                meals += MealEntry(at = t, name = name, meal = Meal(dish.items, dish.rich, "photo"), before = beforeAt)
+            }
+            // Fasting on waking, then breakfast a while later (not always straight after).
             val fasting = 5.6 + drift + rnd.nextDouble(-0.6, 0.9)
-            if (rnd.nextInt(10) != 0) add(at(day, 7, jitter(25)), fasting, MealTag.FASTING, breakfasts[rnd.nextInt(breakfasts.size)])
+            val wake = at(day, 7, jitter(25))
+            if (rnd.nextInt(10) != 0) {
+                add(wake, fasting, MealTag.FASTING)
+                eat(wake + rnd.nextInt(10, 75) * MIN, "Breakfast", breakfasts[rnd.nextInt(breakfasts.size)], wake)
+            }
 
             for ((hour, list) in listOf(12 to lunches, 18 to dinners)) {
                 if (rnd.nextInt(8) == 0) continue // a skipped meal check
                 val dish = list[rnd.nextInt(list.size)]
                 val beforeAt = at(day, hour, jitter(15))
                 val before = 5.4 + drift + rnd.nextDouble(-0.5, 1.2)
-                add(beforeAt, before, MealTag.BEFORE_MEAL, dish)
+                add(beforeAt, before, MealTag.BEFORE_MEAL)
+                val ateAt = beforeAt + rnd.nextInt(5, 25) * MIN
+                eat(ateAt, if (hour == 12) "Lunch" else "Dinner", dish, beforeAt)
                 if (rnd.nextInt(4) != 0) {
                     val gap = if (dish.rich) 180 else 120
-                    add(beforeAt + (gap + rnd.nextInt(-10, 20)) * MIN, before + dish.rise + drift * 0.5 + rnd.nextDouble(-0.6, 0.8), MealTag.AFTER_MEAL)
+                    add(ateAt + (gap + rnd.nextInt(-10, 20)) * MIN, before + dish.rise + drift * 0.5 + rnd.nextDouble(-0.6, 0.8), MealTag.AFTER_MEAL)
                 }
             }
             if (rnd.nextInt(6) != 0) add(at(day, 22, jitter(30)), 6.4 + drift + rnd.nextDouble(-0.8, 1.4), MealTag.BEDTIME)
@@ -87,6 +101,6 @@ object Demo {
             sensor += SensorPoint(t, round1(v))
             t += 5 * MIN
         }
-        return out to sensor
+        return Data(out, sensor, meals)
     }
 }

@@ -110,10 +110,11 @@ private class Data(
             val zone = ZoneId.systemDefault()
             val now = System.currentTimeMillis()
             val readings = try { Db.get(context).since(now - 30 * 86_400_000L) } catch (e: Exception) { emptyList() }
+            val meals = try { Db.get(context).mealsSince(now - 86_400_000L) } catch (e: Exception) { emptyList() }
             val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
             return Data(
                 latest = readings.lastOrNull(),
-                next = Schedule.next(p.slots, readings, now, zone, p.afterMealMinutes),
+                next = Schedule.next(p.slots, readings, now, zone, p.afterMealMinutes, meals),
                 unit = p.unit,
                 targets = p.targets,
                 clock = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH),

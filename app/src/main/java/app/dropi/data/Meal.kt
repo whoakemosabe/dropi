@@ -96,6 +96,76 @@ data class Meal(val items: List<MealItem>, val rich: Boolean = false, val source
     }
 }
 
+/**
+ * A meal as its own entry, at the time it was eaten, with or without a reading. [before] is a
+ * reading the person chose as its starting value; without one, the latest reading in the 90
+ * minutes before (or the 15 after) is used.
+ */
+data class MealEntry(
+    val id: Long = 0,
+    val at: Long,
+    val name: String,
+    val meal: Meal,
+    val before: Long? = null,
+) {
+    val foods: List<String> get() = meal.foods
+    val carbs: Int get() = meal.carbs
+
+    companion object {
+        val NAMES = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+
+        /** Breakfast, lunch, dinner or a snack, from the time it was eaten. */
+        fun nameFor(at: Long, zone: java.time.ZoneId): String {
+            val t = java.time.Instant.ofEpochMilli(at).atZone(zone)
+            val m = t.hour * 60 + t.minute
+            return when (m) {
+                in 4 * 60 until 10 * 60 + 30 -> "Breakfast"
+                in 11 * 60 until 14 * 60 + 30 -> "Lunch"
+                in 17 * 60 until 21 * 60 + 30 -> "Dinner"
+                else -> "Snack"
+            }
+        }
+    }
+}
+
+/** How meals and readings are linked: the reading before a meal, and the readings after it. */
+object MealLink {
+    private const val MIN = 60_000L
+
+    /** The meal's starting reading: the one chosen, else the latest in the 90 min before or the first in the 15 after. */
+    fun before(e: MealEntry, readings: List<Reading>): Reading? {
+        e.before?.let { id -> readings.firstOrNull { it.id == id }?.let { return it } }
+        return readings.filter { it.at in e.at - 90 * MIN..e.at }.maxByOrNull { it.at }
+            ?: readings.filter { it.at in e.at + 1..e.at + 15 * MIN }.minByOrNull { it.at }
+    }
+
+    /** The meal a reading came before, if it's any meal's starting reading. */
+    fun mealAfter(r: Reading, meals: List<MealEntry>, readings: List<Reading>): MealEntry? =
+        meals.filter { it.at >= r.at - 15 * MIN && it.at - r.at <= 6 * 60 * MIN }.minByOrNull { it.at }
+            ?.takeIf { before(it, readings)?.id == r.id }
+
+    /** The meal a reading came 45 min – 4 h after (not its own starting reading). */
+    fun mealBefore(r: Reading, meals: List<MealEntry>): MealEntry? =
+        meals.filter { r.at - it.at in 45 * MIN..240 * MIN }.maxByOrNull { it.at }
+
+    /** "2 h after breakfast", "before lunch", or null. */
+    fun text(r: Reading, meals: List<MealEntry>, readings: List<Reading>): String? {
+        mealAfter(r, meals, readings)?.let { return "before ${it.name.lowercase()}" }
+        mealBefore(r, meals)?.let { m ->
+            val mins = ((r.at - m.at) / MIN).toInt()
+            val h = mins / 60; val rest = mins % 60
+            val gap = when {
+                h == 0 -> "$mins min"
+                rest < 10 -> "$h h"
+                rest > 50 -> "${h + 1} h"
+                else -> "$h h ${rest} min"
+            }
+            return "$gap after ${m.name.lowercase()}"
+        }
+        return null
+    }
+}
+
 /** The person's own amount for a food: carbs (and sugars) in one [portion]. */
 data class Usual(val portion: String, val carbs: Int, val sugars: Int? = null)
 
@@ -287,23 +357,23 @@ object MealHistory {
      * The usual peak after meals sharing a food with [foods]: the median rise of those past meals
      * on top of [start]. Null with fewer than two such meals (one meal is a story, two a pattern).
      */
-    fun estimate(start: Double, foods: List<String>, readings: List<Reading>, sensor: List<SensorPoint>): Estimate? {
+    fun estimate(start: Double, foods: List<String>, readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Estimate? {
         if (foods.isEmpty()) return null
         val wanted = foods.toSet()
-        val past = Foods.meals(readings, sensor).filter { m -> m.rise != null && m.foods.any { it in wanted } }
+        val past = Foods.meals(readings, sensor, meals).filter { m -> m.rise != null && m.foods.any { it in wanted } }
         if (past.size < Foods.MIN_MEALS) return null
         val shared = past.flatMap { m -> m.foods.filter { it in wanted } }.distinct()
         return Estimate(start, Foods.median(past.mapNotNull { it.rise }), past.size, shared)
     }
 
     /** How a logged meal went: its start, peak and when, from what came after (null until then). */
-    data class Outcome(val start: Double, val peak: Double, val peakAt: Long) {
+    data class Outcome(val start: Double, val peak: Double, val peakAt: Long, val startAt: Long) {
         val rise get() = peak - start
     }
 
-    fun outcome(r: Reading, readings: List<Reading>, sensor: List<SensorPoint>): Outcome? {
-        val m = Foods.meals(readings, sensor).firstOrNull { it.foods == r.foods && kotlin.math.abs(it.at - r.at) <= 3 * 3_600_000L } ?: return null
+    fun outcome(e: MealEntry, readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>): Outcome? {
+        val m = Foods.meals(readings, sensor, meals).firstOrNull { it.entryId == e.id } ?: return null
         val best = m.after.filter { it.first in 45..180 }.maxByOrNull { it.second } ?: return null
-        return Outcome(m.start, m.start + best.second, m.at + best.first * 60_000L)
+        return Outcome(m.start, m.start + best.second, m.at + best.first * 60_000L, m.startAt)
     }
 }

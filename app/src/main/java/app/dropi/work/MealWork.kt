@@ -39,8 +39,10 @@ object MealWork {
         val meal: Meal? = null,
         /** The photo it came from, while it's being looked at. */
         val photo: Uri? = null,
-        /** A reading this meal belongs to, when the log sheet started it. */
-        val forReading: Long? = null,
+        /** The logged meal being changed, or null for a new one. */
+        val forMeal: app.dropi.data.MealEntry? = null,
+        /** When the photo, words or label came in: the default time it was eaten. */
+        val started: Long = System.currentTimeMillis(),
     )
 
     var draft by mutableStateOf<Draft?>(null)
@@ -61,7 +63,9 @@ object MealWork {
 
     /** Only the newest piece of work may land. */
     private fun land(id: Long, d: Draft) {
-        if (draft?.id == id) draft = d
+        val now = draft
+        // The time it started and the meal being changed carry over.
+        if (now?.id == id) draft = d.copy(started = now.started, forMeal = d.forMeal ?: now.forMeal)
     }
 
     fun usual(context: Context): Map<String, Usual> = Prefs(context).usualFoods
@@ -112,10 +116,10 @@ object MealWork {
         if (text.isBlank()) return
         val ctx = context.applicationContext
         val id = ++counter
-        draft = Draft(id, Status.Working("Changing it…"), current, forReading = draft?.forReading)
+        draft = draft!!.copy(id = id, status = Status.Working("Changing it…"), meal = current)
         scope.launch {
             val meal = try { Ai.mealFromWords(ctx, MealAi.change(current, text), current.source) } catch (e: Throwable) { null }
-            if (meal == null) land(id, Draft(id, Status.Ready, current, forReading = draft?.forReading).also { failedChange = true })
+            if (meal == null) land(id, Draft(id, Status.Ready, current, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()).also { failedChange = true })
             else finish(ctx, id, meal.copy(rich = meal.rich || current.rich), "")
         }
     }
@@ -161,10 +165,10 @@ object MealWork {
         start(Status.Ready, Meal(emptyList(), false, "typed"))
     }
 
-    /** A meal already on a reading, opened for changes. */
-    fun edit(meal: Meal, readingId: Long) {
+    /** A logged meal, opened for changes. */
+    fun edit(entry: app.dropi.data.MealEntry) {
         val id = ++counter
-        draft = Draft(id, Status.Ready, meal, forReading = readingId)
+        draft = Draft(id, Status.Ready, entry.meal, forMeal = entry, started = entry.at)
         open = true
     }
 
@@ -187,7 +191,7 @@ object MealWork {
             return
         }
         val withUsual = MealAi.applyUsual(meal, usual(ctx))
-        land(id, Draft(id, Status.Ready, withUsual, forReading = draft?.forReading))
+        land(id, Draft(id, Status.Ready, withUsual, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()))
         // Worked out while the screen was closed: a notification to come back and check it.
         if (!open) Alerts.postMealReady(ctx, withUsual.carbs, withUsual.foods, null)
     }

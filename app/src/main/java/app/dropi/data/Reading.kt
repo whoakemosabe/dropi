@@ -6,9 +6,9 @@ import java.time.ZoneId
 
 /** The moment a reading was taken. Saved by name in the database, so names never change. */
 enum class MealTag(val label: String, val short: String) {
-    FASTING("Fasting", "Fasting"),
-    BEFORE_MEAL("Before meal", "Before"),
-    AFTER_MEAL("After meal", "After"),
+    FASTING("Fasting (on waking)", "Waking"),
+    BEFORE_MEAL("Before eating", "Before"),
+    AFTER_MEAL("After eating", "After"),
     BEDTIME("Bedtime", "Bedtime"),
     OVERNIGHT("Overnight", "Night"),
     OTHER("Other", "Other");

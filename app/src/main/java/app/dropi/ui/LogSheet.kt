@@ -315,7 +315,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         }
 
         if (detailsOpen) {
-            DetailsDialog(details, note, state.recentFoods, onDismiss = { detailsOpen = false }) { d, n ->
+            DetailsDialog(details, note, onDismiss = { detailsOpen = false }) { d, n ->
                 details = d
                 note = n
                 detailsOpen = false

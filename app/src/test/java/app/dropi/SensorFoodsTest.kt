@@ -63,25 +63,35 @@ class SensorFoodsTest {
         assertEquals("+43", Foods.delta(2.4, GlucoseUnit.MGDL))
     }
 
+    private fun meal(at: Long, vararg foods: String) = app.dropi.data.MealEntry(
+        at = at, name = "Lunch",
+        meal = app.dropi.data.Meal(foods.map { app.dropi.data.MealItem(it, "1 portion", carbs = 20) }),
+    )
+
     @Test
     fun foodRisesComeFromWhatFollows() {
         var id = 1L
-        fun r(at: Long, mmol: Double, tag: MealTag, foods: List<String> = emptyList()) =
-            Reading(id++, at, mmol, tag, foods = foods)
+        fun r(at: Long, mmol: Double, tag: MealTag) = Reading(id++, at, mmol, tag)
         val day = 86_400_000L
         val readings = listOf(
             // Porridge twice: rises of 2.0 and 3.0.
-            r(t0, 5.0, MealTag.BEFORE_MEAL, listOf("porridge")),
+            r(t0, 5.0, MealTag.BEFORE_MEAL),
             r(t0 + 90 * min, 7.0, MealTag.AFTER_MEAL),
-            r(t0 + day, 5.5, MealTag.BEFORE_MEAL, listOf("porridge", "banana")),
+            r(t0 + day, 5.5, MealTag.BEFORE_MEAL),
             r(t0 + day + 120 * min, 8.5, MealTag.AFTER_MEAL),
-            // Eggs logged on the after-meal reading: start is the before-meal one.
-            r(t0 + 2 * day, 6.0, MealTag.BEFORE_MEAL),
-            r(t0 + 2 * day + 100 * min, 6.5, MealTag.AFTER_MEAL, listOf("eggs")),
+            // Eggs eaten 40 min after the fasting reading: that reading is still the start.
+            r(t0 + 2 * day, 6.0, MealTag.FASTING),
+            r(t0 + 2 * day + 140 * min, 6.5, MealTag.AFTER_MEAL),
             // Toast with nothing after: no score.
-            r(t0 + 3 * day, 6.0, MealTag.BEFORE_MEAL, listOf("toast")),
+            r(t0 + 3 * day, 6.0, MealTag.BEFORE_MEAL),
         )
-        val scores = Foods.scores(readings, emptyList())
+        val meals = listOf(
+            meal(t0 + 5 * min, "porridge"),
+            meal(t0 + day + 10 * min, "porridge", "banana"),
+            meal(t0 + 2 * day + 40 * min, "eggs"),
+            meal(t0 + 3 * day + 5 * min, "toast"),
+        )
+        val scores = Foods.scores(readings, emptyList(), meals)
         assertEquals(listOf("eggs", "porridge", "banana"), scores.map { it.food })
         val porridge = scores.first { it.food == "porridge" }
         assertEquals(2, porridge.meals)
@@ -92,24 +102,28 @@ class SensorFoodsTest {
     }
 
     @Test
+    fun mealsLinkToTheirReadings() {
+        val zone = java.time.ZoneId.of("UTC")
+        val wake = Reading(1, t0, 5.8, MealTag.FASTING)
+        val after = Reading(2, t0 + 160 * min, 8.1, MealTag.AFTER_MEAL)
+        val breakfast = meal(t0 + 40 * min, "toast").copy(name = "Breakfast")
+        val readings = listOf(wake, after)
+        assertEquals(wake, app.dropi.data.MealLink.before(breakfast, readings))
+        assertEquals("before breakfast", app.dropi.data.MealLink.text(wake, listOf(breakfast), readings))
+        assertEquals("2 h after breakfast", app.dropi.data.MealLink.text(after, listOf(breakfast), readings))
+        // Nothing in the 90 minutes before: no start.
+        assertEquals(null, app.dropi.data.MealLink.before(meal(t0 + 200 * min, "x"), listOf(wake)))
+        assertEquals("Snack", app.dropi.data.MealEntry.nameFor(t0 - t0 % 86_400_000L + 16 * 60 * min, zone))
+    }
+
+    @Test
     fun sensorPointsFeedTheCurve() {
-        val readings = listOf(Reading(1, t0, 5.0, MealTag.BEFORE_MEAL, foods = listOf("rice")))
+        val readings = listOf(Reading(1, t0, 5.0, MealTag.BEFORE_MEAL))
         val sensor = (1..48).map { i -> SensorPoint(t0 + i * 5 * min, 5.0 + if (i * 5 <= 60) i * 5 * 0.06 else (240 - i * 5) * 0.02) }
-        val s = Foods.scores(readings, sensor).single()
+        val s = Foods.scores(readings, sensor, listOf(meal(t0, "rice"))).single()
         assertEquals("rice", s.food)
         assertEquals(3.6, s.rise, 0.05)
         assertEquals(0 to 0.0, s.curve.first())
         assertTrue(s.curve.size >= 6)
-    }
-}
-
-class PlateTest {
-    @Test
-    fun readsTheModelsReply() {
-        val g = app.dropi.data.Plate.parse("Sure!\nFOODS: Spaghetti bolognese; side salad; Garlic bread.\nCARBS: about 92 g")!!
-        assertEquals(listOf("spaghetti bolognese", "side salad", "garlic bread"), g.foods)
-        assertEquals(90, g.carbs)
-        assertNull(app.dropi.data.Plate.parse("I can't see any food here."))
-        assertEquals(emptyList<String>(), app.dropi.data.Plate.parse("CARBS: 30")!!.foods)
     }
 }

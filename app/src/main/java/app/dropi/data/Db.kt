@@ -15,7 +15,7 @@ class Db private constructor(context: Context, name: String) :
     SQLiteOpenHelper(context.applicationContext, name, null, VERSION) {
 
     companion object {
-        private const val VERSION = 5
+        private const val VERSION = 6
         const val REAL = "dropi.db"
 
         /** Demo data lives in its own file, so the real log is never touched while it's on. */
@@ -63,6 +63,58 @@ class Db private constructor(context: Context, name: String) :
         db.execSQL("CREATE INDEX readings_at ON readings(at)")
         db.execSQL("CREATE INDEX readings_source ON readings(source)")
         createSensor(db)
+        createMeals(db)
+    }
+
+    /** Meals as their own entries, at the time they were eaten. */
+    private fun createMeals(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS meals (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, name TEXT NOT NULL, meal TEXT NOT NULL, before_id INTEGER)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS meals_at ON meals(at)")
+    }
+
+    /**
+     * Meals that were stored on readings (before meals had their own entries) become meal
+     * entries at the same time, with that reading as their starting value. The reading keeps
+     * its number and moment; its foods and the carbs that came with them move to the meal.
+     */
+    private fun moveFoodsToMeals(db: SQLiteDatabase) {
+        val zone = java.time.ZoneId.systemDefault()
+        // reading id, meal time, meal JSON, the reading it starts from
+        data class Move(val id: Long, val at: Long, val json: String, val before: Long?)
+        val moves = ArrayList<Move>()
+        db.rawQuery("SELECT id, at, foods, meal, carbs, tag FROM readings WHERE foods != ''", null).use { c ->
+            while (c.moveToNext()) {
+                val foods = Foods.unpack(c.getString(2))
+                if (foods.isEmpty()) continue
+                val meal = Meal.fromJson(c.getString(3)) ?: run {
+                    val carbs = if (c.isNull(4)) 0 else c.getInt(4)
+                    val each = carbs / foods.size
+                    Meal(foods.mapIndexed { i, f -> MealItem(f, "1 portion", carbs = if (i == 0) carbs - each * (foods.size - 1) else each) }, false, "typed")
+                }
+                val id = c.getLong(0)
+                val at = c.getLong(1)
+                if (c.getString(5) == MealTag.AFTER_MEAL.name) {
+                    // Foods logged on the after reading: the meal started at the reading before it
+                    // (up to 3 h earlier), or about 2 h before when there was none.
+                    var start: Pair<Long, Long>? = null
+                    db.rawQuery(
+                        "SELECT id, at FROM readings WHERE at < ? AND at >= ? AND tag IN (?, ?) ORDER BY at DESC LIMIT 1",
+                        arrayOf(at.toString(), (at - 3 * 3_600_000L).toString(), MealTag.BEFORE_MEAL.name, MealTag.FASTING.name),
+                    ).use { b -> if (b.moveToFirst()) start = b.getLong(0) to b.getLong(1) }
+                    val s = start
+                    moves += if (s != null) Move(id, s.second, meal.toJson(), s.first) else Move(id, at - 2 * 3_600_000L, meal.toJson(), null)
+                } else {
+                    moves += Move(id, at, meal.toJson(), id)
+                }
+            }
+        }
+        for (m in moves) {
+            db.insert("meals", null, ContentValues().apply {
+                put("at", m.at); put("name", MealEntry.nameFor(m.at, zone)); put("meal", m.json)
+                if (m.before != null) put("before_id", m.before) else putNull("before_id")
+            })
+            db.execSQL("UPDATE readings SET foods = '', meal = NULL, carbs = NULL WHERE id = ?", arrayOf(m.id))
+        }
     }
 
     /** Sensor (CGM) points, one per minute at most: kept apart so they never flood the log. */
@@ -93,6 +145,10 @@ class Db private constructor(context: Context, name: String) :
         if (oldVersion < 5) {
             // The meal's breakdown (foods, portions, carbs, sugars, fibre) as JSON.
             db.execSQL("ALTER TABLE readings ADD COLUMN meal TEXT")
+        }
+        if (oldVersion < 6) {
+            createMeals(db)
+            moveFoodsToMeals(db)
         }
     }
 
@@ -126,6 +182,56 @@ class Db private constructor(context: Context, name: String) :
     suspend fun delete(id: Long) = withContext(Dispatchers.IO) {
         writableDatabase.delete("readings", "id = ?", arrayOf(id.toString()))
         Unit
+    }
+
+    // ---- Meals ----
+
+    suspend fun saveMeal(e: MealEntry): MealEntry = withContext(Dispatchers.IO) {
+        val v = ContentValues().apply {
+            put("at", e.at); put("name", e.name); put("meal", e.meal.toJson())
+            if (e.before != null) put("before_id", e.before) else putNull("before_id")
+        }
+        val db = writableDatabase
+        if (e.id == 0L) e.copy(id = db.insertOrThrow("meals", null, v))
+        else { db.update("meals", v, "id = ?", arrayOf(e.id.toString())); e }
+    }
+
+    suspend fun deleteMeal(id: Long) = withContext(Dispatchers.IO) {
+        writableDatabase.delete("meals", "id = ?", arrayOf(id.toString()))
+        Unit
+    }
+
+    /** Meals eaten at or after [since], oldest first. */
+    suspend fun mealsSince(since: Long): List<MealEntry> = withContext(Dispatchers.IO) {
+        val out = ArrayList<MealEntry>()
+        readableDatabase.rawQuery("SELECT id, at, name, meal, before_id FROM meals WHERE at >= ? ORDER BY at ASC", arrayOf(since.toString())).use { c ->
+            while (c.moveToNext()) {
+                val meal = Meal.fromJson(c.getString(3)) ?: continue
+                out += MealEntry(c.getLong(0), c.getLong(1), c.getString(2), meal, if (c.isNull(4)) null else c.getLong(4))
+            }
+        }
+        out
+    }
+
+    /** Adds meals from a backup, skipping any already here (same minute and foods). */
+    suspend fun mergeMeals(incoming: List<MealEntry>): Int = withContext(Dispatchers.IO) {
+        val have = mealsSince(Long.MIN_VALUE).map { (it.at / 60_000) to it.foods.sorted() }.toHashSet()
+        var added = 0
+        for (e in incoming) {
+            val k = (e.at / 60_000) to e.foods.sorted()
+            if (k in have) continue
+            saveMeal(e.copy(id = 0, before = null))
+            have += k
+            added++
+        }
+        added
+    }
+
+    /** Old backups carry meals on readings: after restoring one, move them into meal entries. */
+    suspend fun tidyMeals() = withContext(Dispatchers.IO) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try { moveFoodsToMeals(db); db.setTransactionSuccessful() } finally { db.endTransaction() }
     }
 
     /** Every reading ever logged, oldest first (History and backups). */

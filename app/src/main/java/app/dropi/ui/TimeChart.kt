@@ -121,8 +121,8 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val clock = remember { DateTimeFormatter.ofPattern(if (fmt.is24) "HH:mm" else "ha", Locale.ENGLISH) }
     val weekday = remember { DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH) }
     val dayMonth = remember { DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH) }
-    val meals = remember(readings, sensor) {
-        readings.filter { it.foods.isNotEmpty() }.associateWith { MealHistory.outcome(it, readings, sensor) }
+    val meals = remember(readings, sensor, state.meals) {
+        state.meals.associateWith { MealHistory.outcome(it, readings, sensor, state.meals) }
     }
 
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -297,7 +297,8 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                         drawCircle(C.status(Glucose.status(avg, MealTag.OTHER, state.targets)), w / 2 + 0.5f, Offset(x, yOf(avg)))
                     }
                 } else {
-                    // Meals: a small plate mark on the bottom edge, and a dashed line up to the peak after.
+                    // Meals: a small plate mark on the bottom edge at the time eaten, and a dashed line
+                    // from there (at the starting value) up to the peak after.
                     if (showMeals) {
                         meals.forEach { (r, out) ->
                             if (r.at !in start..end) return@forEach
@@ -380,12 +381,12 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
             }
             if (showTargets) {
                 val t = state.targets
-                KeyRow(KeyMark.BAND, C.AccentText, "Light band: your before-meal target, ${Glucose.format(t.beforeLow, unit)}–${Glucose.format(t.beforeHigh, unit)}")
-                KeyRow(KeyMark.FLAT_DASH, C.AccentText, "Flat dashes: your after-meal limit, ${Glucose.format(t.afterHigh, unit)}")
+                KeyRow(KeyMark.BAND, C.AccentText, "Light band: your before-eating target, ${Glucose.format(t.beforeLow, unit)}–${Glucose.format(t.beforeHigh, unit)}")
+                KeyRow(KeyMark.FLAT_DASH, C.AccentText, "Flat dashes: your after-eating limit, ${Glucose.format(t.afterHigh, unit)}")
             }
             if (showMeals && !zoomedOut) {
-                KeyRow(KeyMark.SQUARE, C.AccentText, "Square: a meal")
-                KeyRow(KeyMark.SLOPE_DASH, C.AccentText, "Sloped dashes: from before the meal up to its peak")
+                KeyRow(KeyMark.SQUARE, C.AccentText, "Square: a meal, when you ate it")
+                KeyRow(KeyMark.SLOPE_DASH, C.AccentText, "Sloped dashes: from the meal up to its peak")
             }
             if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], "Coloured line: sensor values")
         }
@@ -398,7 +399,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
                 Column(Modifier.weight(1f)) {
                     Text("${Glucose.format(s.mmol, unit)} ${unit.label} · ${s.tag.label}", style = inter(15.sp, FontWeight.SemiBold))
                     Text(
-                        listOf(fmt.dayTime(s.at), s.detailsText()).filter { it.isNotBlank() }.joinToString(" · "),
+                        listOf(fmt.dayTime(s.at), state.linkText(s).orEmpty(), s.detailsText()).filter { it.isNotBlank() }.joinToString(" · "),
                         style = inter(12.sp, color = C.TextSecondary),
                     )
                 }

@@ -33,6 +33,7 @@ object Backup {
         val targets: Targets?,
         val labA1c: List<LabA1c>,
         val made: Long,
+        val meals: List<MealEntry> = emptyList(),
     )
 
     fun toJson(c: Contents): String {
@@ -59,6 +60,9 @@ object Backup {
                 c.slots?.let { put("slots", JSONArray(Schedule.slotsToJson(it))) }
                 c.targets?.let { put("targets", JSONObject().put("beforeLow", it.beforeLow).put("beforeHigh", it.beforeHigh).put("afterHigh", it.afterHigh)) }
                 put("labA1c", JSONArray(A1c.toJson(c.labA1c)))
+                put("meals", JSONArray().apply {
+                    c.meals.forEach { m -> put(JSONObject().put("at", m.at).put("name", m.name).put("meal", JSONObject(m.meal.toJson()))) }
+                })
             }
             .toString()
     }
@@ -95,6 +99,13 @@ object Backup {
             targets = t,
             labA1c = A1c.fromJson(o.optJSONArray("labA1c")?.toString()),
             made = o.optLong("made"),
+            meals = o.optJSONArray("meals")?.let { ms ->
+                (0 until ms.length()).mapNotNull { i ->
+                    val m = ms.optJSONObject(i) ?: return@mapNotNull null
+                    val meal = Meal.fromJson(m.optJSONObject("meal")?.toString()) ?: return@mapNotNull null
+                    MealEntry(at = m.optLong("at"), name = m.optString("name", "Meal").take(20), meal = meal)
+                }
+            } ?: emptyList(),
         )
     }
 

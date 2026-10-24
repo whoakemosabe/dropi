@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
@@ -89,11 +91,13 @@ fun DropiRoot(state: AppState) {
             Box(Modifier.fillMaxSize().background(C.Bg))
             AuroraGlow(Modifier.fillMaxWidth().height(560.dp))
             CompositionLocalProvider(LocalHeaderHeight provides headerDp) {
-                // Today and Trends, cross-fading; back on Trends returns to Today.
+                // The four pages, cross-fading; back on any of them returns to Today.
                 Crossfade(state.tab, animationSpec = tween(220), label = "tab") { t ->
                     when (t) {
                         Tab.TODAY -> TodayPage(state)
                         Tab.TRENDS -> TrendsPage(state)
+                        Tab.MEALS -> MealsPage(state)
+                        Tab.MORE -> MorePage(state)
                     }
                 }
             }
@@ -123,14 +127,16 @@ fun DropiRoot(state: AppState) {
 
         // "Reading deleted · Undo", above the tab bar for a few seconds after a delete.
         val deleted = state.lastDeleted
-        LaunchedEffect(deleted) {
-            if (deleted != null) {
+        val deletedMeal = state.lastDeletedMeal
+        LaunchedEffect(deleted, deletedMeal) {
+            if (deleted != null || deletedMeal != null) {
                 kotlinx.coroutines.delay(5_000)
                 if (state.lastDeleted == deleted) state.lastDeleted = null
+                if (state.lastDeletedMeal == deletedMeal) state.lastDeletedMeal = null
             }
         }
         AnimatedVisibility(
-            visible = deleted != null && state.editing == null,
+            visible = (deleted != null || deletedMeal != null) && state.editing == null && !app.dropi.work.MealWork.open,
             enter = fadeIn(tween(160)) + androidx.compose.animation.slideInVertically(tween(220)) { it / 2 },
             exit = fadeOut(tween(140)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -146,20 +152,23 @@ fun DropiRoot(state: AppState) {
                     .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Reading deleted", style = inter(14.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f))
+                Text(
+                    if (deletedMeal != null) "${deletedMeal.name} deleted" else "Reading deleted",
+                    style = inter(14.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f),
+                )
                 Text(
                     "Undo",
                     style = inter(14.sp, FontWeight.Bold, C.Bg),
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .tap { state.undoDelete() }
+                        .tap { if (state.lastDeletedMeal != null) state.undoDeleteMeal() else state.undoDelete() }
                         .padding(horizontal = 14.dp, vertical = 14.dp),
                 )
             }
         }
 
-        // "Added to your 12:40 reading" after a meal is used.
+        // "Breakfast logged" after a meal is saved.
         val mealNote = state.mealNote
         LaunchedEffect(mealNote) {
             if (mealNote != null) {
@@ -258,7 +267,7 @@ fun DropiRoot(state: AppState) {
     }
 }
 
-enum class Tab { TODAY, TRENDS }
+enum class Tab { TODAY, TRENDS, MEALS, MORE }
 
 /** How far the header's frost fades out below it; pages start below that, so at rest nothing is blurred. */
 val HEADER_FADE = 20.dp
@@ -276,6 +285,8 @@ private fun TopBar(state: AppState) {
             val df = java.time.format.DateTimeFormatter.ofPattern("d MMM", java.util.Locale.ENGLISH)
             "Trends" to "${df.format(today.minusDays((state.trendsDays - 1).toLong()))} – ${df.format(today)}"
         }
+        Tab.MEALS -> "Meals" to "What you ate, and what it did"
+        Tab.MORE -> "More" to "Everything else, one tap away"
     }
     Row(
         Modifier
@@ -310,38 +321,37 @@ private fun TopBar(state: AppState) {
 
 /**
  * The bottom bar: two frosted wings (the same blur and tint as the header) curving in around a
- * big floating + with a halo. Nothing joins them, so the page shows through the gaps.
+ * big floating + with a halo, two pages in each: Today and Trends on the left, Meals and More on
+ * the right. Nothing joins the wings, so the page shows through the gaps.
  */
 @Composable
 private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
     val view = LocalView.current
+    fun go(t: Tab) {
+        if (state.tab != t) Haptics.segment(view)
+        state.tab = t
+    }
     Box(
         Modifier
             .navigationBarsPadding()
             .padding(bottom = 10.dp)
-            .widthIn(max = 420.dp)
+            .widthIn(max = 460.dp)
             .fillMaxWidth()
             .height(104.dp),
     ) {
         Row(
-            Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 16.dp),
+            Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Wing(
-                "Today", R.drawable.lc_droplet, state.tab == Tab.TODAY, left = true, backdrop = backdrop,
-                modifier = Modifier.weight(1f),
-            ) {
-                if (state.tab != Tab.TODAY) Haptics.segment(view)
-                state.tab = Tab.TODAY
+            Wing(left = true, backdrop = backdrop, modifier = Modifier.weight(1f)) {
+                TabItem("Today", R.drawable.lc_droplet, state.tab == Tab.TODAY, Modifier.weight(1f)) { go(Tab.TODAY) }
+                TabItem("Trends", R.drawable.lc_chart, state.tab == Tab.TRENDS, Modifier.weight(1f)) { go(Tab.TRENDS) }
             }
             // Room for the orb between the wings' curved inner edges.
             Spacer(Modifier.width(ORB_GAP))
-            Wing(
-                "Trends", R.drawable.lc_chart, state.tab == Tab.TRENDS, left = false, backdrop = backdrop,
-                modifier = Modifier.weight(1f),
-            ) {
-                if (state.tab != Tab.TRENDS) Haptics.segment(view)
-                state.tab = Tab.TRENDS
+            Wing(left = false, backdrop = backdrop, modifier = Modifier.weight(1f)) {
+                TabItem("Meals", R.drawable.lc_utensils, state.tab == Tab.MEALS, Modifier.weight(1f)) { go(Tab.MEALS) }
+                TabItem("More", R.drawable.lc_layout_grid, state.tab == Tab.MORE, Modifier.weight(1f)) { go(Tab.MORE) }
             }
         }
         // The halo, then the + itself.
@@ -404,39 +414,50 @@ private class WingShape(private val left: Boolean) : Shape {
 
 @Composable
 private fun Wing(
-    label: String,
-    icon: Int,
-    selected: Boolean,
     left: Boolean,
     backdrop: LayerBackdrop,
     modifier: Modifier,
-    onClick: () -> Unit,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
     val shape = remember(left) { WingShape(left) }
-    val tint = if (selected) C.AccentText else C.TextSecondary
-    val press = rememberPress()
     Row(
         modifier
             .height(64.dp)
-            .pressed(press)
             .frosted(backdrop, shape)
-            .background(
-                if (selected) Brush.horizontalGradient(listOf(C.Aurora[0].copy(alpha = 0.2f), C.Aurora[2].copy(alpha = 0.2f)))
-                else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)),
-                shape,
-            )
-            .border(1.5.dp, if (selected) C.AccentText.copy(alpha = 0.8f) else C.Text.copy(alpha = 0.22f), shape)
+            .border(1.5.dp, C.Text.copy(alpha = 0.22f), shape)
             .clip(shape)
-            .semantics { this.selected = selected; role = Role.Tab }
-            .tap(press, onClick = onClick)
-            // Keep the label clear of the curved inner edge.
-            .padding(start = if (left) 0.dp else 22.dp, end = if (left) 22.dp else 0.dp),
-        horizontalArrangement = Arrangement.Center,
+            .semantics { isTraversalGroup = true }
+            // Keep the items clear of the curved inner edge and the round outer one.
+            .padding(start = if (left) 6.dp else 20.dp, end = if (left) 20.dp else 6.dp, top = 6.dp, bottom = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
+}
+
+/** One page in a wing: its icon over a short name, on a lit capsule when it's the page showing. */
+@Composable
+private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val tint = if (selected) C.AccentText else C.TextSecondary
+    val press = rememberPress()
+    Column(
+        modifier
+            .fillMaxHeight()
+            .pressed(press)
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (selected) Brush.horizontalGradient(listOf(C.Aurora[0].copy(alpha = 0.24f), C.Aurora[2].copy(alpha = 0.24f)))
+                else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)),
+            )
+            .then(if (selected) Modifier.border(1.dp, C.AccentText.copy(alpha = 0.6f), RoundedCornerShape(50)) else Modifier)
+            .semantics(mergeDescendants = true) { this.selected = selected; role = Role.Tab }
+            .tap(press, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Ic(icon, tint, 20.dp)
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = inter(15.sp, if (selected) FontWeight.Bold else FontWeight.SemiBold, tint), maxLines = 1, softWrap = false)
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = inter(11.sp, if (selected) FontWeight.Bold else FontWeight.SemiBold, tint), maxLines = 1, softWrap = false)
     }
 }
 

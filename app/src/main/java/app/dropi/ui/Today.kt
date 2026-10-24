@@ -133,8 +133,8 @@ fun TodayPage(state: AppState) {
         }
         item(key = "sentence") { DaySentence(state, summary) }
         item(key = "checks") { ChecksCard(state, now, fmt) }
-        val meals = todays.filter { it.foods.isNotEmpty() }
-        if (meals.isNotEmpty()) item(key = "meals") { MealsTodayCard(state, meals, now, fmt) }
+        val meals = state.meals.filter { Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() == today }
+        if (meals.isNotEmpty()) item(key = "meals") { MealsCard(state, meals, now, fmt, "Meals today") }
         item(key = "today-label") {
             Text("Today", style = SectionLabel, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         }
@@ -286,8 +286,8 @@ private fun WeekStat(value: String, label: String) {
  */
 @Composable
 private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
-    val checks = Schedule.today(state.slots, state.readings, now, state.zone, state.afterMealMinutes)
-    val next = Schedule.next(state.slots, state.readings, now, state.zone, state.afterMealMinutes)
+    val checks = Schedule.today(state.slots, state.readings, now, state.zone, state.afterMealMinutes, state.meals)
+    val next = Schedule.next(state.slots, state.readings, now, state.zone, state.afterMealMinutes, state.meals)
     val move = remember(state.readings, state.slots, state.dismissedMoves) { state.moveSuggestion(now) }
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,7 +334,8 @@ private fun ChecksCard(state: AppState, now: Long, fmt: Fmt) {
                 else -> "tomorrow"
             }
             Text(
-                "Next: ${next.slot.name} at ${fmt.time(next.at)}" + (next.anchor?.let { " (${state.afterMealMinutes / 60} h after your ${fmt.time(it.at)} reading)" } ?: "") + ", $whenText",
+                "Next: ${next.slot.name} at ${fmt.time(next.at)}" + (next.meal?.let { " (after your ${it.name.lowercase()} at ${fmt.time(it.at)})" }
+                    ?: next.anchor?.let { " (${state.afterMealMinutes / 60} h after your ${fmt.time(it.at)} reading)" } ?: "") + ", $whenText",
                 style = inter(13.sp, FontWeight.Medium, if (next.state == CheckState.DUE) C.AccentText else C.TextSecondary),
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
@@ -377,6 +378,14 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
         }
         val lineY = if (above.any { it }) 44.dp else 14.dp
         Box(Modifier.fillMaxWidth().height(lineY + 52.dp))
+        val day0 = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val todaysMeals = state.meals.filter { Instant.ofEpochMilli(it.at).atZone(zone).toLocalDate() == day0 }
+        // Each meal is joined to the reading before it and the one after it.
+        val links = todaysMeals.map { m ->
+            val before = app.dropi.data.MealLink.before(m, state.readings)
+            val after = state.readings.filter { it.at - m.at in 45 * 60_000L..240 * 60_000L }.maxByOrNull { it.mmol }
+            Triple(m, before, after)
+        }
         // The day's line, brighter up to now.
         Canvas(Modifier.fillMaxWidth().height(lineY + 52.dp)) {
             val y = lineY.toPx()
@@ -388,6 +397,14 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 val x1 = xOf(hourOf(c.until)).toPx()
                 if (x1 > x0) drawLine(accent.copy(alpha = 0.28f), Offset(x0, y), Offset(x1, y), strokeWidth = 6.dp.toPx(), cap = StrokeCap.Round)
             }
+            // Meal links: a soft bar from the reading before, through the meal, to the one after.
+            links.forEach { (m, b, a) ->
+                val xs = listOfNotNull(b?.at, m.at, a?.at).map { xOf(hourOf(it)).toPx() }
+                if (xs.size > 1) drawLine(
+                    accent.copy(alpha = 0.45f), Offset(xs.min(), y + 9.dp.toPx()), Offset(xs.max(), y + 9.dp.toPx()),
+                    strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round,
+                )
+            }
             val nx = xOf(nowH).toPx()
             if (nx > pad.toPx()) {
                 drawLine(
@@ -397,7 +414,6 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
             }
         }
         // Readings that answered no check still sit on the line, at their exact time.
-        val day0 = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val answered = checks.mapNotNull { it.reading }.toSet()
         state.readings.filter { it.date(zone) == day0 && it !in answered }.forEach { r ->
             val x = xOf(hourOf(r.at))
@@ -412,19 +428,23 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
                 contentAlignment = Alignment.Center,
             ) { Box(Modifier.size(10.dp).clip(CircleShape).background(col)) }
         }
-        // Meals sit on the line as small squares just after their reading.
-        val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-        state.readings.filter { it.foods.isNotEmpty() && it.date(zone) == day }.forEach { m ->
-            val x = xOf(hourOf(m.at)) + 12.dp
+        // Meals sit on the line as small squares at the time they were eaten.
+        todaysMeals.forEach { m ->
+            val x = xOf(hourOf(m.at))
             Box(
                 Modifier
-                    .offset(x = x - 6.dp, y = lineY - 6.dp)
-                    .size(12.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(C.AccentText)
-                    .border(2.dp, C.Bg, RoundedCornerShape(3.dp))
-                    .semantics { contentDescription = "Meal at ${fmt.time(m.at)}: ${m.foods.joinToString(", ")}" },
-            )
+                    .offset(x = x - 22.dp, y = lineY - 22.dp + 9.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .tap { app.dropi.work.MealWork.edit(m) }
+                    .semantics { contentDescription = "${m.name} at ${fmt.time(m.at)}: ${m.foods.joinToString(", ")}" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.size(12.dp).clip(RoundedCornerShape(3.dp)).background(C.AccentText)
+                        .border(2.dp, C.Bg, RoundedCornerShape(3.dp)),
+                )
+            }
         }
         checks.forEachIndexed { i, c ->
             val x = xOf(hours[i])
@@ -484,64 +504,69 @@ private fun DayLine(checks: List<Check>, now: Long, state: AppState, fmt: Fmt) {
 }
 
 /**
- * Today's meals: what was eaten, the carbs, and how it went (from before the meal to the highest
- * reading 45 min–3 h after), or that the after-meal check is still to come.
+ * Meals: name, time and carbs, the foods, where the starting number came from, and how it went
+ * (the highest reading 45 min–3 h after eating, compared with the start). Tap to change one.
  */
 @Composable
-private fun MealsTodayCard(state: AppState, meals: List<Reading>, now: Long, fmt: Fmt) {
+fun MealsCard(state: AppState, meals: List<app.dropi.data.MealEntry>, now: Long, fmt: Fmt, title: String?, dayTimes: Boolean = false) {
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Meals today", style = SectionLabel, modifier = Modifier.padding(start = 4.dp))
+        if (title != null) Text(title, style = SectionLabel, modifier = Modifier.padding(start = 4.dp))
         Column(Modifier.fillMaxWidth().card()) {
-            meals.forEachIndexed { i, r ->
+            meals.forEachIndexed { i, m ->
                 if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(C.GlassBorder))
-                val out = app.dropi.data.MealHistory.outcome(r, state.readings, state.sensor)
-                val rise = out?.let { app.dropi.data.Rise.of(it.rise) }
-                val carbs = r.meal?.carbs ?: r.carbs
-                val foods = r.foods.joinToString(", ") { app.dropi.data.Foods.display(it) }
-                val result = when {
-                    out != null -> "Peaked ${Glucose.format(out.peak, state.unit)} (${app.dropi.data.Foods.delta(out.rise, state.unit)}) at ${fmt.time(out.peakAt)}"
-                    now - r.at < 3 * 3_600_000L -> "Waiting for your after-meal check"
-                    else -> "No after-meal reading"
-                }
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 64.dp)
-                        .semantics(mergeDescendants = true) {
-                            role = Role.Button
-                            contentDescription = "Meal at ${fmt.time(r.at)}: $foods" + (carbs?.let { ", $it grams of carbs" } ?: "") +
-                                ". $result" + (rise?.let { ", ${it.word.lowercase()}" } ?: "")
-                        }
-                        .tap {
-                            val m = r.meal
-                            if (m != null) app.dropi.work.MealWork.edit(m, r.id) else state.editing = r
-                        }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(C.SurfaceLight), contentAlignment = Alignment.Center) {
-                        Ic(R.drawable.lc_utensils, C.AccentText, 18.dp)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            fmt.time(r.at) + (carbs?.let { " · $it g carbs" } ?: ""),
-                            style = inter(15.sp, FontWeight.SemiBold),
-                        )
-                        Text(foods, style = inter(13.sp, color = C.TextSecondary), maxLines = 2)
-                        Text(result, style = inter(12.sp, color = C.TextMuted))
-                    }
-                    if (rise != null) {
-                        Spacer(Modifier.width(10.dp))
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(app.dropi.data.Foods.delta(out.rise, state.unit), style = numeral(18.sp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(7.dp).clip(CircleShape).background(riseColor(rise)))
-                                Spacer(Modifier.width(5.dp))
-                                Text(rise.word.removeSuffix(" rise"), style = inter(12.sp, FontWeight.SemiBold))
-                            }
-                        }
-                    }
+                MealRow(state, m, now, fmt, dayTimes)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MealRow(state: AppState, m: app.dropi.data.MealEntry, now: Long, fmt: Fmt, dayTimes: Boolean) {
+    val out = app.dropi.data.MealHistory.outcome(m, state.readings, state.sensor, state.meals)
+    val rise = out?.let { app.dropi.data.Rise.of(it.rise) }
+    val before = app.dropi.data.MealLink.before(m, state.readings)
+    val foods = m.meal.items.joinToString(", ") { app.dropi.data.Foods.display(it.name) }
+    val time = if (dayTimes) fmt.dayTime(m.at, now) else fmt.time(m.at)
+    val from = before?.let { "Before: your ${fmt.time(it.at)} reading (${Glucose.format(it.mmol, state.unit)})" }
+        ?: "No reading before it, so no rise to show"
+    val gap = app.dropi.data.Schedule.gapFor(m, state.afterMealMinutes)
+    val result = when {
+        out != null -> "Peaked ${Glucose.format(out.peak, state.unit)} (${app.dropi.data.Foods.delta(out.rise, state.unit)}) at ${fmt.time(out.peakAt)}"
+        before == null -> null
+        now - m.at < 4 * 3_600_000L -> "After-eating check at about ${fmt.time(m.at + gap * 60_000L)}"
+        else -> "No after-eating reading"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = "${m.name} at $time: $foods, ${m.carbs} grams of carbs. $from." +
+                    (result?.let { " $it" } ?: "") + (rise?.let { ", ${it.word.lowercase()}" } ?: "")
+            }
+            .tap { app.dropi.work.MealWork.edit(m) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(C.SurfaceLight), contentAlignment = Alignment.Center) {
+            Ic(R.drawable.lc_utensils, C.AccentText, 18.dp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text("${m.name} · $time · ${m.carbs} g carbs", style = inter(15.sp, FontWeight.SemiBold))
+            Text(foods, style = inter(13.sp, color = C.TextSecondary), maxLines = 2)
+            Text(from, style = inter(12.sp, color = C.TextMuted))
+            if (result != null) Text(result, style = inter(12.sp, color = C.TextMuted))
+        }
+        if (rise != null && out != null) {
+            Spacer(Modifier.width(10.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(app.dropi.data.Foods.delta(out.rise, state.unit), style = numeral(18.sp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(riseColor(rise)))
+                    Spacer(Modifier.width(5.dp))
+                    Text(rise.word.removeSuffix(" rise"), style = inter(12.sp, FontWeight.SemiBold))
                 }
             }
         }
@@ -611,19 +636,23 @@ fun ReadingsCard(state: AppState, readings: List<Reading>, fill: Color = C.Card,
 @Composable
 fun ReadingRow(state: AppState, r: Reading, time: String) {
     val status = state.status(r)
+    // "2 h after breakfast": which meal this reading belongs to.
+    val link = remember(r, state.meals, state.readings) { state.linkText(r) }
     val c = C.status(status)
     Row(
         Modifier
             .fillMaxWidth()
             .tap { state.editing = r }
-            .semantics(mergeDescendants = true) { contentDescription = "${r.tag.label}, $time, ${Glucose.format(r.mmol, state.unit)}, ${status.label}" }
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${r.tag.label}, $time" + (link?.let { ", $it" } ?: "") + ", ${Glucose.format(r.mmol, state.unit)}, ${status.label}"
+            }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(r.tag.label, style = inter(15.sp, FontWeight.SemiBold, C.Text))
             Text(
-                listOf(time, r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · "),
+                listOf(time, link.orEmpty(), r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · "),
                 style = inter(12.sp, color = C.TextMuted),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

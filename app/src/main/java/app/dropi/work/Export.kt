@@ -35,23 +35,28 @@ object Export {
 
     private fun dir(context: Context) = File(context.cacheDir, "exports").apply { mkdirs() }
 
-    /** Readings as CSV (both units, so any clinic can read it). */
-    fun csv(readings: List<Reading>, zone: ZoneId): String {
+    /** Readings (and meals, as their own rows) as CSV, in both units so any clinic can read it. */
+    fun csv(readings: List<Reading>, zone: ZoneId, meals: List<app.dropi.data.MealEntry> = emptyList()): String {
         val sb = StringBuilder("date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,foods,note\n")
-        readings.sortedBy { it.at }.forEach { r ->
-            val t = Instant.ofEpochMilli(r.at).atZone(zone)
-            sb.append(t.toLocalDate()).append(',')
-                .append(time.format(t)).append(',')
-                .append(Glucose.format(r.mmol, GlucoseUnit.MMOL)).append(',')
-                .append(Glucose.format(r.mmol, GlucoseUnit.MGDL)).append(',')
-                .append(r.tag.label).append(',')
-                .append(r.carbs?.toString() ?: "").append(',')
-                .append(r.insulin?.let { Glucose.formatNumber(it) } ?: "").append(',')
-                .append(r.insulinKind?.label ?: "").append(',')
-                .append(if (r.meds) "yes" else "").append(',')
-                .append(r.exercise?.toString() ?: "").append(',')
-                .append(quote(r.foods.joinToString("; ") { app.dropi.data.Foods.display(it) })).append(',')
-                .append(quote(r.note)).append('\n')
+        val rows = readings.map { it.at to it } + meals.map { it.at to it }
+        rows.sortedBy { it.first }.forEach { (at, x) ->
+            val t = Instant.ofEpochMilli(at).atZone(zone)
+            sb.append(t.toLocalDate()).append(',').append(time.format(t)).append(',')
+            if (x is Reading) {
+                sb.append(Glucose.format(x.mmol, GlucoseUnit.MMOL)).append(',')
+                    .append(Glucose.format(x.mmol, GlucoseUnit.MGDL)).append(',')
+                    .append(x.tag.label).append(',')
+                    .append(x.carbs?.toString() ?: "").append(',')
+                    .append(x.insulin?.let { Glucose.formatNumber(it) } ?: "").append(',')
+                    .append(x.insulinKind?.label ?: "").append(',')
+                    .append(if (x.meds) "yes" else "").append(',')
+                    .append(x.exercise?.toString() ?: "").append(',')
+                    .append(quote(x.foods.joinToString("; ") { app.dropi.data.Foods.display(it) })).append(',')
+                    .append(quote(x.note)).append('\n')
+            } else if (x is app.dropi.data.MealEntry) {
+                sb.append(",,").append(quote(x.name)).append(',').append(x.carbs).append(",,,,,")
+                    .append(quote(x.meal.items.joinToString("; ") { "${app.dropi.data.Foods.display(it.name)} (${it.portionText()})" })).append(",\n")
+            }
         }
         return sb.toString()
     }
@@ -63,8 +68,10 @@ object Export {
         return if (v.any { it == ',' || it == '"' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
     }
 
-    suspend fun writeCsv(context: Context, readings: List<Reading>, zone: ZoneId, today: LocalDate): File = withContext(Dispatchers.IO) {
-        File(dir(context), "dropi-readings-$today.csv").apply { writeText(csv(readings, zone)) }
+    suspend fun writeCsv(
+        context: Context, readings: List<Reading>, zone: ZoneId, today: LocalDate, meals: List<app.dropi.data.MealEntry> = emptyList(),
+    ): File = withContext(Dispatchers.IO) {
+        File(dir(context), "dropi-readings-$today.csv").apply { writeText(csv(readings, zone, meals)) }
     }
 
     suspend fun writePdf(

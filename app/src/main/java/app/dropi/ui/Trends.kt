@@ -79,7 +79,7 @@ fun TrendsPage(state: AppState) {
     val report = remember(state.readings, period, today) { Analytics.report(state.readings, periods[period], today, state.zone) }
     val unit = state.unit
     fun v(m: Double) = Glucose.format(m, unit)
-    val insights = remember(report, unit) { Analytics.insights(report, state.targets) { v(it) } }
+    val insights = remember(report, unit) { Analytics.insights(report, state.targets, state.meals) { v(it) } }
     val bars = WindowInsets.systemBars.asPaddingValues()
 
     LazyColumn(
@@ -131,7 +131,6 @@ fun TrendsPage(state: AppState) {
             }
         }
         item(key = "ask") { AskEntry(state) }
-        item(key = "plate") { FoodsCard(state) }
         if (report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
         item(key = "table") { DailyTable(report, unit) }
         item(key = "pdf") {

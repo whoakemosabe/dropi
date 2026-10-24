@@ -89,11 +89,12 @@ object Reminders {
         val zone = ZoneId.systemDefault()
         val now = System.currentTimeMillis()
         val readings = try { Db.get(app).since(now - 2 * 86_400_000L) } catch (e: Exception) { emptyList() }
+        val meals = try { Db.get(app).mealsSince(now - 2 * 86_400_000L) } catch (e: Exception) { emptyList() }
 
         if (p.remindersOn) {
             val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().toString()
             val sent = p.notifiedSlots.toMutableSet()
-            Schedule.dueSlots(p.slots, readings, now, zone, p.afterMealMinutes, p.afterMealOn).forEach { (slot, at) ->
+            Schedule.dueSlots(p.slots, readings, now, zone, p.afterMealMinutes, p.afterMealOn, meals).forEach { (slot, at) ->
                 val key = "$day@${slot.id}"
                 if (key in sent) return@forEach
                 sent += key
@@ -106,7 +107,7 @@ object Reminders {
         val (due, later) = p.oneOffs.partition { it.at <= now + 60_000 }
         due.forEach { o ->
             val text = when (o.kind) {
-                OneOff.Kind.AFTER_MEAL -> "About ${p.afterMealMinutes / 60} h since your before-meal reading. Tap to log."
+                OneOff.Kind.AFTER_MEAL -> "A while since you ate. Tap to log your after-eating reading."
                 OneOff.Kind.RECHECK -> "15 minutes are up. Check again to see you're back above 3.9."
                 OneOff.Kind.SNOOZE -> "Your snoozed check. Tap to log it."
             }
@@ -184,7 +185,8 @@ object Reminders {
         }
         val now = System.currentTimeMillis()
         val saved = Db.get(app).save(Reading(at = now, mmol = mmol, tag = tag))
-        p.oneOffs = Schedule.afterSave(p.oneOffs, saved, p.afterMealOn, p.afterMealMinutes, now)
+        val meals = try { Db.get(app).mealsSince(now - 3 * 3_600_000L) } catch (e: Exception) { emptyList() }
+        p.oneOffs = Schedule.afterSave(p.oneOffs, saved, p.afterMealOn, p.afterMealMinutes, now, meals)
         clearShown(app)
         val status = Glucose.status(mmol, tag, p.targets)
         val value = "${Glucose.format(mmol, unit)} ${unit.label}"

@@ -53,7 +53,7 @@ data class OneOff(
     val created: Long,
 ) {
     enum class Kind(val title: String) {
-        AFTER_MEAL("Time for your after-meal check"),
+        AFTER_MEAL("Time for your after-eating check"),
         RECHECK("Re-check your low"),
         SNOOZE("Time to check");
 
@@ -70,7 +70,11 @@ enum class CheckState { DONE, DUE, UPCOMING, MISSED }
  * One of today's checks. [at] is when it's planned: the slot's time, or for an after-meal check
  * the before-meal reading it follows plus the after-meal gap ([anchor] is that reading).
  */
-data class Check(val slot: Slot, val at: Long, val state: CheckState, val reading: Reading?, val anchor: Reading? = null) {
+data class Check(
+    val slot: Slot, val at: Long, val state: CheckState, val reading: Reading?, val anchor: Reading? = null,
+    /** The meal an after-meal check follows, when one was logged. */
+    val meal: MealEntry? = null,
+) {
     /** When it stops counting and is missed. */
     val until: Long get() = at + slot.window * 60_000L
 }
@@ -144,22 +148,33 @@ object Schedule {
      * reading was logged in the 4 hours up to its time (or the hour after), it's due [afterMin]
      * minutes after that reading (3 h for a rich meal).
      */
-    private fun anchorFor(s: Slot, slotAt: Long, readings: List<Reading>, afterMin: Int): Pair<Long, Reading>? {
+    private data class Anchor(val at: Long, val reading: Reading?, val meal: MealEntry?)
+
+    /** The gap after eating before the after-meal check: 3 h for a rich meal. */
+    fun gapFor(meal: MealEntry?, afterMin: Int) = if (meal?.meal?.rich == true) maxOf(afterMin, 180) else afterMin
+
+    private fun anchorFor(s: Slot, slotAt: Long, readings: List<Reading>, meals: List<MealEntry>, afterMin: Int): Anchor? {
         if (s.tag != MealTag.AFTER_MEAL) return null
+        // A logged meal is the best anchor: the check counts from when it was eaten.
+        meals.filter { it.at in slotAt - 240 * MIN..slotAt + 60 * MIN }.maxByOrNull { it.at }?.let { m ->
+            return Anchor(m.at + gapFor(m, afterMin) * MIN, MealLink.before(m, readings), m)
+        }
         val before = readings.filter {
             (it.tag == MealTag.BEFORE_MEAL || it.tag == MealTag.FASTING) && it.at in slotAt - 240 * MIN..slotAt + 60 * MIN
         }.maxByOrNull { it.at } ?: return null
-        val gap = if (before.meal?.rich == true) maxOf(afterMin, 180) else afterMin
-        return (before.at + gap * MIN) to before
+        return Anchor(before.at + afterMin * MIN, before, null)
     }
 
     /** Today's enabled checks in time order, each marked done, due, upcoming or missed. */
-    fun today(slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId, afterMin: Int = 120): List<Check> {
+    fun today(
+        slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId, afterMin: Int = 120,
+        meals: List<MealEntry> = emptyList(),
+    ): List<Check> {
         val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val planned = slots.filter { it.enabled }.sortedBy { it.minute }.map { s ->
             val fixed = s.at(day, zone)
-            val anchor = anchorFor(s, fixed, readings, afterMin)
-            Triple(s, anchor?.first ?: fixed, anchor?.second)
+            val anchor = anchorFor(s, fixed, readings, meals.filter { it.at <= now }, afterMin)
+            Triple(s, anchor?.at ?: fixed, anchor)
         }
         val answered = pair(planned.map { it.first to it.second }, readings)
         return planned.mapIndexed { i, (s, at, anchor) ->
@@ -170,13 +185,16 @@ object Schedule {
                 now <= at + s.window * MIN -> CheckState.DUE
                 else -> CheckState.MISSED
             }
-            Check(s, at, state, r, anchor)
+            Check(s, at, state, r, anchor?.reading, anchor?.meal)
         }.sortedBy { it.at }
     }
 
     /** The next enabled check not done yet: one due now, later today, or the first one tomorrow. */
-    fun next(slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId, afterMin: Int = 120): Check? {
-        val todays = today(slots, readings, now, zone, afterMin)
+    fun next(
+        slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId, afterMin: Int = 120,
+        meals: List<MealEntry> = emptyList(),
+    ): Check? {
+        val todays = today(slots, readings, now, zone, afterMin, meals)
         todays.firstOrNull { it.state == CheckState.DUE || it.state == CheckState.UPCOMING }?.let { return it }
         val tomorrow = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().plusDays(1)
         val first = slots.filter { it.enabled }.minByOrNull { it.minute } ?: return null
@@ -226,14 +244,14 @@ object Schedule {
     /** Slots whose time is now (allowing a late alarm), not yet answered by a reading. */
     fun dueSlots(
         slots: List<Slot>, readings: List<Reading>, now: Long, zone: ZoneId,
-        afterMin: Int = 120, afterMealReminderOn: Boolean = false,
+        afterMin: Int = 120, afterMealReminderOn: Boolean = false, meals: List<MealEntry> = emptyList(),
     ): List<Pair<Slot, Long>> {
         // Already checked a little early: no need to nag. Same pairing as Today shows.
-        val checks = today(slots, readings.filter { it.at <= now }, now, zone, afterMin)
+        val checks = today(slots, readings.filter { it.at <= now }, now, zone, afterMin, meals)
         return checks.filter { c ->
             val late = now - c.at
             // An after-meal check following a before-meal reading already has its own reminder.
-            val ownReminder = afterMealReminderOn && c.anchor?.tag == MealTag.BEFORE_MEAL
+            val ownReminder = afterMealReminderOn && (c.meal != null || c.anchor?.tag == MealTag.BEFORE_MEAL)
             c.reading == null && !ownReminder && late >= -MIN && late <= 30 * MIN
         }.map { it.slot to it.at }
     }
@@ -271,8 +289,11 @@ object Schedule {
      * The moment for a new reading at [at]: the nearest open check around then (so logging at
      * 12:20 for the 12:00 check is "Before lunch" without picking it), or null when none is near.
      */
-    fun momentFor(at: Long, slots: List<Slot>, readings: List<Reading>, zone: ZoneId, afterMin: Int = 120): MealTag? =
-        today(slots, readings.filter { kotlin.math.abs(it.at - at) > MIN }, at, zone, afterMin)
+    fun momentFor(
+        at: Long, slots: List<Slot>, readings: List<Reading>, zone: ZoneId, afterMin: Int = 120,
+        meals: List<MealEntry> = emptyList(),
+    ): MealTag? =
+        today(slots, readings.filter { kotlin.math.abs(it.at - at) > MIN }, at, zone, afterMin, meals)
             .filter { it.reading == null && at - it.at in -WINDOW_BEFORE..WINDOW_AFTER }
             .minByOrNull { kotlin.math.abs(at - it.at) }
             ?.slot?.tag
@@ -281,13 +302,29 @@ object Schedule {
      * After saving a new reading [r]: reminders set before it are answered, and a before-meal
      * reading sets the after-meal one ([afterMin] minutes later, when that's still ahead).
      */
-    fun afterSave(oneOffs: List<OneOff>, r: Reading, afterMealOn: Boolean, afterMin: Int, now: Long): List<OneOff> {
-        val kept = oneOffs.filter { it.created > r.at }.toMutableList()
-        if (afterMealOn && r.tag == MealTag.BEFORE_MEAL) {
-            // A rich meal (high fat or protein) peaks later, so its check waits for 3 hours.
-            val at = r.at + (if (r.meal?.rich == true) maxOf(afterMin, 180) else afterMin) * MIN
+    fun afterSave(
+        oneOffs: List<OneOff>, r: Reading, afterMealOn: Boolean, afterMin: Int, now: Long,
+        meals: List<MealEntry> = emptyList(),
+    ): List<OneOff> {
+        // A logged meal's own reminder (counted from when it was eaten) isn't answered by the
+        // reading taken before it.
+        val kept = oneOffs.filter { it.created > r.at || (it.kind == OneOff.Kind.AFTER_MEAL && r.tag != MealTag.AFTER_MEAL && it.at - r.at > 30 * MIN) }.toMutableList()
+        val mealNear = meals.any { it.at in r.at - 15 * MIN..r.at + 90 * MIN }
+        if (afterMealOn && r.tag == MealTag.BEFORE_MEAL && !mealNear) {
+            val at = r.at + afterMin * MIN
             if (at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now)
         }
+        return kept
+    }
+
+    /**
+     * After logging a meal eaten at [mealAt]: the after-meal reminder is counted from then
+     * ([gap] minutes), replacing any after-meal reminder set by a reading before it.
+     */
+    fun afterMeal(oneOffs: List<OneOff>, mealAt: Long, gap: Int, afterMealOn: Boolean, now: Long): List<OneOff> {
+        val kept = oneOffs.filter { !(it.kind == OneOff.Kind.AFTER_MEAL && it.at in mealAt - 60 * MIN..mealAt + 5 * 60 * MIN) }.toMutableList()
+        val at = mealAt + gap * MIN
+        if (afterMealOn && at > now) kept += OneOff(at, MealTag.AFTER_MEAL, OneOff.Kind.AFTER_MEAL, now)
         return kept
     }
 

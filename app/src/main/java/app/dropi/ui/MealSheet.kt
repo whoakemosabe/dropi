@@ -33,6 +33,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,6 +47,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -130,7 +132,7 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
 
         is MealWork.Status.NeedsGrams -> LabelGrams(s.per100, s.read)
 
-        is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d.forReading, close)
+        is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d, close)
     }
 }
 
@@ -224,19 +226,42 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean) {
     GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun Breakdown(state: AppState, meal: Meal, forReading: Long?, close: () -> Unit) {
+private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val unit = state.unit
-    val scores = remember(state.readings, state.sensor) { Foods.scores(state.readings, state.sensor).associateBy { it.food } }
+    val fmt = remember(state.zone) { Fmt(context, state.zone) }
+    val scores = remember(state.readings, state.sensor, state.meals) { Foods.scores(state.readings, state.sensor, state.meals).associateBy { it.food } }
     var editing by remember { mutableStateOf<Int?>(null) }
     var adding by remember { mutableStateOf(false) }
     val usual = remember(meal) { MealWork.usual(context) }
+    val old = d.forMeal
+
+    // When it was eaten, what to call it, and the reading it starts from.
+    var ateAt by remember(d.id) { mutableLongStateOf(old?.at ?: d.started) }
+    var name by remember(d.id) { mutableStateOf(old?.name ?: app.dropi.data.MealEntry.nameFor(ateAt, state.zone)) }
+    var nameTouched by remember(d.id) { mutableStateOf(old != null) }
+    var chosen by remember(d.id) { mutableStateOf(old?.before) }
+    var picking by remember { mutableStateOf(false) }
+    val auto = state.startFor(ateAt)
+    val start = chosen?.let { id -> state.readings.firstOrNull { it.id == id } } ?: auto
+    val last = if (start == null) state.lastReadingBefore(ateAt)?.takeIf { ateAt - it.at < 12 * 3_600_000L } else null
+
+    MealWhen(
+        ateAt, name, fmt, now = System.currentTimeMillis(),
+        onAte = { t -> ateAt = t; chosen = null; if (!nameTouched) name = app.dropi.data.MealEntry.nameFor(t, state.zone) },
+        onPickTime = { picking = true },
+        onName = { name = it; nameTouched = true },
+    )
+    if (picking) WhenPicker(ateAt, state.zone, onDismiss = { picking = false }) { t ->
+        ateAt = t; chosen = null; picking = false
+        if (!nameTouched) name = app.dropi.data.MealEntry.nameFor(t, state.zone)
+    }
 
     // Where meals like this usually take the person, from their own log.
-    val start = forReading?.let { id -> state.readings.firstOrNull { it.id == id } } ?: state.startForMeal()
-    val est = start?.let { MealHistory.estimate(it.mmol, meal.foods, state.readings, state.sensor) }
+    val est = start?.let { MealHistory.estimate(it.mmol, meal.foods, state.readings, state.sensor, state.meals.filter { m -> m.id != old?.id }) }
     Column(
         Modifier
             .fillMaxWidth()
@@ -247,18 +272,25 @@ private fun Breakdown(state: AppState, meal: Meal, forReading: Long?, close: () 
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         when {
+            start == null && last != null -> {
+                Text(
+                    "No reading just before this meal. Your last one was at ${fmt.time(last.at)} (${Glucose.format(last.mmol, unit)}).",
+                    style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
+                )
+                Text("Use it as the starting point, or take one now before you eat.", style = inter(13.sp, color = C.TextMuted))
+            }
             start == null -> Text(
-                "Log your before-meal reading too, and Dropi shows where meals like this usually take you.",
+                "No reading before this meal. Take one before you eat, and Dropi shows where meals like this usually take you.",
                 style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
             )
             est == null -> {
-                Text("Now ${Glucose.format(start.mmol, unit)} ${unit.label}", style = inter(16.sp, FontWeight.SemiBold))
+                Text("Before: your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)} ${unit.label})", style = inter(16.sp, FontWeight.SemiBold))
                 Text("Not enough meals with these foods yet to say where you'll peak. It learns from each one.", style = inter(13.sp, color = C.TextMuted))
             }
             else -> {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column {
-                        Text("Now", style = inter(12.sp, color = C.TextMuted))
+                        Text("At ${fmt.time(start.at)}", style = inter(12.sp, color = C.TextMuted))
                         Text(Glucose.format(est.start, unit), style = numeral(28.sp))
                     }
                     Text("→", style = inter(22.sp, FontWeight.SemiBold, C.AccentText), modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp))
@@ -277,6 +309,23 @@ private fun Breakdown(state: AppState, meal: Meal, forReading: Long?, close: () 
                 )
             }
         }
+    }
+
+    if (start == null) {
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (last != null) Chip("Use ${fmt.time(last.at)}", icon = R.drawable.lc_check, selected = true) { chosen = last.id }
+            if (ateAt > System.currentTimeMillis() - 30 * 60_000L) {
+                Chip("Take one now", icon = R.drawable.lc_plus, selected = last == null) {
+                    if (meal.items.isEmpty()) return@Chip
+                    state.saveMeal(meal, ateAt, name, null, old?.id ?: 0)
+                    MealWork.discard()
+                    close()
+                    state.startNew(app.dropi.data.MealTag.BEFORE_MEAL)
+                }
+            }
+        }
+    } else if (chosen != null && chosen != auto?.id) {
+        Text("Using your ${fmt.time(start.at)} reading as the start.", style = inter(13.sp, color = C.TextMuted))
     }
 
     // The total, read out when it changes.
@@ -334,8 +383,8 @@ private fun Breakdown(state: AppState, meal: Meal, forReading: Long?, close: () 
             Column(Modifier.weight(1f)) {
                 Text(if (meal.rich) "Rich meal: the rise may come later" else "Rich meal?", style = inter(15.sp, FontWeight.SemiBold))
                 Text(
-                    if (meal.rich) "High in fat or protein, so the after-meal check moves to 3 h."
-                    else "Switch on for fatty or creamy meals. The after-meal check then waits 3 h.",
+                    if (meal.rich) "High in fat or protein, so the after-eating check is 3 h after you ate."
+                    else "Switch on for fatty or creamy meals. The after-eating check then waits 3 h.",
                     style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
                 )
             }
@@ -349,17 +398,25 @@ private fun Breakdown(state: AppState, meal: Meal, forReading: Long?, close: () 
     }
 
     PrimaryButton(
-        if (meal.items.isEmpty()) "Add a food first" else "Use ${meal.carbs} g carbs",
+        when {
+            meal.items.isEmpty() -> "Add a food first"
+            old != null -> "Save changes"
+            else -> "Save ${name.lowercase()} · ${meal.carbs} g carbs"
+        },
         Modifier.fillMaxWidth(),
         icon = R.drawable.lc_check,
         enabled = meal.items.isNotEmpty(),
     ) {
         Haptics.confirm(view)
-        state.useMeal(meal, forReading)
+        state.saveMeal(meal, ateAt, name, chosen, old?.id ?: 0)
         MealWork.discard()
         close()
     }
-    GhostButton("Start again", Modifier.fillMaxWidth()) { MealWork.discard(); close() }
+    if (old != null) {
+        GhostButton("Delete this meal", Modifier.fillMaxWidth(), color = C.Low) { state.deleteMeal(old); MealWork.discard(); close() }
+    } else {
+        GhostButton("Start again", Modifier.fillMaxWidth()) { MealWork.discard(); close() }
+    }
     SheetHint("Carbs and sugars are estimates to check against labels and your usual amounts. Dropi doesn't suggest doses.")
 
     val open = editing
@@ -382,6 +439,33 @@ private fun Breakdown(state: AppState, meal: Meal, forReading: Long?, close: () 
             if (remember) MealWork.remember(context, withUsual)
             MealWork.update(meal.copy(items = meal.items + withUsual.copy(usual = remember || withUsual.usual)))
             adding = false
+        }
+    }
+}
+
+/**
+ * When the meal was eaten (now, a little while ago, or a time on the clock) and what to call it.
+ * Wrapping rows of chips, never a sideways scroll.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun MealWhen(
+    ateAt: Long, name: String, fmt: Fmt, now: Long,
+    onAte: (Long) -> Unit, onPickTime: () -> Unit, onName: (String) -> Unit,
+) {
+    val minsAgo = ((now - ateAt) / 60_000L).toInt()
+    val presets = listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago")
+    val onPreset = presets.firstOrNull { kotlin.math.abs(it.first - minsAgo) <= 2 }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Ate at ${fmt.time(ateAt)}", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.semantics { heading() })
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            presets.forEach { (m, label) ->
+                Chip(label, selected = onPreset?.first == m) { onAte(now - m * 60_000L) }
+            }
+            Chip(if (onPreset == null) fmt.time(ateAt) else "Other time", icon = R.drawable.lc_clock, selected = onPreset == null) { onPickTime() }
+        }
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            app.dropi.data.MealEntry.NAMES.forEach { n -> Chip(n, selected = n == name) { onName(n) } }
         }
     }
 }

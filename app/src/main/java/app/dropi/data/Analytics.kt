@@ -63,10 +63,10 @@ object Analytics {
     const val BIG_MEAL = 60
 
     /** (carbs, after-meal mmol) for each after-meal reading whose meal has carbs logged. */
-    fun carbPairs(readings: List<Reading>): List<Pair<Int, Double>> {
+    fun carbPairs(readings: List<Reading>, meals: List<MealEntry> = emptyList()): List<Pair<Int, Double>> {
         val sorted = readings.sortedBy { it.at }
         return sorted.filter { it.tag == MealTag.AFTER_MEAL }.mapNotNull { after ->
-            val own = after.carbs
+            val own = after.carbs ?: MealLink.mealBefore(after, meals)?.carbs
             val carbs = own ?: sorted.lastOrNull {
                 it.tag == MealTag.BEFORE_MEAL && it.at < after.at && after.at - it.at <= 3 * 3_600_000L && it.carbs != null
             }?.carbs
@@ -120,7 +120,7 @@ object Analytics {
      * Plain-language findings, only where there's enough data behind them. [v] formats a
      * mmol/L value in the person's unit (e.g. "7.8" or "140").
      */
-    fun insights(r: Report, targets: Targets, v: (Double) -> String): List<Insight> {
+    fun insights(r: Report, targets: Targets, meals: List<MealEntry> = emptyList(), v: (Double) -> String): List<Insight> {
         val out = ArrayList<Insight>()
         if (r.count < 3) return out
         val period = if (r.days == 7) "this week" else "in the last ${r.days} days"
@@ -177,7 +177,7 @@ object Analytics {
 
         // Carbs and after-meal readings: the carbs logged on a before-meal reading (or on the
         // after-meal one itself), compared for bigger and smaller meals.
-        val pairs = carbPairs(r.readings)
+        val pairs = carbPairs(r.readings, meals)
         val big = pairs.filter { it.first >= BIG_MEAL }.map { it.second }
         val small = pairs.filter { it.first < BIG_MEAL }.map { it.second }
         if (big.size >= 3 && small.size >= 3) {

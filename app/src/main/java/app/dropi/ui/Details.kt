@@ -90,7 +90,6 @@ data class Details(
 fun DetailsDialog(
     initial: Details,
     initialNote: String,
-    recentFoods: List<String>,
     onDismiss: () -> Unit,
     onSave: (Details, String) -> Unit,
 ) {
@@ -112,16 +111,8 @@ fun DetailsDialog(
         ) {
             Text("Details", style = heading(20.sp))
             Text(
-                "All optional. Foods and carbs teach Dropi how meals affect you.",
+                "All optional. Meals are logged on their own with the + button, at the time you ate.",
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
-            )
-
-            FoodPicker(
-                d.foods, recentFoods,
-                onChange = { d = d.copy(foods = it) },
-                onMeal = { m ->
-                    d = d.copy(foods = (d.foods + m.foods).distinct().take(12), carbs = m.carbs, meal = m)
-                },
             )
 
             Stepper("Carbs", d.carbs?.let { "$it g" }, R.drawable.lc_utensils,

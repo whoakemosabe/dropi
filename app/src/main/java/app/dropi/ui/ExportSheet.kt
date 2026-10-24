@@ -80,7 +80,10 @@ private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
             busy = true
             scope.launch {
                 try {
-                    val f = Export.writeCsv(context, inPeriod, state.zone, today)
+                    val f = Export.writeCsv(
+                        context, inPeriod, state.zone, today,
+                        state.meals.filter { !java.time.Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate().isBefore(from) },
+                    )
                     Export.share(context, f, "text/csv", "Blood glucose readings")
                     note = null
                 } catch (e: Exception) {
