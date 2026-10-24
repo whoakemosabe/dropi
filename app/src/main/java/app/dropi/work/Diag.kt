@@ -59,7 +59,7 @@ object Diag {
 
         sb.append("On-device AI\n")
         sb.append("  Gemini Nano: ").append(Nano.state).append('\n')
-        sb.append("  Gemma: ").append(Gemma.state::class.simpleName).append(if (Gemma.loaded) " (loaded)" else " (not loaded)").append('\n')
+        sb.append("  Gemma: ").append(Gemma.state.toString()).append(if (Gemma.loaded) " (loaded)" else " (not loaded)").append('\n')
         sb.append("  Runs on: ").append(Gemma.backendName ?: Gemma.lastBackend(ctx) ?: "not known yet").append('\n')
         sb.append("  Speculative decoding: ").append(if (ai.getBoolean("spec_off", false)) "off (failed before)" else "on").append('\n')
         sb.append("  In use for meals: ").append(if (Ai.usable) Ai.name else "none").append('\n')

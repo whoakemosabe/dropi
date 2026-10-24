@@ -87,6 +87,7 @@ object Nano {
     /** A guess at the foods and carbs in a meal photo, or null if the model couldn't tell. */
     suspend fun plate(context: Context, uri: Uri): PlateGuess? = lock.withLock {
         if (!prepare()) return@withLock null
+        Scan.settled(context, uri)
         val bitmap = withContext(Dispatchers.IO) { loadScaled(context, uri, 768) } ?: return@withLock null
         try {
             val res = client().generateContent(
@@ -106,6 +107,7 @@ object Nano {
     /** The model's raw reply to a photo and a prompt (meal breakdowns). */
     suspend fun imageText(context: Context, uri: Uri, prompt: String): String? = lock.withLock {
         if (!prepare()) return@withLock null
+        Scan.settled(context, uri)
         val bitmap = withContext(Dispatchers.IO) { loadScaled(context, uri, 768) } ?: return@withLock null
         try {
             val res = client().generateContent(generateContentRequest(ImagePart(bitmap), TextPart(prompt)) { temperature = 0.2f })
@@ -146,7 +148,11 @@ object Nano {
     }
 
     /** The photo, upright and no bigger than [max] px on its long side (the model needs no more). */
+    /** Why the last photo couldn't be opened, for problem reports. */
+    @Volatile var lastLoadProblem: String? = null
+
     internal fun loadScaled(context: Context, uri: Uri, max: Int): Bitmap? = try {
+        lastLoadProblem = null
         val cr = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -154,6 +160,17 @@ object Nano {
         while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= max) sample *= 2
         val decoded = cr.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+        } ?: run {
+            // BitmapFactory can't read every format a camera saves (some HEIF photos); Android's
+            // newer decoder can, and it scales while decoding.
+            lastLoadProblem = "decoder read ${bounds.outWidth}x${bounds.outHeight} ${bounds.outMimeType ?: "unknown type"}"
+            if (android.os.Build.VERSION.SDK_INT >= 28) try {
+                android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(cr, uri)) { d, info, _ ->
+                    val big = maxOf(info.size.width, info.size.height)
+                    if (big > max) d.setTargetSize(info.size.width * max / big, info.size.height * max / big)
+                    d.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            } catch (e: Exception) { lastLoadProblem += "; second decoder: ${e.javaClass.simpleName} ${e.message?.take(80)}"; null } else null
         }
         val rotation = cr.openInputStream(uri)?.use {
             when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
@@ -174,6 +191,7 @@ object Nano {
             else Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, m, true).also { if (it != decoded) decoded.recycle() }
         }
     } catch (e: Exception) {
+        lastLoadProblem = "${e.javaClass.simpleName}: ${e.message?.take(100)}"
         null
     }
 }

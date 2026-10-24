@@ -45,10 +45,59 @@ object Scan {
      * The photo as ML Kit input: upright, and no bigger than 2400 px on its long side (a 50 MP
      * photo decoded whole runs the phone out of memory, and the text is just as readable).
      */
-    internal fun image(context: Context, uri: Uri): InputImage? {
-        val bmp = Nano.loadScaled(context, uri, 2400) ?: return null
+    internal suspend fun image(context: Context, uri: Uri): InputImage? {
+        settled(context, uri)
+        val bmp = withContext(Dispatchers.IO) { Nano.loadScaled(context, uri, 2400) }
+        if (bmp == null) {
+            Diag.log(context, "Photo: couldn't open it (${Nano.lastLoadProblem ?: "?"}; ${describe(context, uri)})")
+            return null
+        }
         return InputImage.fromBitmap(bmp, 0)
     }
+
+    /** Our own photo file behind a FileProvider address, or null for a photo from elsewhere. */
+    private fun fileFor(context: Context, uri: Uri): File? {
+        if (uri.authority != "${context.packageName}.files" || uri.pathSegments.firstOrNull() != "scans") return null
+        return File(File(context.cacheDir, "scans"), uri.lastPathSegment ?: return null)
+    }
+
+    /** The file's size and how long ago it was written, for problem reports. */
+    private fun describe(context: Context, uri: Uri): String {
+        val f = fileFor(context, uri) ?: return "photo from ${uri.authority}"
+        return if (!f.exists()) "the camera saved no file" else "file ${f.length() / 1024} KB, written ${(System.currentTimeMillis() - f.lastModified()) / 1000} s ago, ${if (complete(f)) "whole" else "cut short"}"
+    }
+
+    /**
+     * Some camera apps (OPPO's among them) say the photo is taken before they've finished
+     * writing it, so it was opened while still empty or half written. This waits (up to 10 s)
+     * until the file has stopped growing and, for a JPEG, has its end marker. Instant when the
+     * photo is already whole.
+     */
+    suspend fun settled(context: Context, uri: Uri): Boolean {
+        val f = fileFor(context, uri) ?: return true
+        val until = System.currentTimeMillis() + 10_000
+        var last = -1L
+        while (true) {
+            val len = if (f.exists()) f.length() else 0L
+            if (len > 0 && complete(f) && (len == last || System.currentTimeMillis() - f.lastModified() > 1_500)) return true
+            if (System.currentTimeMillis() > until) return len > 0
+            last = len
+            kotlinx.coroutines.delay(250)
+        }
+    }
+
+    /** True when a JPEG ends with its end marker (FF D9, sometimes followed by a little padding); any other file counts as whole. */
+    private fun complete(f: File): Boolean = try {
+        java.io.RandomAccessFile(f, "r").use { r ->
+            if (r.length() < 4) return@use false
+            val head = ByteArray(2).also { r.readFully(it) }
+            if (head[0] != 0xFF.toByte() || head[1] != 0xD8.toByte()) return@use true
+            val n = minOf(r.length(), 512L).toInt()
+            r.seek(r.length() - n)
+            val tail = ByteArray(n).also { r.readFully(it) }
+            (0 until n - 1).any { tail[it] == 0xFF.toByte() && tail[it + 1] == 0xD9.toByte() }
+        }
+    } catch (e: Exception) { false }
 
     /** The text the last label scan found, line by line, to show the person what was read. */
     @Volatile var lastText: List<String> = emptyList()
@@ -99,7 +148,6 @@ object Scan {
             emptyList()
         } finally {
             recognizer.close()
-            try { File(File(context.cacheDir, "scans"), "label.jpg").delete() } catch (e: Exception) { }
         }
     }
 

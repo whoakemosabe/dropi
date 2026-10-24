@@ -256,6 +256,7 @@ object Gemma {
 
     /** The photo for the model: upright, 512 px on its long side, as JPEG (smaller and quicker than 768 px PNG). */
     private suspend fun photoBytes(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+        Scan.settled(context, uri)
         val bitmap = Nano.loadScaled(context, uri, 512) ?: return@withContext null
         try {
             ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }.toByteArray()

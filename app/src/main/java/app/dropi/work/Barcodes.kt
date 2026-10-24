@@ -29,8 +29,13 @@ object Barcodes {
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences("barcodes", Context.MODE_PRIVATE)
 
     /** The barcode number on a photo, or null when none could be read. */
+    /** True when the last photo couldn't be opened at all (rather than having no barcode on it). */
+    @Volatile var unreadable = false
+        private set
+
     suspend fun read(context: Context, uri: Uri): String? {
-        val image = Scan.image(context, uri) ?: return null
+        unreadable = false
+        val image = Scan.image(context, uri) ?: run { unreadable = true; return null }
         val scanner = BarcodeScanning.getClient(
             BarcodeScannerOptions.Builder()
                 .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_EAN_8, Barcode.FORMAT_UPC_A, Barcode.FORMAT_UPC_E)

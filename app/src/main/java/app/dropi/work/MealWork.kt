@@ -261,18 +261,23 @@ object MealWork {
             val seen = Scan.lastText
             // The label of a packet whose barcode wasn't found: what's read here is kept for that barcode.
             val code = missing?.takeIf { System.currentTimeMillis() - missingAt < 15 * 60_000L }
-            if (p == null) {
+            if (p == null && lines.isNotEmpty()) {
                 // The table couldn't be read, but the photo may show the barcode.
                 val bc = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
                 val r = bc?.let { Barcodes.lookup(ctx, it) }
                 if (r is Barcodes.Result.Ok) {
+                    forgetShot(ctx, "label.jpg")
                     land(id, Draft(id, Status.NeedsGrams(r.found.per100, text = seen, code = r.code, source = if (r.saved) "saved" else "off", portion = r.found.serving)))
                     return@job
                 }
             }
+            forgetShot(ctx, "label.jpg")
             land(id, Draft(id, if (p != null) Status.NeedsGrams(p, text = seen, code = code) else Status.NeedsGrams(Label.Per100(null, null, null, us = Label.isUs(lines)), read = false, why = why, text = seen, code = code)))
         }
     }
+
+    /** A label or barcode photo is deleted once it's been read. */
+    private fun forgetShot(ctx: Context, name: String) { try { Scan.shotFile(ctx, name).delete() } catch (e: Exception) { } }
 
     /** A barcode that Open Food Facts didn't know, so a label scanned next can be kept for it. */
     @Volatile private var missing: String? = null
@@ -288,11 +293,13 @@ object MealWork {
         val id = start(Status.Working("Reading the barcode…"))
         job(ctx) {
             val code = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
+            forgetShot(ctx, "barcode.jpg")
             if (code == null) {
-                Diag.log(ctx, "Barcode: none found on the photo")
+                if (!Barcodes.unreadable) Diag.log(ctx, "Barcode: none found on the photo")
                 land(id, Draft(id, Status.NeedsGrams(
                     Label.Per100(null, null, null), read = false, source = "barcode",
-                    why = "No barcode found on the photo. Take it again closer, with the stripes filling most of the frame, or scan the label instead.",
+                    why = if (Barcodes.unreadable) "Couldn't open the photo the camera took. Try again, and if it keeps happening, send a problem report from More."
+                        else "No barcode found on the photo. Take it again closer, with the stripes filling most of the frame, or scan the label instead.",
                 )))
                 return@job
             }
