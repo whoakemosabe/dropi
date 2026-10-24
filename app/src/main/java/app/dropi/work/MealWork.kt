@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.dropi.Prefs
+import app.dropi.data.Foods
 import app.dropi.data.Label
 import app.dropi.data.Meal
 import app.dropi.data.MealAi
@@ -26,7 +27,8 @@ import java.io.File
  */
 object MealWork {
     sealed interface Status {
-        data class Working(val what: String) : Status
+        /** [found]: the foods named so far, shown while the rest is worked out. */
+        data class Working(val what: String, val found: List<String> = emptyList()) : Status
         data object Ready : Status
         data class Failed(val message: String) : Status
         /** A label was read (or couldn't be, [read] false: the numbers are typed); how much was eaten is still needed. */
@@ -108,7 +110,15 @@ object MealWork {
         Alerts.cancelMeal(ctx)
         val id = start(Status.Working("Looking at your plate…"), photo = uri)
         job(ctx) {
-            val meal = try { Ai.mealFromPhoto(ctx, uri) } catch (e: Throwable) { null }
+            val meal = try {
+                Ai.mealFromPhoto(ctx, uri) { foods ->
+                    // Each food as it's named, on the main thread with the screen.
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        val d = draft
+                        if (d?.id == id && d.status is Status.Working) draft = d.copy(status = (d.status as Status.Working).copy(found = foods))
+                    }
+                }
+            } catch (e: Throwable) { null }
             // Only our own copy of the photo is deleted, and only this job's.
             if (uri.authority == "${ctx.packageName}.files") try { File(File(ctx.cacheDir, "scans"), uri.lastPathSegment ?: "").takeIf { it.isFile }?.delete() } catch (e: Exception) { }
             finish(ctx, id, meal, "Couldn't make out the meal. Say what you ate instead, or add the foods yourself.")
@@ -172,16 +182,42 @@ object MealWork {
         val basic = app.dropi.data.Basics.find(item.name)
         // A portion that isn't the basic's own ("3 slices" of bacon) goes to the model when it can.
         if (basic != null && (item.portion == "1 portion" || item.portion == basic.portion || !Ai.usable)) { put(basic); return }
+        val portion = item.portion.takeIf { it != "1 portion" }
+        cached(context, item.name, portion)?.let { put(it); return }
         if (!Ai.usable) return
         val ctx = context.applicationContext
         filling = filling + item.key
+        // Foods added within a moment of each other go to the model as one question.
+        pending += PendingFill(item, portion, basic, ::put)
+        if (pending.size == 1) android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ flushFills(ctx) }, 600)
+    }
+
+    private class PendingFill(val item: MealItem, val portion: String?, val basic: MealItem?, val put: (MealItem) -> Unit)
+    private val pending = ArrayList<PendingFill>()
+
+    private fun flushFills(ctx: Context) {
+        val batch = pending.toList()
+        pending.clear()
+        if (batch.isEmpty()) return
         job(ctx) {
-            val m = try { Ai.mealFromWords(ctx, MealAi.words("${item.portion} of ${item.name}"), "typed") } catch (e: Throwable) { null }
-            val found = m?.items?.firstOrNull() ?: basic
+            val found: List<MealItem?> = if (batch.size == 1) {
+                val b = batch[0]
+                listOf(try { lookup(ctx, b.item.name, b.portion) } catch (e: Throwable) { null })
+            } else {
+                // One meal question for all of them, matched back by name (or order).
+                val words = batch.joinToString("; ") { "${it.portion ?: "1 normal portion"} of ${it.item.name}" }
+                val items = try { Ai.mealFromWords(ctx, MealAi.words(words), "typed")?.items.orEmpty() } catch (e: Throwable) { emptyList() }
+                batch.mapIndexed { i, b ->
+                    (items.firstOrNull { it.key == b.item.key } ?: items.getOrNull(i)?.takeIf { items.size == batch.size })
+                        ?.also { rememberAnswer(ctx, b.item.name, b.portion, it) }
+                }
+            }
             // Back on the main thread, where the screen changes the draft too.
             withContext(Dispatchers.Main) {
-                if (found != null) put(found)
-                filling = filling - item.key
+                batch.forEachIndexed { i, b ->
+                    (found[i] ?: b.basic)?.let { b.put(it) }
+                    filling = filling - b.item.key
+                }
             }
         }
     }
@@ -248,10 +284,24 @@ object MealWork {
 
     /** Works out one food's numbers from its name and portion (the add-a-food preview). */
     suspend fun lookup(context: Context, name: String, portion: String?): MealItem? {
+        cached(context, name, portion)?.let { return it }
         if (!Ai.usable) return null
-        val words = if (portion.isNullOrBlank()) "1 normal portion of $name" else "$portion of $name"
-        val m = try { Ai.mealFromWords(context.applicationContext, MealAi.words(words), "typed") } catch (e: Throwable) { null }
-        return m?.items?.firstOrNull()
+        val found = try { Ai.food(context.applicationContext, name, portion) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) { null }
+        if (found != null) rememberAnswer(context, name, portion, found)
+        return found
+    }
+
+    // ---- Answers kept, so a food looked up once is instant the next time ----
+
+    private fun cacheKey(name: String, portion: String?) = Foods.normalize(name) + "|" + (portion?.trim()?.lowercase().orEmpty())
+
+    /** A food the AI worked out before, at the same amount. */
+    fun cached(context: Context, name: String, portion: String?): MealItem? =
+        Prefs(context).foodCache[cacheKey(name, portion)]?.copy(name = Foods.normalize(name))
+
+    private fun rememberAnswer(context: Context, name: String, portion: String?, item: MealItem) {
+        val p = Prefs(context)
+        p.foodCache = p.foodCache + (cacheKey(name, portion) to item)
     }
 
     /** The person changed the meal on screen. */

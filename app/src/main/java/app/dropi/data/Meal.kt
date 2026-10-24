@@ -267,6 +267,61 @@ object MealAi {
         return "A meal was logged as: $list. The person says: \"${change.take(200)}\". Apply the change and give the whole meal again. $SHAPE"
     }
 
+    /** One food: a short prompt asking only for its numbers (much quicker than the whole-meal one). */
+    fun food(name: String, portion: String?) =
+        "Nutrition for ${if (portion.isNullOrBlank()) "one normal portion of" else "$portion of"} ${name.take(60)}. " +
+            "Reply with only JSON: {\"portion\":\"1 egg\",\"carbs\":0.6,\"sugars\":0.6,\"fibre\":0,\"protein\":6.3,\"fat\":5.3,\"gi\":0}. " +
+            "Grams for that portion; carbs not counting fibre; gi is the glycaemic index, 0 if almost no carbs."
+
+    const val FOOD_SCHEMA = """{"type":"object","properties":{"portion":{"type":"string"},"carbs":{"type":"number"},"sugars":{"type":"number"},"fibre":{"type":"number"},"protein":{"type":"number"},"fat":{"type":"number"},"gi":{"type":"integer"}},"required":["portion","carbs","protein","fat"]}"""
+
+    /** Reads the reply to [food]. */
+    fun parseFood(text: String?, name: String, portion: String?): MealItem? {
+        if (text.isNullOrBlank()) return null
+        val a = text.indexOf('{'); val b = text.lastIndexOf('}')
+        if (a < 0 || b <= a) return null
+        return try {
+            val o = JSONObject(text.substring(a, b + 1))
+            if (!o.has("carbs")) return null
+            MealItem(
+                name = Foods.normalize(name),
+                portion = portion?.takeIf { it.isNotBlank() } ?: o.optString("portion", "1 portion").trim().ifEmpty { "1 portion" }.take(30),
+                carbs = num(o, "carbs")?.coerceIn(0.0, 300.0) ?: 0.0,
+                sugars = num(o, "sugars")?.coerceIn(0.0, 300.0),
+                fibre = num(o, "fibre")?.coerceIn(0.0, 100.0),
+                protein = num(o, "protein")?.coerceIn(0.0, 300.0),
+                fat = num(o, "fat")?.coerceIn(0.0, 300.0),
+                gi = num(o, "gi")?.roundToInt()?.takeIf { it in 1..110 },
+            )
+        } catch (e: Exception) { null }
+    }
+
+    /**
+     * The foods finished so far in a reply that's still coming ("{"items":[{…},{…},{"fo…"): each
+     * complete item object, read as a meal. Also rescues a reply cut off before its end.
+     */
+    fun partial(text: String?, source: String): Meal? {
+        if (text.isNullOrBlank()) return null
+        val start = text.indexOf("[").takeIf { it >= 0 } ?: return null
+        val objects = ArrayList<String>()
+        var depth = 0; var from = -1; var inString = false; var escaped = false
+        for (i in start until text.length) {
+            val ch = text[i]
+            if (inString) {
+                if (escaped) escaped = false else if (ch == '\\') escaped = true else if (ch == '"') inString = false
+                continue
+            }
+            when (ch) {
+                '"' -> inString = true
+                '{' -> { if (depth == 0) from = i; depth++ }
+                '}' -> { depth--; if (depth == 0 && from >= 0) { objects += text.substring(from, i + 1); from = -1 } }
+                ']' -> if (depth == 0) break
+            }
+        }
+        if (objects.isEmpty()) return null
+        return parse("{\"items\":[" + objects.joinToString(",") + "]}", source)
+    }
+
     /** JSON schema for models that can be held to it (Gemma through LiteRT-LM). */
     // Plain types only: the on-device engine's constrained decoding doesn't take type unions or enums.
     const val SCHEMA = """{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"food":{"type":"string"},"portion":{"type":"string"},"carbs":{"type":"number"},"sugars":{"type":"number"},"fibre":{"type":"number"},"protein":{"type":"number"},"fat":{"type":"number"},"gi":{"type":"integer"},"drink":{"type":"boolean"}},"required":["food","portion","carbs","protein","fat"]}},"rich":{"type":"boolean"},"tags":{"type":"array","items":{"type":"string"}}},"required":["items"]}"""

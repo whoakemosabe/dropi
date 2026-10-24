@@ -56,6 +56,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun AddPanel(state: AppState) {
     if (!state.addOpen) return
+    // The + panel is the start of most meal logging: get the on-device model loading now.
+    val ctx = LocalContext.current
+    LaunchedEffect(Unit) { app.dropi.work.Ai.warm(ctx) }
     SlideSheet(onDismiss = { state.addOpen = false }) { close ->
         Column(
             Modifier
@@ -197,13 +200,15 @@ fun MealLaunchers(state: AppState) {
     fun run(action: String) {
         when (action) {
             "camera" -> {
+                // Load the model while the camera is open, so it's ready when the photo comes back.
+                app.dropi.work.Ai.warm(context)
                 // A file per photo, so a second photo never replaces one still being looked at.
                 val u = Scan.photoUri(context, "plate-${System.currentTimeMillis()}.jpg")
                 shot = u.toString()
                 try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
             }
             "pick" -> picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            "words" -> MealWork.words()
+            "words" -> { app.dropi.work.Ai.warm(context); MealWork.words() }
             "label" -> {
                 val u = Scan.photoUri(context, "label.jpg")
                 labelShot = u.toString()

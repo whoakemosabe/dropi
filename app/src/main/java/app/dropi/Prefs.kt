@@ -189,6 +189,20 @@ class Prefs(context: Context) {
             putString("usual_foods", o.toString())
         }
 
+    /** Foods the on-device AI worked out ("name|amount" → its numbers), newest last, at most 400. */
+    var foodCache: Map<String, app.dropi.data.MealItem>
+        get() = try {
+            val o = org.json.JSONObject(p.getString("food_cache", null) ?: "{}")
+            val out = LinkedHashMap<String, app.dropi.data.MealItem>()
+            o.keys().forEach { k -> app.dropi.data.Meal.fromJson(o.getString(k))?.items?.firstOrNull()?.let { out[k] = it } }
+            out
+        } catch (e: Exception) { emptyMap() }
+        set(v) = p.edit {
+            val o = org.json.JSONObject()
+            v.entries.toList().takeLast(400).forEach { (k, item) -> o.put(k, app.dropi.data.Meal(listOf(item)).toJson()) }
+            putString("food_cache", o.toString())
+        }
+
     /** "Move bedtime to 23:10?" suggestions already turned down ("slotId@minute"). */
     var dismissedMoves: Set<String>
         get() = p.getStringSet("dismissed_moves", emptySet()) ?: emptySet()

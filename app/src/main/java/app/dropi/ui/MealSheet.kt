@@ -129,6 +129,10 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(Ai.warmUp ?: s.what, style = inter(16.sp, FontWeight.SemiBold))
+                // Foods appear as they're named, before the rest is worked out.
+                if (s.found.isNotEmpty()) {
+                    Text("Found so far: " + s.found.joinToString(", ") { Foods.display(it) }, style = inter(14.sp, color = C.TextSecondary))
+                }
                 Text("You can close this. Dropi lets you know when it's done.", style = inter(13.sp, color = C.TextMuted))
             }
         }
@@ -756,7 +760,7 @@ private fun ChangeBox(onSend: (String) -> Unit) {
 
 /** A single-line box with a hint. */
 @Composable
-private fun FieldBox(value: String, hint: String, numeric: Boolean = false, label: String? = null, onChange: (String) -> Unit) {
+private fun FieldBox(value: String, hint: String, numeric: Boolean = false, label: String? = null, onDone: (() -> Unit)? = null, onChange: (String) -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -777,6 +781,7 @@ private fun FieldBox(value: String, hint: String, numeric: Boolean = false, labe
                 keyboardType = if (numeric) KeyboardType.Decimal else KeyboardType.Text,
                 imeAction = ImeAction.Done,
             ),
+            keyboardActions = KeyboardActions(onDone = { onDone?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = label ?: hint },
         )
     }
@@ -943,7 +948,11 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
     var numbersOpen by remember { mutableStateOf(false) }
     var edited by remember { mutableStateOf<MealItem?>(null) }
 
-    LaunchedEffect(key, if (other) otherPortion else "") {
+    // Get the model loading now, so it's ready by the time the name is typed.
+    LaunchedEffect(Unit) { app.dropi.work.Ai.warm(context) }
+    // Done on the keyboard asks straight away instead of waiting for a pause.
+    var askNow by remember { mutableStateOf(0) }
+    LaunchedEffect(key, if (other) otherPortion else "", askNow) {
         // A different food or amount: numbers typed for the old one don't carry over.
         edited = null
         looking = false
@@ -951,14 +960,17 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
         val portion = otherPortion.trim().takeIf { other && it.isNotEmpty() }
         val u = usual[key]
         val basic = app.dropi.data.Basics.find(key)
+        val known = MealWork.cached(context, key, portion)
         when {
+            portion == null && u == null && known != null -> { base = known; from = "Looked up before" }
+            portion != null && known != null -> { base = known; from = "Looked up before" }
             portion == null && u != null -> {
                 base = MealItem(key, u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein, fat = u.fat, usual = true); from = "Your usual amount"
             }
             portion == null && basic != null -> { base = basic.copy(name = key); from = "Found: ${basic.name}, from Dropi's food list" }
             app.dropi.work.Ai.usable -> {
                 base = null
-                kotlinx.coroutines.delay(1200) // wait for a pause in typing
+                if (askNow == 0) kotlinx.coroutines.delay(700) // wait for a pause in typing
                 looking = true
                 val found = MealWork.lookup(context, key, portion)
                 looking = false
@@ -979,7 +991,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
         Text("Add a food", style = heading(24.sp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("What is it?", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
-            FieldBox(name, "e.g. hard boiled egg") { name = it.take(40) }
+            FieldBox(name, "e.g. hard boiled egg", label = "What is it?", onDone = { askNow++ }) { name = it.take(40) }
         }
 
         if (key.length >= 2) {
@@ -994,7 +1006,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
                     }
                     Chip("Other amount", selected = other || b == null) { other = !other || b == null; edited = null }
                 }
-                if (other || base == null) FieldBox(otherPortion, "e.g. 150 g, 1 bowl, a handful") { otherPortion = it.take(30); other = true }
+                if (other || base == null) FieldBox(otherPortion, "e.g. 150 g, 1 bowl, a handful", label = "How much", onDone = { askNow++ }) { otherPortion = it.take(30); other = true }
             }
 
             Column(

@@ -317,7 +317,152 @@ object Basics {
         MealItem("tomato", "1 medium", carbs = 3.5, sugars = 2.6, fibre = 1.5, protein = 1.1, fat = 0.2),
         MealItem("cucumber", "½ cucumber", carbs = 3.6, sugars = 1.7, fibre = 0.5, protein = 0.7, fat = 0.1),
         MealItem("salad", "1 bowl", carbs = 3.0, sugars = 2.0, fibre = 2.0, protein = 1.5, fat = 0.3),
-    ).sortedByDescending { it.name.length }
+    ).plus(parse(MORE)).distinctBy { it.name }.sortedByDescending { it.name.length }
+
+    private fun parse(rows: String): List<MealItem> = rows.lines().mapNotNull { l ->
+        val f = l.trim().split('|')
+        if (f.size < 7) return@mapNotNull null
+        MealItem(f[0], f[1], carbs = f[2].toDouble(), sugars = f[3].toDouble(), fibre = f[4].toDouble(), protein = f[5].toDouble(), fat = f[6].toDouble(),
+            drink = f.getOrNull(7) == "d")
+    }
+
+    /**
+     * More everyday and Icelandic foods (name|portion|carbs|sugars|fibre|protein|fat|d for a drink),
+     * typical values rounded, carbs without fibre.
+     */
+    private const val MORE = """
+        flatkaka|1 piece|17|1|2.5|3|0.6
+        kleina|1 piece|20|7|0.6|3|8
+        croissant|1 croissant|26|6|1.5|5|12
+        bagel|1 bagel|48|6|2.5|10|1.5
+        baguette|1 slice|15|1|0.7|2.5|0.3
+        pita|1 pita|33|1|1.3|5.5|0.8
+        tortilla|1 wrap|30|1.5|1.5|5|4
+        naan|1 piece|45|3|2|9|5
+        hrökkbrauð|1 slice|7|0.3|1.7|1|0.2
+        crispbread|1 slice|7|0.3|1.7|1|0.2
+        rice cake|1 cake|7|0.1|0.4|0.7|0.3
+        crackers|4 crackers|14|1|0.6|2|3
+        bread roll|1 roll|28|2|1.5|5|1.5
+        rúnstykki|1 roll|28|2|1.5|5|1.5
+        muesli|1 bowl|33|8|4|5|3
+        granola|1 bowl|30|10|3|5|8
+        cornflakes|1 bowl|25|2.5|1|2|0.3
+        cheerios|1 bowl|20|0.3|3|3|2
+        overnight oats|1 jar|45|15|6|12|8
+        couscous|1 cup|36|0.1|2|6|0.3
+        quinoa|1 cup|34|1.6|5|8|3.5
+        noodles|1 cup|40|0.6|1.8|7|2
+        spaghetti|1 plate|65|1.5|3.5|12|2
+        lasagne|1 portion|35|6|3|20|15
+        pizza|1 slice|30|3|2|10|10
+        burger|1 burger|35|6|2|25|20
+        pylsa|1 hot dog|30|6|1|10|15
+        hot dog|1 hot dog|30|6|1|10|15
+        fries|1 portion|41|0.3|4|4|17
+        crisps|1 bag|20|0.2|1.8|2.5|13
+        popcorn|1 bowl|15|0.2|3|3|5
+        sweet potato|1 medium|24|5|4|2|0.1
+        corn|1 cob|17|5|2|3|1.5
+        peas|½ cup|8|4|4|4|0.3
+        carrot|1 medium|6|3|2|0.6|0.1
+        broccoli|1 cup|4|1.5|2.4|2.5|0.3
+        beans|½ cup|14|0.3|6|7|0.5
+        baked beans|½ can|21|7|6|7|0.5
+        lentils|1 cup|30|3.6|16|18|0.8
+        chickpeas|½ cup|18|4|6|7|2
+        hummus|2 spoons|4|0.3|2|2.5|5
+        plokkfiskur|1 portion|20|2|1.5|22|14
+        fiskibollur|4 balls|14|1|0.5|12|8
+        harðfiskur|1 portion|0|0|0|25|1
+        hangikjöt|2 slices|1|1|0|10|5
+        kjötsúpa|1 bowl|20|6|3|20|10
+        fiskisúpa|1 bowl|12|4|1|15|9
+        fish soup|1 bowl|12|4|1|15|9
+        soup|1 bowl|15|4|2|6|5
+        shrimp|1 portion|0|0|0|20|1
+        rækjur|1 portion|0|0|0|20|1
+        pork chop|1 chop|0|0|0|30|12
+        meatballs|5 balls|8|2|0.5|15|14
+        kjötbollur|5 balls|8|2|0.5|15|14
+        turkey|2 slices|1|1|0|9|1
+        tofu|1 portion|2|0.5|1|12|7
+        scrambled eggs|2 eggs|1.5|1|0|13|14
+        omelette|2 eggs|1.5|1|0|13|15
+        vanilla skyr|1 cup|17|16|0|17|0.3
+        berry skyr|1 cup|18|17|0.5|17|0.3
+        ab mjólk|1 cup|10|10|0|8|3
+        súrmjólk|1 cup|10|10|0|8|3
+        yogurt|1 cup|10|10|0|7|6
+        kókómjólk|1 carton|25|24|0|8|5|d
+        cream cheese|2 spoons|1|1|0|2|10
+        ice cream|2 scoops|24|21|0.7|3.5|11
+        pear|1 medium|22|17|5|0.6|0.2
+        grapes|1 cup|27|23|1.4|1|0.2
+        strawberries|1 cup|8|7|3|1|0.4
+        blueberries|1 cup|21|15|3.6|1|0.5
+        raspberries|1 cup|7|5|8|1.5|0.8
+        mango|1 cup|25|23|2.6|1.4|0.6
+        pineapple|1 cup|20|16|2.3|0.9|0.2
+        watermelon|1 wedge|21|17|1|1.7|0.4
+        kiwi|1 kiwi|9|6.5|2|0.8|0.4
+        clementine|1 clementine|9|7|1.3|0.6|0.1
+        mandarin|1 mandarin|9|7|1.3|0.6|0.1
+        peach|1 peach|13|11|2|1.4|0.4
+        raisins|1 small box|22|18|1.2|1|0.1
+        dates|3 dates|30|28|3|1|0.1
+        chocolate|1 bar|28|26|1.5|3.5|15
+        milk chocolate|1 bar|28|26|1.5|3.5|15
+        dark chocolate|4 squares|13|9|4|3|17
+        lakkrís|1 bag|38|25|0.3|2|0.2
+        liquorice|1 bag|38|25|0.3|2|0.2
+        sweets|1 handful|36|28|0|0|0
+        candy|1 handful|36|28|0|0|0
+        cookie|2 cookies|20|10|0.8|1.5|7
+        cake|1 slice|50|35|1|5|15
+        muffin|1 muffin|50|28|1.5|6|20
+        doughnut|1 doughnut|25|10|1|3.5|12
+        donut|1 donut|25|10|1|3.5|12
+        pancakes|2 pancakes|28|5|1|6|7
+        waffle|1 waffle|25|5|1|6|10
+        cinnamon bun|1 bun|45|18|2|6|14
+        snúður|1 bun|45|18|2|6|14
+        honey|1 tsp|6|6|0|0|0
+        jam|1 spoon|13|12|0.2|0|0
+        sugar|1 tsp|4|4|0|0|0
+        nutella|1 spoon|11|10|0.6|1.2|6
+        peanut butter|1 spoon|3|1|1|4|8
+        nuts|1 handful|4|1.2|2.7|6|15
+        almonds|1 handful|3|1.2|3.5|6|15
+        latte|1 cup|13|13|0|8|7|d
+        cappuccino|1 cup|8|8|0|5|5|d
+        tea|1 cup|0|0|0|0|0|d
+        juice|1 glass|26|22|0.4|1|0.3|d
+        apple juice|1 glass|28|26|0.5|0.2|0.3|d
+        smoothie|1 glass|38|30|3|3|1|d
+        appelsín|1 can|36|36|0|0|0|d
+        malt|1 can|30|23|0|1|0|d
+        energy drink|1 can|27|27|0|0|0|d
+        sports drink|1 bottle|30|30|0|0|0|d
+        beer|1 can|12|0|0|1.5|0|d
+        bjór|1 can|12|0|0|1.5|0|d
+        wine|1 glass|4|1|0|0|0|d
+        milkshake|1 cup|60|50|1|10|12|d
+        hot chocolate|1 cup|25|24|1|8|6|d
+        oat milk|1 glass|16|10|2|1|3.5|d
+        caesar salad|1 bowl|10|3|2|15|20
+        sushi|8 pieces|56|8|2|14|4
+        chicken wrap|1 wrap|38|3|3|24|12
+        kebab|1 portion|45|5|3|28|25
+        taco|1 taco|13|1|2|8|8
+        curry|1 portion|12|6|3|25|18
+        chili con carne|1 bowl|20|6|7|20|12
+        ketchup|1 spoon|4|3.7|0|0.2|0
+        mayonnaise|1 spoon|0.1|0.1|0|0.1|10
+        remúlaði|1 spoon|1.5|1|0|0.1|8
+        gravy|1 ladle|3|0.5|0|1|2
+        sósa|1 ladle|3|0.5|0|1|2
+    """
 
     /** The basic food named in [name] ("hard boiled egg" → egg), at its usual portion, or null. */
     fun find(name: String): MealItem? {

@@ -47,13 +47,21 @@ object Ai {
     }
 
     /** A meal breakdown from a photo, or null when the model couldn't make it out. */
-    suspend fun mealFromPhoto(context: Context, uri: Uri): app.dropi.data.Meal? {
+    suspend fun mealFromPhoto(context: Context, uri: Uri, foundSoFar: ((List<String>) -> Unit)? = null): app.dropi.data.Meal? {
+        // Foods are passed on as the model names them, so the screen can show them before it's done.
+        var shown = 0
+        val partial: (String) -> Unit = { text ->
+            val foods = app.dropi.data.MealAi.partial(text, "photo")?.items?.map { it.name }.orEmpty()
+            if (foods.size > shown) { shown = foods.size; foundSoFar?.invoke(foods) }
+        }
         val raw = when {
             nano -> Nano.imageText(context, uri, app.dropi.data.MealAi.PHOTO)
-            Gemma.state == Gemma.State.Ready -> Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, app.dropi.data.MealAi.SCHEMA)
+            Gemma.state == Gemma.State.Ready -> Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, app.dropi.data.MealAi.SCHEMA, partial)
             else -> null
         }
         app.dropi.data.MealAi.parse(raw, "photo")?.let { return it }
+        // A reply that went wrong part way still has the foods it finished: use those rather than start over.
+        app.dropi.data.MealAi.partial(raw, "photo")?.let { return it }
         // The held-to-shape reply didn't come out usable: ask again without holding it.
         if (!nano && Gemma.state == Gemma.State.Ready) {
             return app.dropi.data.MealAi.parse(Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, null), "photo")
@@ -69,16 +77,36 @@ object Ai {
             else -> null
         }
         app.dropi.data.MealAi.parse(raw, source)?.let { return it }
+        app.dropi.data.MealAi.partial(raw, source)?.let { return it }
         if (!nano && Gemma.state == Gemma.State.Ready) {
             return app.dropi.data.MealAi.parse(Gemma.textJson(context, prompt, null), source)
         }
         return null
     }
 
+    /** One food's numbers from its name (and amount): a short question, a short answer. */
+    suspend fun food(context: Context, name: String, portion: String?): app.dropi.data.MealItem? {
+        val prompt = app.dropi.data.MealAi.food(name, portion)
+        val raw = when {
+            nano -> Nano.text(prompt)
+            Gemma.state == Gemma.State.Ready -> Gemma.textJson(context, prompt, app.dropi.data.MealAi.FOOD_SCHEMA, maxOut = 120)
+            else -> null
+        }
+        return app.dropi.data.MealAi.parseFood(raw, name, portion)
+            // Rarely the short form doesn't come back right: the meal form, as before.
+            ?: mealFromWords(context, app.dropi.data.MealAi.words("${portion ?: "1 normal portion"} of $name"), "typed")?.items?.firstOrNull()
+    }
+
+    /** Loads the on-device model ahead of time (the + panel, the camera or "Add a food" opening). */
+    fun warm(context: Context) {
+        if (!nano) Gemma.warm(context)
+    }
+
     /** The model's plain reply to a prompt (reading a label's text). */
     suspend fun text(context: Context, prompt: String): String? = when {
         nano -> Nano.text(prompt)
-        Gemma.state == Gemma.State.Ready -> Gemma.ask(context, prompt)
+        // A label's numbers come back as JSON: stop as soon as it's complete.
+        Gemma.state == Gemma.State.Ready -> Gemma.textJson(context, prompt, null, maxOut = 250)
         else -> null
     }
 

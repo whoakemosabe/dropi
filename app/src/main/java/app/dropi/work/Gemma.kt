@@ -21,6 +21,8 @@ import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.ResponseFormat
 import com.google.ai.edge.litertlm.SamplerConfig
 import kotlinx.coroutines.CoroutineScope
@@ -57,7 +59,7 @@ object Gemma {
     private const val MIN_RAM = 5_000_000_000L
 
     /** The model is unloaded after this long unused, giving its memory back. */
-    private const val IDLE_MS = 3 * 60_000L
+    private const val IDLE_MS = 10 * 60_000L
 
     sealed interface State {
         data object Checking : State
@@ -252,42 +254,95 @@ object Gemma {
         }
     }
 
+    /** The photo for the model: upright, 512 px on its long side, as JPEG (smaller and quicker than 768 px PNG). */
+    private suspend fun photoBytes(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+        val bitmap = Nano.loadScaled(context, uri, 512) ?: return@withContext null
+        try {
+            ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }.toByteArray()
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     /** A guess at the foods and carbs in a meal photo, or null if the model couldn't tell. */
     suspend fun plate(context: Context, uri: Uri): PlateGuess? {
-        val png = withContext(Dispatchers.IO) {
-            val bitmap = Nano.loadScaled(context, uri, 768) ?: return@withContext null
-            try {
-                ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-            } finally {
-                bitmap.recycle()
-            }
-        } ?: return null
-        val text = generate(context, 0.2) { Contents.of(Content.ImageBytes(png), Content.Text(Plate.PROMPT)) }
+        val img = photoBytes(context, uri) ?: return null
+        val text = generate(context, 0.2, maxOut = 200) { Contents.of(Content.ImageBytes(img), Content.Text(Plate.PROMPT)) }
         return Plate.parse(text)
     }
 
-    /** A meal breakdown from a photo, held to the meal JSON shape. */
-    suspend fun imageJson(context: Context, uri: Uri, prompt: String, schema: String?): String? {
-        val png = withContext(Dispatchers.IO) {
-            val bitmap = Nano.loadScaled(context, uri, 768) ?: return@withContext null
-            try {
-                ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-            } finally {
-                bitmap.recycle()
-            }
-        } ?: return null
-        return generate(context, 0.2, schema) { Contents.of(Content.ImageBytes(png), Content.Text(prompt)) }
+    /** A meal breakdown from a photo, held to the meal JSON shape; [partial] sees the reply as it grows. */
+    suspend fun imageJson(context: Context, uri: Uri, prompt: String, schema: String?, partial: ((String) -> Unit)? = null): String? {
+        val img = photoBytes(context, uri) ?: return null
+        return generate(context, 0.2, schema, maxOut = 900, partial = partial) { Contents.of(Content.ImageBytes(img), Content.Text(prompt)) }
     }
 
-    /** A meal breakdown from words, held to the meal JSON shape. */
-    suspend fun textJson(context: Context, prompt: String, schema: String?): String? =
-        generate(context, 0.2, schema) { Contents.of(Content.Text(prompt)) }
+    /** A reply in words held to a JSON shape ([maxOut] tokens at most). */
+    suspend fun textJson(context: Context, prompt: String, schema: String?, maxOut: Int = 700): String? =
+        generate(context, 0.2, schema, maxOut = maxOut) { Contents.of(Content.Text(prompt)) }
 
     /** A short answer to a typed question, from [prompt] (question plus the facts). */
     suspend fun ask(context: Context, prompt: String): String? =
-        generate(context, 0.3) { Contents.of(Content.Text(prompt)) }?.trim()?.takeIf { it.isNotEmpty() }
+        generate(context, 0.3, maxOut = 300, stopAtJson = false) { Contents.of(Content.Text(prompt)) }?.trim()?.takeIf { it.isNotEmpty() }
 
-    private suspend fun generate(context: Context, temperature: Double, schema: String? = null, contents: () -> Contents): String? {
+    /** Which chip the model runs on, for Settings (null until it has loaded once). */
+    var backendName by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Loads the model ahead of time (when the + panel or the camera opens), so the first answer
+     * doesn't wait for it. Does nothing if it's loaded, loading, or busy answering.
+     */
+    fun warm(context: Context) {
+        if (state != State.Ready || engine != null) return
+        val ctx = context.applicationContext
+        scope.launch {
+            if (!lock.tryLock()) return@launch
+            try {
+                if (engine == null) file(ctx)?.let { open(ctx, it) }
+            } catch (e: Throwable) {
+            } finally {
+                lock.unlock()
+            }
+            idleAfter()
+        }
+    }
+
+    private fun idleAfter() {
+        idle?.cancel()
+        idle = scope.launch {
+            delay(IDLE_MS)
+            lock.withLock { closeEngine() }
+        }
+    }
+
+    /** The end of the first complete JSON object in [s], or -1 while it's still open. */
+    private fun jsonEnd(s: CharSequence): Int {
+        var depth = 0; var inString = false; var escaped = false; var started = false
+        for (i in s.indices) {
+            val ch = s[i]
+            if (inString) {
+                if (escaped) escaped = false else if (ch == '\\') escaped = true else if (ch == '"') inString = false
+                continue
+            }
+            when (ch) {
+                '"' -> inString = true
+                '{' -> { depth++; started = true }
+                '}' -> { depth--; if (started && depth == 0) return i }
+            }
+        }
+        return -1
+    }
+
+    /**
+     * One answer, streamed: it stops as soon as the JSON is complete (no waiting for the model to
+     * wind down), is capped at [maxOut] tokens, and a caller that stops waiting (more typing)
+     * cancels the model's work instead of letting it run on and block the next question.
+     */
+    private suspend fun generate(
+        context: Context, temperature: Double, schema: String? = null, maxOut: Int = 700,
+        stopAtJson: Boolean = true, partial: ((String) -> Unit)? = null, contents: () -> Contents,
+    ): String? {
         if (state != State.Ready && refresh(context) != State.Ready) return null
         val f = file(context) ?: return null
         return lock.withLock {
@@ -296,16 +351,17 @@ object Gemma {
                 withContext(Dispatchers.Default) {
                     val e = engine ?: open(context, f) ?: return@withContext null
                     val sampler = SamplerConfig(topK = 40, topP = 0.95, temperature = temperature)
+                    suspend fun once(held: Boolean): String = try {
+                        stream(context, e, sampler, held, schema, maxOut, stopAtJson, partial, contents)
+                    } catch (x: SpecFailed) {
+                        stream(context, e, sampler, held, schema, maxOut, stopAtJson, partial, contents)
+                    }
                     if (schema != null) {
                         // Held to the JSON shape where the engine supports it; plain otherwise.
-                        val held = try {
-                            e.createConversation(ConversationConfig(samplerConfig = sampler, enableResponseFormat = true)).use {
-                                it.sendMessage(contents(), responseFormat = ResponseFormat.json(schema)).toString()
-                            }
-                        } catch (t: Throwable) { null }
-                        if (held != null) return@withContext held
+                        val held = try { once(true) } catch (c: kotlinx.coroutines.CancellationException) { throw c } catch (t: Throwable) { null }
+                        if (!held.isNullOrBlank()) return@withContext held
                     }
-                    e.createConversation(ConversationConfig(samplerConfig = sampler)).use { it.sendMessage(contents()).toString() }
+                    once(false)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // The caller stopped waiting (e.g. more typing): the engine is fine, keep it.
@@ -315,13 +371,82 @@ object Gemma {
                 closeEngine()
                 null
             } finally {
-                idle = scope.launch {
-                    delay(IDLE_MS)
-                    lock.withLock { closeEngine() }
-                }
+                idleAfter()
             }
         }
     }
+
+    /** Speculative decoding didn't work on this phone; it's now off, so the same answer is asked again. */
+    private class SpecFailed : Exception()
+
+    private suspend fun stream(
+        context: Context, e: Engine, sampler: SamplerConfig, held: Boolean, schema: String?, maxOut: Int,
+        stopAtJson: Boolean, partial: ((String) -> Unit)?, contents: () -> Contents,
+    ): String {
+        val spec = speculative(context)
+        val config = ConversationConfig(samplerConfig = sampler, enableResponseFormat = held, enableSpeculativeDecoding = if (spec) true else null)
+        val conv = try { e.createConversation(config) } catch (t: Throwable) {
+            if (spec) { prefs(context).edit { putBoolean("spec_off", true) }; throw SpecFailed() }
+            throw t
+        }
+        val text = StringBuilder()
+        val done = kotlinx.coroutines.CompletableDeferred<Throwable?>()
+        try {
+            if (spec) markTrying(context, true)
+            conv.sendMessageAsync(
+                contents(),
+                object : MessageCallback {
+                    override fun onMessage(message: Message) {
+                        val piece = message.toString()
+                        // Chunks are usually new text; if one repeats what came before, it's the whole text so far.
+                        if (text.isNotEmpty() && piece.startsWith(text.toString())) { text.setLength(0); text.append(piece) } else text.append(piece)
+                        partial?.invoke(text.toString())
+                        if (stopAtJson && jsonEnd(text) >= 0) try { conv.cancelProcess() } catch (_: Throwable) { }
+                    }
+                    override fun onDone() { done.complete(null) }
+                    override fun onError(throwable: Throwable) { done.complete(throwable) }
+                },
+                maxOutputToken = maxOut,
+                responseFormat = if (held && schema != null) ResponseFormat.json(schema) else null,
+            )
+            val err = try {
+                done.await()
+            } catch (c: kotlinx.coroutines.CancellationException) {
+                // Stop the model, and wait for it to stop before closing (closing mid-answer can crash).
+                try { conv.cancelProcess() } catch (_: Throwable) { }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    kotlinx.coroutines.withTimeoutOrNull(5_000) { done.await() }
+                }
+                if (spec) markTrying(context, false)
+                throw c
+            }
+            if (spec) markTrying(context, false)
+            // Stopped on purpose once the JSON was complete: that's a finished answer, not an error.
+            if (err != null && err !is kotlinx.coroutines.CancellationException) {
+                // The model can't guess ahead on this phone: turn it off, the caller asks again without it.
+                if (spec) { prefs(context).edit { putBoolean("spec_off", true) }; throw SpecFailed() }
+                throw err
+            }
+            val s = text.toString()
+            val end = if (stopAtJson) jsonEnd(s) else -1
+            return if (end >= 0) s.substring(0, end + 1) else s
+        } finally {
+            if (done.isCompleted) try { conv.close() } catch (_: Throwable) { }
+        }
+    }
+
+    /**
+     * Speculative decoding (a small helper model guesses ahead, so answers come out faster). Used
+     * when the model has it. If an answer with it ever didn't finish (the app closed mid-way, which
+     * is what a crash looks like), it's turned off for good on this phone.
+     */
+    private fun speculative(context: Context): Boolean {
+        val p = prefs(context)
+        if (p.getBoolean("spec_trying", false)) p.edit { putBoolean("spec_off", true); putBoolean("spec_trying", false) }
+        return !p.getBoolean("spec_off", false)
+    }
+
+    private fun markTrying(context: Context, on: Boolean) = prefs(context).edit { putBoolean("spec_trying", on) }
 
     /** Loads the model, on the GPU when the phone allows and on the CPU otherwise. */
     private fun open(context: Context, f: File): Engine? {
@@ -343,6 +468,8 @@ object Gemma {
                 e.initialize()
                 engine = e
                 loaded = true
+                backendName = if (gpu) "the graphics chip (GPU), the fast way" else "the main processor (CPU). Slower: the graphics chip didn't work on this phone"
+                prefs(context).edit { putBoolean("last_gpu", gpu) }
                 return e
             } catch (t: Throwable) {
                 // Free what the failed backend took, then try the next one.
@@ -350,6 +477,13 @@ object Gemma {
             }
         }
         return null
+    }
+
+    /** What ran last time, before this session has loaded the model. */
+    fun lastBackend(context: Context): String? {
+        val p = prefs(context)
+        if (!p.contains("last_gpu")) return null
+        return if (p.getBoolean("last_gpu", true)) "the graphics chip (GPU), the fast way" else "the main processor (CPU). Slower: the graphics chip didn't work on this phone"
     }
 
     private fun closeEngine() {

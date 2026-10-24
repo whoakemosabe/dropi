@@ -156,3 +156,30 @@ class IcelandicLabelTest {
         assertEquals(9.0, p.protein!!, 0.01)
     }
 }
+
+class FastLookupTest {
+    @Test
+    fun partialRepliesKeepFinishedFoods() {
+        val cut = """{"items":[{"food":"rice","portion":"1 cup","carbs":45,"protein":4,"fat":0.4},{"food":"chicken curry","portion":"1 bowl","carbs":8,"pro"""
+        val m = MealAi.partial(cut, "photo")!!
+        assertEquals(listOf("rice"), m.foods)
+    }
+
+    @Test
+    fun oneFoodReply() {
+        val i = MealAi.parseFood("""{"portion":"1 bowl","carbs":20.5,"sugars":2,"fibre":1.5,"protein":22,"fat":14,"gi":0}""", "Plokkfiskur", null)!!
+        assertEquals("plokkfiskur", i.name)
+        assertEquals("1 bowl", i.portion)
+        assertEquals(20.5, i.carbs, 0.01)
+        assertEquals(null, i.gi)
+    }
+
+    @Test
+    fun icelandicBasics() {
+        assertEquals("plokkfiskur", app.dropi.data.Basics.find("plokkfiskur")!!.name)
+        assertEquals("vanilla skyr", app.dropi.data.Basics.find("vanilla skyr")!!.name)
+        assertEquals("skyr", app.dropi.data.Basics.find("skyr")!!.name)
+        assertEquals(null, app.dropi.data.Basics.find("steak"))
+        assertTrue(app.dropi.data.Basics.find("appelsín")!!.drink)
+    }
+}

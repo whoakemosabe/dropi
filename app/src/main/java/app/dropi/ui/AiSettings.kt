@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import app.dropi.R
 import app.dropi.work.Ai
 import app.dropi.work.Gemma
@@ -80,6 +81,12 @@ fun OnDeviceAiSection() {
                     "Gemma is ready. Meal photos and typed questions work on this phone, with nothing uploaded. " +
                         "It uses 2.6 GB of storage.",
                     style = body,
+                )
+                // Which chip it runs on: the graphics chip is several times faster than the main processor.
+                val runsOn = Gemma.backendName ?: Gemma.lastBackend(context)
+                Text(
+                    if (runsOn != null) "Runs on $runsOn." else "Runs on: shown after its first answer.",
+                    style = inter(13.sp, FontWeight.Medium, if (runsOn?.contains("CPU") == true) C.High else C.TextSecondary),
                 )
                 Row {
                     Chip(if (confirmRemove) "Tap again to remove" else "Remove model", icon = R.drawable.lc_trash, selected = confirmRemove) {
