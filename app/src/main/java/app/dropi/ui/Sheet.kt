@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -189,6 +190,8 @@ fun SlideSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.(close: (
 fun ColumnScope.StickySheetBody(
     title: String,
     close: () -> Unit,
+    /** Pinned under the scrolling part (a Save button), when given. */
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val backdrop = rememberLayerBackdrop()
@@ -202,7 +205,7 @@ fun ColumnScope.StickySheetBody(
                 .layerBackdrop(backdrop)
                 .background(C.Sheet)
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
+                .then(if (footer == null) Modifier.navigationBarsPadding() else Modifier)
                 .padding(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
@@ -215,5 +218,15 @@ fun ColumnScope.StickySheetBody(
                 .onSizeChanged { headerPx = it.height }
                 .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
         ) { SheetTitle(title, close) }
+    }
+    if (footer != null) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(C.GlassBorder))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(C.Sheet)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 14.dp),
+        ) { footer() }
     }
 }

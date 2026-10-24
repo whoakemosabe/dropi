@@ -59,6 +59,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.window.DialogProperties
 import app.dropi.R
 import app.dropi.data.Foods
@@ -82,7 +86,9 @@ fun MealSheet(state: AppState) {
     val d = MealWork.draft
     if (!MealWork.open || d == null) return
     SlideSheet(onDismiss = { MealWork.open = false }) { close ->
-        StickySheetBody("What you ate", close) { MealBody(state, d) { close() } }
+        val footer: (@Composable () -> Unit)? =
+            if (d.status is MealWork.Status.Ready) ({ MealSaveBar(state, d) { close() } }) else null
+        StickySheetBody("What you ate", close, footer = footer) { MealBody(state, d) { close() } }
     }
 }
 
@@ -254,6 +260,43 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean, why: S
     GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
 }
 
+/** The meal's time, name and starting reading, worked out from the draft. */
+private class MealFacts(state: AppState, d: MealWork.Draft) {
+    val old = d.forMeal
+    val ateAt = d.started
+    val name = d.name ?: app.dropi.data.MealEntry.nameFor(d.started, state.zone)
+    val auto = state.startFor(ateAt)
+    val start = d.before?.let { id -> state.readings.firstOrNull { it.id == id } } ?: auto
+    val last = if (start == null) state.lastReadingBefore(ateAt)?.takeIf { ateAt - it.at < 12 * 3_600_000L } else null
+}
+
+/** The pinned Save button under the meal screen. */
+@Composable
+private fun MealSaveBar(state: AppState, d: MealWork.Draft, close: () -> Unit) {
+    val view = LocalView.current
+    val meal = d.meal ?: Meal(emptyList())
+    val f = MealFacts(state, d)
+    PrimaryButton(
+        when {
+            meal.items.isEmpty() -> "Add a food first"
+            f.old != null -> "Save changes"
+            else -> "Save ${f.name.lowercase()}"
+        },
+        Modifier.fillMaxWidth(),
+        icon = R.drawable.lc_check,
+        enabled = meal.items.isNotEmpty(),
+    ) {
+        Haptics.confirm(view)
+        state.saveMeal(meal, f.ateAt, f.name, d.before, f.old?.id ?: 0)
+        MealWork.discard()
+        close()
+    }
+}
+
+/**
+ * The meal screen: its name and time at the top, one card with the totals, one with the likely
+ * peak, the foods, and everything else folded under "More". Save is pinned below.
+ */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () -> Unit) {
@@ -264,240 +307,247 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     val scores = remember(state.readings, state.sensor, state.meals) { Foods.scores(state.readings, state.sensor, state.meals).associateBy { it.food } }
     var editing by remember { mutableStateOf<Int?>(null) }
     var adding by remember { mutableStateOf(false) }
-    val usual = remember(meal) { MealWork.usual(context) }
-    val old = d.forMeal
-
-    // When it was eaten, what to call it, and the reading it starts from.
-    var ateAt by remember(d.id) { mutableLongStateOf(old?.at ?: d.started) }
-    var name by remember(d.id) { mutableStateOf(old?.name ?: app.dropi.data.MealEntry.nameFor(ateAt, state.zone)) }
-    var nameTouched by remember(d.id) { mutableStateOf(old != null) }
-    var chosen by remember(d.id) { mutableStateOf(old?.before) }
     var picking by remember { mutableStateOf(false) }
-    val auto = state.startFor(ateAt)
-    val start = chosen?.let { id -> state.readings.firstOrNull { it.id == id } } ?: auto
-    val last = if (start == null) state.lastReadingBefore(ateAt)?.takeIf { ateAt - it.at < 12 * 3_600_000L } else null
+    var why by remember { mutableStateOf(false) }
+    var more by remember { mutableStateOf(meal.tags.isNotEmpty()) }
+    val usual = remember(meal) { MealWork.usual(context) }
+    val f = MealFacts(state, d)
+    val start = f.start
 
-    MealWhen(
-        ateAt, name, fmt, now = System.currentTimeMillis(),
-        onAte = { t -> ateAt = t; chosen = null; if (!nameTouched) name = app.dropi.data.MealEntry.nameFor(t, state.zone) },
-        onPickTime = { picking = true },
-        onName = { name = it; nameTouched = true },
-    )
-    if (picking) WhenPicker(ateAt, state.zone, onDismiss = { picking = false }) { t ->
-        ateAt = t; chosen = null; picking = false
-        if (!nameTouched) name = app.dropi.data.MealEntry.nameFor(t, state.zone)
+    // ---- Name and time ----
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            f.name,
+            style = heading(26.sp),
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(10.dp))
+                .semantics { role = Role.Button; contentDescription = "${f.name}. Change the meal's name or time" }
+                .tap { picking = true },
+        )
+        Row(
+            Modifier
+                .heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(50))
+                .background(C.Card)
+                .border(1.dp, C.GlassBorder, RoundedCornerShape(50))
+                .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = "Ate at ${fmt.time(f.ateAt)}. Change it" }
+                .tap { picking = true }
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Ic(R.drawable.lc_clock, C.TextSecondary, 16.dp)
+            Spacer(Modifier.width(8.dp))
+            Text("Ate ${fmt.time(f.ateAt)}", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+        }
+    }
+    Text("Tap the name or time to change them", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(top = 0.dp))
+    if (picking) MealWhenDialog(f.ateAt, f.name, fmt, state.zone) { picking = false }
+
+    // ---- Totals ----
+    Column(
+        Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp)).padding(18.dp)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(app.dropi.data.Grams.text(meal.carbs), style = numeral(52.sp))
+            Spacer(Modifier.width(8.dp))
+            Text("g carbs", style = inter(16.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.padding(bottom = 7.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("sugars" to meal.sugars, "fibre" to meal.fibre, "protein" to meal.protein, "fat" to meal.fat).forEach { (label, v) ->
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(C.SurfaceLight).padding(vertical = 10.dp, horizontal = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(v?.let { app.dropi.data.Grams.text(it) } ?: "–", style = numeral(20.sp), maxLines = 1)
+                    Text(label, style = inter(11.sp, color = C.TextSecondary))
+                }
+            }
+        }
+        val gapMin = app.dropi.data.Schedule.gapFor(app.dropi.data.MealEntry(at = 0, name = "", meal = meal), state.afterMealMinutes)
+        val badges = listOfNotNull(
+            meal.speed?.let { it.word to C.AccentText },
+            if (meal.hasSugaryDrink) "Sugary drink" to C.High else null,
+            when {
+                meal.slowDigesting -> "Rich: check at ${app.dropi.data.MealCurve.duration(gapMin)}" to C.High
+                meal.someFatProtein -> "Some fat and protein: check at ${app.dropi.data.MealCurve.duration(gapMin)}" to C.TextSecondary
+                else -> null
+            },
+        )
+        if (badges.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                badges.forEach { (text, color) ->
+                    Text(
+                        text,
+                        style = inter(12.sp, FontWeight.SemiBold, color),
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
+            }
+        }
     }
 
-    // Where meals like this usually take the person, from their own log.
-    val others = remember(state.meals, old?.id) { state.meals.filter { m -> m.id != old?.id } }
+    // ---- Likely peak ----
+    val others = remember(state.meals, f.old?.id) { state.meals.filter { m -> m.id != f.old?.id } }
     val est = start?.let { MealHistory.estimate(it.mmol, meal.foods, state.readings, state.sensor, others) }
     val perGram = remember(state.readings, state.sensor, others) { app.dropi.data.MealCurve.perGram(state.readings, state.sensor, others) }
     val curve = app.dropi.data.MealCurve.predict(meal, perGram, est)
-    // What actually happened after a logged meal (minutes after eating, change from the start).
-    val actual = remember(old, state.readings, state.sensor, state.meals) {
-        old?.let { o -> Foods.meals(state.readings, state.sensor, state.meals).firstOrNull { it.entryId == o.id }?.after }.orEmpty()
+    val actual = remember(f.old, state.readings, state.sensor, state.meals) {
+        f.old?.let { o -> Foods.meals(state.readings, state.sensor, state.meals).firstOrNull { it.entryId == o.id }?.after }.orEmpty()
     }
     Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(C.Card)
-            .padding(14.dp)
-            .semantics(mergeDescendants = true) {},
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp)).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        when {
-            start == null && last != null -> {
-                Text(
-                    "No reading just before this meal. Your last one was at ${fmt.time(last.at)} (${Glucose.format(last.mmol, unit)}).",
-                    style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
-                )
-                Text("Use it as the starting point, or take one now before you eat.", style = inter(13.sp, color = C.TextMuted))
-            }
-            start == null -> Text(
-                "No reading before this meal. Take one before you eat, and Dropi shows where meals like this usually take you.",
+        if (start == null) {
+            Text(
+                if (f.last != null) "No reading just before this meal. Your last one was at ${fmt.time(f.last.at)} (${Glucose.format(f.last.mmol, unit)})."
+                else "No reading before this meal. Take one before you eat to see where it's likely to take you.",
                 style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
             )
-            else -> {
-                Text("Before: your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)} ${unit.label})", style = inter(15.sp, FontWeight.SemiBold))
-                if (curve == null) {
-                    Text("Add the foods to see where this meal is likely to take you.", style = inter(13.sp, color = C.TextMuted))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (f.last != null) Chip("Use ${fmt.time(f.last.at)}", icon = R.drawable.lc_check, selected = true) { MealWork.setBefore(f.last.id) }
+                if (f.ateAt > System.currentTimeMillis() - 30 * 60_000L) {
+                    Chip("Take one now", icon = R.drawable.lc_plus, selected = f.last == null) {
+                        if (meal.items.isEmpty()) return@Chip
+                        state.saveMeal(meal, f.ateAt, f.name, null, f.old?.id ?: 0)
+                        MealWork.discard()
+                        close()
+                        state.startNew(app.dropi.data.MealTag.BEFORE_MEAL)
+                    }
                 }
             }
         }
         if (curve != null) {
             val s0 = start?.mmol
-            val peakText = if (s0 != null) "about " + Glucose.format(s0 + curve.rise, unit) else "about " + Foods.delta(curve.rise, unit)
             Row(verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f)) {
-                    Text(if (s0 != null) "Likely peak" else "Likely rise", style = inter(12.sp, color = C.TextMuted))
-                    Text(
-                        peakText,
-                        style = numeral(28.sp, if (s0 != null) C.status(Glucose.status(s0 + curve.rise, app.dropi.data.MealTag.AFTER_MEAL, state.targets)) else C.Text),
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Around", style = inter(12.sp, color = C.TextMuted))
-                    Text(app.dropi.data.MealCurve.duration(curve.peakMin), style = inter(17.sp, FontWeight.Bold))
-                    Text("after eating", style = inter(12.sp, color = C.TextMuted))
-                }
+                Text(if (s0 != null) "Likely peak" else "Likely rise", style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                if (start != null) Text("from your ${fmt.time(start.at)} reading, ${Glucose.format(start.mmol, unit)}", style = inter(13.sp, color = C.TextSecondary))
+            }
+            FlowRow(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    if (s0 != null) "about " + Glucose.format(s0 + curve.rise, unit) else "about " + Foods.delta(curve.rise, unit),
+                    style = numeral(32.sp, if (s0 != null) C.status(Glucose.status(s0 + curve.rise, app.dropi.data.MealTag.AFTER_MEAL, state.targets)) else C.Text),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "around ${app.dropi.data.MealCurve.duration(curve.peakMin)} after eating",
+                    style = inter(14.sp, color = C.TextSecondary),
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
             }
             ExpectedCurve(curve, s0, actual, unit)
-            val back = "Back near the start by about ${app.dropi.data.MealCurve.duration(curve.backMin)}."
-            val why = if (curve.reasons.isEmpty()) "" else " Shaped by: ${curve.reasons.joinToString(", ")}."
-            Text(back + why, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
             val outcome = actual.filter { it.first in 30..240 }.maxByOrNull { it.second }
             if (outcome != null && s0 != null) {
                 Text(
-                    "How it went: peaked ${Glucose.format(s0 + outcome.second, unit)} at ${app.dropi.data.MealCurve.duration(outcome.first)} " +
-                        "(expected about ${Glucose.format(s0 + curve.rise, unit)} at ${app.dropi.data.MealCurve.duration(curve.peakMin)}).",
-                    style = inter(13.sp, FontWeight.SemiBold).copy(lineHeight = 19.sp),
+                    "How it went: peaked ${Glucose.format(s0 + outcome.second, unit)} at ${app.dropi.data.MealCurve.duration(outcome.first)}.",
+                    style = inter(14.sp, FontWeight.SemiBold),
                 )
             }
-            Text(
-                if (curve.personal) "An estimate from this meal's numbers and your own past meals. Not advice."
-                else "An estimate from this meal's numbers. It learns your own pattern after a few meals with readings before and after. Not advice.",
-                style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (curve.personal) "An estimate from this meal and your past meals. Not advice." else "An estimate from this meal's numbers. Not advice.",
+                    style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    if (why) "Hide" else "Why?",
+                    style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
+                    modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(50)).tap { why = !why }.padding(horizontal = 8.dp),
+                )
+            }
+            if (why) {
+                val reasons = if (curve.reasons.isEmpty()) "" else "Shaped by: ${curve.reasons.joinToString(", ")}. "
+                Text(
+                    reasons + "Back near the start by about ${app.dropi.data.MealCurve.duration(curve.backMin)}." +
+                        if (curve.personal) "" else " It learns your own pattern after a few meals with readings before and after.",
+                    style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+                )
+            }
+        } else if (start != null) {
+            Text("Starts from your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)}). Add the foods to see the likely peak.", style = inter(14.sp, color = C.TextSecondary))
         }
     }
 
-    if (start == null) {
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (last != null) Chip("Use ${fmt.time(last.at)}", icon = R.drawable.lc_check, selected = true) { chosen = last.id }
-            if (ateAt > System.currentTimeMillis() - 30 * 60_000L) {
-                Chip("Take one now", icon = R.drawable.lc_plus, selected = last == null) {
-                    if (meal.items.isEmpty()) return@Chip
-                    state.saveMeal(meal, ateAt, name, null, old?.id ?: 0)
-                    MealWork.discard()
-                    close()
-                    state.startNew(app.dropi.data.MealTag.BEFORE_MEAL)
-                }
+    // ---- The foods ----
+    Text("What you ate", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+    if (meal.items.isNotEmpty()) {
+        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(22.dp))) {
+            meal.items.forEachIndexed { i, item ->
+                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(C.GlassBorder))
+                FoodRow(item, scores[item.key]) { editing = i }
             }
         }
-    } else if (chosen != null && chosen != auto?.id) {
-        Text("Using your ${fmt.time(start.at)} reading as the start.", style = inter(13.sp, color = C.TextMuted))
     }
-
-    // The total, read out when it changes.
     Row(
-        Modifier.fillMaxWidth().semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-        verticalAlignment = Alignment.Bottom,
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.5.dp, C.Border, RoundedCornerShape(16.dp))
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .tap { adding = true },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(app.dropi.data.Grams.text(meal.carbs), style = numeral(44.sp))
-        Spacer(Modifier.width(6.dp))
-        Column(Modifier.padding(bottom = 4.dp)) {
-            Text("g carbs", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
-            val parts = listOfNotNull(meal.sugars?.let { "${app.dropi.data.Grams.text(it)} g sugars" }, meal.fibre?.let { "${app.dropi.data.Grams.text(it)} g fibre" })
-            if (parts.isNotEmpty()) Text("of which " + parts.joinToString(" · "), style = inter(13.sp, color = C.TextSecondary))
-        }
-    }
-    val more = listOfNotNull(
-        meal.protein?.let { "${app.dropi.data.Grams.text(it)} g protein" }, meal.fat?.let { "${app.dropi.data.Grams.text(it)} g fat" },
-        meal.speed?.let { "${it.word} (GI about ${meal.gi})" },
-        meal.load?.let { "load ${kotlin.math.round(it).toInt()}" },
-    )
-    if (more.isNotEmpty()) Text(more.joinToString(" · "), style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
-    if (meal.hasSugaryDrink) {
-        Text("Includes a sugary drink: liquid sugar hits fastest.", style = inter(13.sp, FontWeight.SemiBold, C.High))
+        Ic(R.drawable.lc_plus, C.AccentText, 18.dp)
+        Spacer(Modifier.width(8.dp))
+        Text("Add a food", style = inter(15.sp, FontWeight.SemiBold, C.AccentText))
     }
 
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Card)) {
-        meal.items.forEachIndexed { i, item ->
-            if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(C.GlassBorder))
-            FoodRow(item, scores[item.key], unit) { editing = i }
-        }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .semantics(mergeDescendants = true) { role = Role.Button }
-                .tap { adding = true }
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Ic(R.drawable.lc_plus, C.AccentText, 16.dp)
-            Spacer(Modifier.width(10.dp))
-            Text(if (meal.items.isEmpty()) "Add a food" else "Add a food it missed", style = inter(15.sp, FontWeight.SemiBold, C.AccentText))
-        }
-    }
-
-    if (Ai.usable && meal.items.isNotEmpty()) {
-        Text("Not quite right? Say the change", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-        ChangeBox { MealWork.change(context, it) }
-        if (MealWork.failedChange) Text("Couldn't apply that. Tap the food to change it instead.", style = inter(13.sp, color = C.High))
-    }
-
+    // ---- More, folded ----
     if (meal.items.isNotEmpty()) {
-        Text("Anything else with it?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            app.dropi.data.MealTags.ALL.forEach { t ->
-                val on = t.key in meal.tags
-                Chip(t.label, selected = on) {
-                    Haptics.tap(view)
-                    MealWork.update(meal.copy(tags = if (on) meal.tags - t.key else meal.tags + t.key))
+        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(18.dp))) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .semantics(mergeDescendants = true) { role = Role.Button; stateDescription = if (more) "Open" else "Closed" }
+                    .tap { more = !more }
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("More: veg first, a walk after, rich meal, say a change", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.weight(1f))
+                Ic(R.drawable.lc_chevron_down, C.TextMuted, 18.dp, modifier = Modifier.graphicsLayer { rotationZ = if (more) 180f else 0f })
+            }
+            if (more) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Anything else with it?", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        app.dropi.data.MealTags.ALL.forEach { t ->
+                            val on = t.key in meal.tags
+                            Chip(t.label, selected = on) {
+                                Haptics.tap(view)
+                                MealWork.update(meal.copy(tags = if (on) meal.tags - t.key else meal.tags + t.key))
+                            }
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Rich meal", style = inter(15.sp, FontWeight.SemiBold))
+                            Text("Fatty or creamy: the rise comes later, so the after-eating check waits 3 h.", style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp))
+                        }
+                        Switch(
+                            checked = meal.rich,
+                            onCheckedChange = { Haptics.toggle(view, it); MealWork.update(meal.copy(rich = it)) },
+                            colors = dropiSwitchColors(),
+                            modifier = Modifier.semantics { contentDescription = "Rich meal, check at 3 hours" },
+                        )
+                    }
+                    if (Ai.usable) {
+                        Text("Not quite right? Say the change", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                        ChangeBox { MealWork.change(context, it) }
+                        if (MealWork.failedChange) Text("Couldn't apply that. Tap the food to change it instead.", style = inter(13.sp, color = C.High))
+                    }
                 }
             }
         }
     }
 
-    if (meal.items.isNotEmpty()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(C.Card)
-                .border(1.dp, if (meal.slowDigesting) C.High.copy(alpha = 0.5f) else C.GlassBorder, RoundedCornerShape(16.dp))
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val gapMin = app.dropi.data.Schedule.gapFor(app.dropi.data.MealEntry(at = 0, name = "", meal = meal), state.afterMealMinutes)
-            Ic(R.drawable.lc_clock, if (meal.slowDigesting) C.High else C.TextMuted, 18.dp)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    when {
-                        meal.slowDigesting -> "Rich meal: the rise comes later"
-                        meal.someFatProtein -> "Some fat and protein"
-                        else -> "Rich meal?"
-                    },
-                    style = inter(15.sp, FontWeight.SemiBold),
-                )
-                Text(
-                    when {
-                        meal.slowDigesting && !meal.rich -> "High in fat or protein by the numbers, so the after-eating check is ${app.dropi.data.MealCurve.duration(gapMin)} after you ate."
-                        meal.rich -> "High in fat or protein, so the after-eating check is ${app.dropi.data.MealCurve.duration(gapMin)} after you ate."
-                        else -> "After-eating check ${app.dropi.data.MealCurve.duration(gapMin)} after you ate. Switch on for fatty or creamy meals to wait 3 h."
-                    },
-                    style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
-                )
-            }
-            Switch(
-                checked = meal.rich,
-                onCheckedChange = { Haptics.toggle(view, it); MealWork.update(meal.copy(rich = it)) },
-                colors = dropiSwitchColors(),
-                modifier = Modifier.semantics { contentDescription = "Rich meal, check at 3 hours" },
-            )
-        }
-    }
-
-    PrimaryButton(
-        when {
-            meal.items.isEmpty() -> "Add a food first"
-            old != null -> "Save changes"
-            else -> "Save ${name.lowercase()} · ${app.dropi.data.Grams.text(meal.carbs)} g carbs"
-        },
-        Modifier.fillMaxWidth(),
-        icon = R.drawable.lc_check,
-        enabled = meal.items.isNotEmpty(),
-    ) {
-        Haptics.confirm(view)
-        state.saveMeal(meal, ateAt, name, chosen, old?.id ?: 0)
-        MealWork.discard()
-        close()
-    }
-    if (old != null) {
-        GhostButton("Delete this meal", Modifier.fillMaxWidth(), color = C.Low) { state.deleteMeal(old); MealWork.discard(); close() }
+    if (f.old != null) {
+        GhostButton("Delete this meal", Modifier.fillMaxWidth(), color = C.Low) { state.deleteMeal(f.old); MealWork.discard(); close() }
     } else {
         GhostButton("Start again", Modifier.fillMaxWidth()) { MealWork.discard(); close() }
     }
@@ -505,7 +555,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
 
     val open = editing
     if (open != null && open in meal.items.indices) {
-        FoodEditDialog(meal.items[open], isNew = false, score = scores[meal.items[open].key], unit = unit,
+        FoodEditDialog(meal.items[open], score = scores[meal.items[open].key], unit = unit,
             remembered = meal.items[open].key in usual,
             onDismiss = { editing = null },
             onRemove = { MealWork.update(meal.copy(items = meal.items.filterIndexed { k, _ -> k != open })); editing = null },
@@ -516,60 +566,67 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         }
     }
     if (adding) {
-        FoodEditDialog(MealItem("", "1 portion", carbs = 0.0), isNew = true, score = null, unit = unit, remembered = false,
-            onDismiss = { adding = false }, onRemove = { adding = false },
-        ) { item, remember ->
-            val withUsual = usual[item.key]?.takeIf { item.carbs == 0.0 }?.let { u ->
-                item.copy(portion = u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein ?: item.protein, fat = u.fat ?: item.fat, usual = true)
-            } ?: item
-            if (remember) MealWork.remember(context, withUsual)
-            MealWork.update(meal.copy(items = meal.items + withUsual.copy(usual = remember || withUsual.usual)))
-            // Nothing typed and no usual amount: look its numbers up.
-            if (!withUsual.usual) MealWork.fillIn(context, withUsual)
+        AddFoodDialog(usual, onDismiss = { adding = false }) { item, known ->
+            MealWork.update(meal.copy(items = meal.items + item))
+            // Added before its numbers came back: they land on the meal when ready.
+            if (!known) MealWork.fillIn(context, item)
             adding = false
         }
     }
 }
 
-/**
- * When the meal was eaten (now, a little while ago, or a time on the clock) and what to call it.
- * Wrapping rows of chips, never a sideways scroll.
- */
+/** The meal's name and when it was eaten: wrapping chips, never a sideways scroll. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun MealWhen(
-    ateAt: Long, name: String, fmt: Fmt, now: Long,
-    onAte: (Long) -> Unit, onPickTime: () -> Unit, onName: (String) -> Unit,
-) {
+private fun MealWhenDialog(ateAt: Long, name: String, fmt: Fmt, zone: java.time.ZoneId, onDone: () -> Unit) {
+    var pickingTime by remember { mutableStateOf(false) }
+    val now = remember { System.currentTimeMillis() }
     val minsAgo = ((now - ateAt) / 60_000L).toInt()
     val presets = listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago")
     val onPreset = presets.firstOrNull { kotlin.math.abs(it.first - minsAgo) <= 2 }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Ate at ${fmt.time(ateAt)}", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary), modifier = Modifier.semantics { heading() })
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            presets.forEach { (m, label) ->
-                Chip(label, selected = onPreset?.first == m) { onAte(now - m * 60_000L) }
+    Dialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier
+                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .widthIn(max = 440.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(C.Sheet)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Which meal?", style = heading(20.sp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                app.dropi.data.MealEntry.NAMES.forEach { n -> Chip(n, selected = n == name) { MealWork.setName(n) } }
             }
-            Chip(if (onPreset == null) fmt.time(ateAt) else "Other time", icon = R.drawable.lc_clock, selected = onPreset == null) { onPickTime() }
-        }
-        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            app.dropi.data.MealEntry.NAMES.forEach { n -> Chip(n, selected = n == name) { onName(n) } }
+            Text("Ate at ${fmt.time(ateAt)}", style = heading(20.sp), modifier = Modifier.padding(top = 4.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                presets.forEach { (m, label) -> Chip(label, selected = onPreset?.first == m) { MealWork.setWhen(now - m * 60_000L) } }
+                Chip(if (onPreset == null) fmt.time(ateAt) else "Other time", icon = R.drawable.lc_clock, selected = onPreset == null) { pickingTime = true }
+            }
+            PrimaryButton("Done", Modifier.fillMaxWidth()) { onDone() }
         }
     }
+    if (pickingTime) WhenPicker(ateAt, zone, onDismiss = { pickingTime = false }) { t -> MealWork.setWhen(t); pickingTime = false }
 }
 
-/** One food: name, portion, carbs and sugars, how it went last time. One sentence for TalkBack. */
+/** One food: its name, one line of portion and what's in it, and its carbs on the right. */
 @Composable
-private fun FoodRow(item: MealItem, score: Foods.Score?, unit: app.dropi.data.GlucoseUnit, onClick: () -> Unit) {
+private fun FoodRow(item: MealItem, score: Foods.Score?, onClick: () -> Unit) {
     val rise = score?.takeIf { it.ranked }?.let { Rise.of(it.rise) }
+    val looking = item.key in MealWork.filling
+    val g = { v: Double -> app.dropi.data.Grams.text(v) }
+    val details = when {
+        looking -> listOf(item.portionText(), "looking up its numbers…")
+        else -> listOfNotNull(
+            item.portionText(),
+            if (item.sugaryDrink) "sugary drink" else item.giValue?.takeIf { item.carbs > 0 }?.let { app.dropi.data.Gi.speed(it).word.lowercase() },
+            item.protein?.takeIf { it > 0 }?.let { "${g(it)} g protein" },
+            item.fat?.takeIf { it > 0 }?.let { "${g(it)} g fat" },
+        )
+    }
     val spoken = buildString {
-        append("${Foods.display(item.name)}, ${item.portionText()}, ${app.dropi.data.Grams.text(item.carbs)} grams of carbs")
-        item.sugars?.let { append(", ${app.dropi.data.Grams.text(it)} grams sugars") }
-        item.protein?.let { append(", ${app.dropi.data.Grams.text(it)} grams protein") }
-        item.fat?.let { append(", ${app.dropi.data.Grams.text(it)} grams fat") }
-        if (item.key in MealWork.filling) append(", looking up its numbers")
-        item.giValue?.takeIf { item.carbs > 0 }?.let { append(", ${app.dropi.data.Gi.speed(it).word.lowercase()}") }
-        if (item.sugaryDrink) append(", sugary drink")
+        append("${Foods.display(item.name)}, ${g(item.carbs)} grams of carbs, ${details.joinToString(", ")}")
         if (item.usual) append(", your usual amount")
         if (rise != null) append(", ${rise.word.lowercase()} last time")
     }
@@ -579,47 +636,27 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, unit: app.dropi.data.Gl
             .heightIn(min = 64.dp)
             .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = spoken }
             .tap(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(Foods.display(item.name), style = inter(16.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f, fill = false))
                 if (item.usual) {
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Your usual",
-                        style = inter(11.sp, FontWeight.SemiBold, C.AccentText),
-                        modifier = Modifier.border(1.dp, C.AccentText.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
-                    )
+                    Text("Your usual", style = inter(11.sp, FontWeight.SemiBold, C.AccentText))
                 }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    item.portionText(),
-                    style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(C.SurfaceLight).padding(horizontal = 10.dp, vertical = 3.dp),
-                )
                 if (rise != null) {
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                     Box(Modifier.size(7.dp).clip(CircleShape).background(riseColor(rise)))
-                    Spacer(Modifier.width(5.dp))
-                    Text("${rise.word}, ${score.meals} meals", style = inter(12.sp, color = C.TextMuted))
                 }
             }
-            val facts = listOfNotNull(
-                if (item.sugaryDrink) "Sugary drink" else item.giValue?.takeIf { item.carbs > 0 }?.let { app.dropi.data.Gi.speed(it).word },
-                item.protein?.let { "${app.dropi.data.Grams.text(it)} g protein" }, item.fat?.let { "${app.dropi.data.Grams.text(it)} g fat" },
-            )
-            if (item.key in MealWork.filling) Text("Looking up its numbers…", style = inter(12.sp, FontWeight.SemiBold, C.AccentText))
-            if (facts.isNotEmpty()) Text(facts.joinToString(" · "), style = inter(12.sp, color = C.TextMuted))
+            Text(details.joinToString(" · "), style = inter(13.sp, color = if (looking) C.AccentText else C.TextSecondary), maxLines = 2)
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(app.dropi.data.Grams.text(item.carbs), style = numeral(22.sp))
-                Text(" g", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(bottom = 3.dp))
-            }
-            item.sugars?.let { Text("${app.dropi.data.Grams.text(it)} g sugars", style = inter(11.sp, color = C.TextMuted)) }
+        Spacer(Modifier.width(10.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(if (looking) "…" else g(item.carbs), style = numeral(20.sp))
+            Text(" g", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.padding(bottom = 2.dp))
         }
     }
 }
@@ -726,56 +763,6 @@ private fun NumberRow(label: String, value: Int, step: Int, max: Int, onChange: 
     }
 }
 
-/**
- * A number in grams that takes decimals ("12,5" or "12.5"), with − and + either side. Empty
- * means not known (null), except where the caller treats it as 0.
- */
-@Composable
-private fun DecimalRow(label: String, value: Double?, step: Double, max: Double, onChange: (Double?) -> Unit) {
-    var text by remember { mutableStateOf(value?.let { app.dropi.data.Grams.text(it) }.orEmpty()) }
-    // Steppers change the value from outside: show it.
-    LaunchedEffect(value) {
-        val typed = app.dropi.data.Grams.parse(text)
-        if (typed != value) text = value?.let { app.dropi.data.Grams.text(it) }.orEmpty()
-    }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        StepButton(R.drawable.lc_minus, "${app.dropi.data.Grams.text(step)} less") {
-            onChange(app.dropi.data.Grams.round(((value ?: 0.0) - step).coerceAtLeast(0.0)))
-        }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            BasicTextField(
-                value = text,
-                onValueChange = { v ->
-                    // Digits and one decimal mark, one place after it.
-                    val cleaned = v.filter { it.isDigit() || it == ',' || it == '.' }
-                    val mark = cleaned.indexOfFirst { it == ',' || it == '.' }
-                    val t = if (mark < 0) cleaned.take(4)
-                    else cleaned.substring(0, mark).take(4) + cleaned[mark] + cleaned.substring(mark + 1).filter(Char::isDigit).take(1)
-                    text = t
-                    if (t.isEmpty()) onChange(null)
-                    else app.dropi.data.Grams.parse(t)?.let { onChange(it.coerceAtMost(max)) }
-                },
-                textStyle = numeral(34.sp).copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
-                cursorBrush = SolidColor(C.AccentText),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                decorationBox = { inner ->
-                    Box(contentAlignment = Alignment.Center) {
-                        if (text.isEmpty()) Text("–", style = numeral(34.sp, C.TextMuted))
-                        inner()
-                    }
-                },
-                modifier = Modifier.widthIn(min = 80.dp).semantics {
-                    contentDescription = "$label, ${value?.let { app.dropi.data.Grams.text(it) } ?: "not set"}. Edit to type a number, decimals allowed"
-                },
-            )
-        }
-        StepButton(R.drawable.lc_plus, "${app.dropi.data.Grams.text(step)} more") {
-            onChange(app.dropi.data.Grams.round(((value ?: 0.0) + step).coerceAtMost(max)))
-        }
-    }
-}
-
 @Composable
 private fun StepButton(icon: Int, label: String, onClick: () -> Unit) {
     val view = LocalView.current
@@ -790,23 +777,88 @@ private fun StepButton(icon: Int, label: String, onClick: () -> Unit) {
     ) { Ic(icon, C.Text, 20.dp) }
 }
 
-/** Change one food: name, how much, its carbs (typed or stepped), and whether to remember it. */
+/** A number of grams typed in a box: decimals with a comma or a point; empty means not known. */
 @Composable
-private fun FoodEditDialog(
-    initial: MealItem,
-    isNew: Boolean,
-    score: Foods.Score?,
-    unit: app.dropi.data.GlucoseUnit,
-    remembered: Boolean,
-    onDismiss: () -> Unit,
-    onRemove: () -> Unit,
-    onDone: (MealItem, Boolean) -> Unit,
-) {
-    val view = LocalView.current
-    var item by remember { mutableStateOf(initial) }
-    var name by remember { mutableStateOf(Foods.display(initial.name)) }
-    var portion by remember { mutableStateOf(initial.portion) }
-    var keep by remember { mutableStateOf(remembered || initial.usual) }
+private fun DecimalBox(label: String, value: Double?, modifier: Modifier = Modifier, highlight: Boolean = false, onChange: (Double?) -> Unit) {
+    var text by remember { mutableStateOf(value?.let { app.dropi.data.Grams.text(it).replace('.', ',') }.orEmpty()) }
+    // Changed from outside (the amount chips): show the new value.
+    LaunchedEffect(value) {
+        if (app.dropi.data.Grams.parse(text) != value) text = value?.let { app.dropi.data.Grams.text(it).replace('.', ',') }.orEmpty()
+    }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+        BasicTextField(
+            value = text,
+            onValueChange = { v ->
+                val cleaned = v.filter { it.isDigit() || it == ',' || it == '.' }
+                val mark = cleaned.indexOfFirst { it == ',' || it == '.' }
+                val t = if (mark < 0) cleaned.take(4)
+                else cleaned.substring(0, mark).take(4) + cleaned[mark] + cleaned.substring(mark + 1).filter(Char::isDigit).take(1)
+                text = t
+                onChange(if (t.isEmpty()) null else app.dropi.data.Grams.parse(t)?.coerceAtMost(400.0))
+            },
+            textStyle = numeral(22.sp),
+            cursorBrush = SolidColor(C.AccentText),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+            decorationBox = { inner ->
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(C.SurfaceLight)
+                        .border(if (highlight) 1.5.dp else 1.dp, if (highlight) C.AccentText else C.GlassBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (text.isEmpty()) Text("–", style = numeral(22.sp, C.TextMuted))
+                    inner()
+                }
+            },
+            modifier = Modifier.fillMaxWidth().semantics {
+                contentDescription = "$label in grams, ${value?.let { app.dropi.data.Grams.text(it) } ?: "not set"}. Decimals allowed"
+            },
+        )
+    }
+}
+
+/** Carbs, sugars, protein, fat and fibre in two columns of boxes. */
+@Composable
+private fun NumbersGrid(item: MealItem, onChange: (MealItem) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DecimalBox("Carbs", item.carbs, Modifier.weight(1f), highlight = true) { onChange(item.copy(carbs = it ?: 0.0)) }
+            DecimalBox("of which sugars", item.sugars, Modifier.weight(1f)) { onChange(item.copy(sugars = it)) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DecimalBox("Protein", item.protein, Modifier.weight(1f)) { onChange(item.copy(protein = it)) }
+            DecimalBox("Fat", item.fat, Modifier.weight(1f)) { onChange(item.copy(fat = it)) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DecimalBox("Fibre", item.fibre, Modifier.weight(1f)) { onChange(item.copy(fibre = it)) }
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+/** The five numbers for a food as one tidy row, for the add-a-food preview. */
+@Composable
+private fun NumbersPreview(item: MealItem?) {
+    Row(Modifier.fillMaxWidth()) {
+        listOf("carbs" to item?.carbs, "sugars" to item?.sugars, "fibre" to item?.fibre, "protein" to item?.protein, "fat" to item?.fat).forEach { (label, v) ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                if (item == null) Box(Modifier.padding(horizontal = 6.dp).fillMaxWidth().height(26.dp).clip(RoundedCornerShape(8.dp)).background(C.SurfaceLight))
+                else Text(v?.let { app.dropi.data.Grams.text(it) } ?: "–", style = numeral(22.sp), maxLines = 1)
+                Text(label, style = inter(11.sp, color = C.TextSecondary), modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
+}
+
+/** A dialog laid over the meal screen, sliding content in a rounded card. */
+@Composable
+private fun FoodDialogFrame(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier
@@ -818,77 +870,201 @@ private fun FoodEditDialog(
                 .background(C.Sheet)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(if (isNew) "Add a food" else Foods.display(initial.name), style = heading(22.sp))
-            if (isNew) FieldBox(name, "Food, e.g. banana") { name = it.take(40) }
-            FieldBox(portion, "One portion, e.g. 1 cup") { portion = it.take(30) }
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            content = content,
+        )
+    }
+}
 
-            Text("How much?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            val qtys = listOf(0.5, 1.0, 1.5, 2.0)
-            ChoiceGrid(qtys.map { Choice(app.dropi.data.Meal.qtyText(it)) }, qtys.indexOf(item.qty).takeIf { it >= 0 }, columns = 4, compact = true) {
-                Haptics.tap(view)
-                item = item.withQty(qtys[it])
+/**
+ * Add a food: as the name is typed its numbers show underneath, from the person's usual amounts,
+ * then Dropi's food list, then (after a short pause in typing) the on-device AI. Pick how much,
+ * change the numbers if needed, and the button says exactly what will be added.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: () -> Unit, onAdd: (MealItem, Boolean) -> Unit) {
+    val context = LocalContext.current
+    val view = LocalView.current
+    var name by remember { mutableStateOf("") }
+    val key = Foods.normalize(name)
+    // The food at one portion, and where it came from.
+    var base by remember { mutableStateOf<MealItem?>(null) }
+    var from by remember { mutableStateOf("") }
+    var looking by remember { mutableStateOf(false) }
+    var qty by remember { mutableStateOf(1.0) }
+    var other by remember { mutableStateOf(false) }
+    var otherPortion by remember { mutableStateOf("") }
+    var numbersOpen by remember { mutableStateOf(false) }
+    var edited by remember { mutableStateOf<MealItem?>(null) }
+
+    LaunchedEffect(key, if (other) otherPortion else "") {
+        edited = null
+        looking = false
+        if (key.length < 2) { base = null; return@LaunchedEffect }
+        val portion = otherPortion.trim().takeIf { other && it.isNotEmpty() }
+        val u = usual[key]
+        val basic = app.dropi.data.Basics.find(key)
+        when {
+            portion == null && u != null -> {
+                base = MealItem(key, u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein, fat = u.fat, usual = true); from = "Your usual amount"
             }
-
-            Text("Carbs (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            DecimalRow("Carbs in grams", item.carbs, step = 5.0, max = 400.0) { item = item.copy(carbs = it ?: 0.0) }
-            if (!isNew && initial.carbs != item.carbs) {
-                Text("Guessed ${app.dropi.data.Grams.text(initial.carbs)} g. You changed it to ${app.dropi.data.Grams.text(item.carbs)} g.", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.align(Alignment.CenterHorizontally))
+            portion == null && basic != null -> { base = basic.copy(name = key); from = "Found: ${basic.name}, from Dropi's food list" }
+            app.dropi.work.Ai.usable -> {
+                base = null
+                kotlinx.coroutines.delay(1200) // wait for a pause in typing
+                looking = true
+                val found = MealWork.lookup(context, key, portion)
+                looking = false
+                base = found?.copy(name = key, portion = portion ?: found.portion)
+                from = if (found != null) "Estimated by the on-device AI. Check it if you know better." else ""
+                if (found == null) numbersOpen = true
             }
-            Text("of which sugars (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            DecimalRow("Sugars in grams", item.sugars, step = 1.0, max = 400.0) { item = item.copy(sugars = it) }
-            Text("Fibre (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            DecimalRow("Fibre in grams", item.fibre, step = 1.0, max = 200.0) { item = item.copy(fibre = it) }
-            Text("Protein (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            DecimalRow("Protein in grams", item.protein, step = 1.0, max = 300.0) { item = item.copy(protein = it) }
-            Text("Fat (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
-            DecimalRow("Fat in grams", item.fat, step = 1.0, max = 300.0) { item = item.copy(fat = it) }
-            Text("Fat and protein don't raise blood sugar much, but they make the rise come later.", style = inter(12.sp, color = C.TextMuted))
+            else -> { base = null; from = ""; numbersOpen = true }
+        }
+        if (portion == null) qty = 1.0
+    }
 
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Remember as my ${name.ifBlank { "food" }.lowercase()}", style = inter(15.sp, FontWeight.SemiBold))
-                    Text("Next time it starts at ${app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1))} g for $portion", style = inter(12.sp, color = C.TextMuted))
+    val preview = base?.let { b -> if (other) b.copy(qty = 1.0) else b.withQty(qty) }
+    val current = edited ?: preview ?: MealItem(key, otherPortion.trim().ifEmpty { "1 portion" }, carbs = 0.0)
+    val known = edited != null || preview != null
+
+    FoodDialogFrame(onDismiss) {
+        Text("Add a food", style = heading(24.sp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("What is it?", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+            FieldBox(name, "e.g. hard boiled egg") { name = it.take(40) }
+        }
+
+        if (key.length >= 2) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("How much?", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val b = base
+                    if (b != null && !other) {
+                        listOf(1.0, 2.0, 3.0).forEach { q ->
+                            Chip(b.withQty(q).portionText(), selected = qty == q) { Haptics.tap(view); qty = q; edited = null }
+                        }
+                    }
+                    Chip("Other amount", selected = other || b == null) { other = true; edited = null }
                 }
-                Switch(checked = keep, onCheckedChange = { Haptics.toggle(view, it); keep = it }, colors = dropiSwitchColors(),
-                    modifier = Modifier.semantics { contentDescription = "Remember this amount" })
+                if (other || base == null) FieldBox(otherPortion, "e.g. 150 g, 1 bowl, a handful") { otherPortion = it.take(30); other = true }
             }
 
-            if (!isNew) {
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).padding(14.dp).semantics(mergeDescendants = true) {},
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text("After ${Foods.display(initial.name).lowercase()}, last time", style = inter(14.sp, FontWeight.SemiBold))
-                    if (score == null || !score.ranked) {
-                        Text(
-                            if (score == null) "No measured meals with it yet." else "1 meal so far: ${Foods.delta(score.rise, unit)} ${unit.label}. Two make a pattern.",
-                            style = inter(13.sp, color = C.TextMuted),
-                        )
-                    } else {
-                        val r = Rise.of(score.rise)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(Foods.delta(score.rise, unit), style = numeral(28.sp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("${unit.label} on average, ${score.meals} meals", style = inter(13.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(8.dp).clip(CircleShape).background(riseColor(r)))
-                            Spacer(Modifier.width(6.dp))
-                            Text(r.word, style = inter(13.sp, FontWeight.SemiBold))
-                        }
-                        Text("From before the meal to the highest reading 45 min to 3 h after. Your own log, not advice.", style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp))
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Card).border(1.dp, C.GlassBorder, RoundedCornerShape(20.dp)).padding(16.dp)
+                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                when {
+                    looking -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = C.AccentText, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Not in Dropi's list. Working it out on your phone…", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+                    }
+                    edited != null -> Text("Your numbers", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                    preview != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Ic(R.drawable.lc_check, C.InRange, 16.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(from, style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                    }
+                    app.dropi.work.Ai.usable -> Text("Looks it up when you stop typing.", style = inter(13.sp, color = C.TextSecondary))
+                    else -> Text("Not in Dropi's list. Type the numbers from the packet or your own amounts.", style = inter(13.sp, color = C.TextSecondary))
+                }
+                NumbersPreview(if (looking || !known) null else current)
+                if (known) Text("Grams for ${current.portionText()}.", style = inter(12.sp, color = C.TextMuted))
+                if (looking) Text("You can add it now; the numbers land on the meal when they're ready.", style = inter(12.sp, color = C.TextMuted))
+                if (!numbersOpen) {
+                    Text(
+                        "Change the numbers",
+                        style = inter(14.sp, FontWeight.SemiBold, C.AccentText),
+                        modifier = Modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(8.dp))
+                            .semantics { role = Role.Button }.tap { numbersOpen = true },
+                    )
+                }
+            }
+            if (numbersOpen) NumbersGrid(current) { edited = it }
+        }
+
+        PrimaryButton(
+            if (key.length < 2) "Add" else if (known) "Add ${Foods.display(key)} · ${app.dropi.data.Grams.text(current.carbs)} g carbs" else "Add ${Foods.display(key)}",
+            Modifier.fillMaxWidth(),
+            enabled = key.length >= 2,
+        ) { onAdd(current.copy(name = key), known) }
+        GhostButton("Cancel", Modifier.fillMaxWidth()) { onDismiss() }
+    }
+}
+
+/** Change one food: how much, its five numbers (decimals welcome), and whether to remember it. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun FoodEditDialog(
+    initial: MealItem,
+    score: Foods.Score?,
+    unit: app.dropi.data.GlucoseUnit,
+    remembered: Boolean,
+    onDismiss: () -> Unit,
+    onRemove: () -> Unit,
+    onDone: (MealItem, Boolean) -> Unit,
+) {
+    val view = LocalView.current
+    var item by remember { mutableStateOf(initial) }
+    var keep by remember { mutableStateOf(remembered || initial.usual) }
+    FoodDialogFrame(onDismiss) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(Foods.display(initial.name), style = heading(24.sp), modifier = Modifier.weight(1f))
+            Text(item.portionText(), style = inter(14.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 3.dp))
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf(0.5, 1.0, 1.5, 2.0, 3.0).forEach { q ->
+                Chip(initial.withQty(q).portionText(), selected = item.qty == q) {
+                    Haptics.tap(view)
+                    item = item.withQty(q)
+                }
+            }
+        }
+        Text("Grams for the whole amount. Decimals are fine: 0,8 or 0.8.", style = inter(13.sp, color = C.TextMuted))
+        NumbersGrid(item) { item = it }
+        if (initial.carbs != item.carbs && initial.qty == item.qty) {
+            Text("Guessed ${app.dropi.data.Grams.text(initial.carbs)} g carbs. You changed it to ${app.dropi.data.Grams.text(item.carbs)} g.", style = inter(12.sp, color = C.TextMuted))
+        }
+
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).border(1.dp, C.GlassBorder, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Remember as my ${Foods.display(initial.name).lowercase()}", style = inter(15.sp, FontWeight.SemiBold))
+                Text("Next time: ${app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1))} g carbs for ${item.portion}", style = inter(12.sp, color = C.TextMuted))
+            }
+            Switch(checked = keep, onCheckedChange = { Haptics.toggle(view, it); keep = it }, colors = dropiSwitchColors(),
+                modifier = Modifier.semantics { contentDescription = "Remember this amount" })
+        }
+
+        if (score != null) {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Card).padding(14.dp).semantics(mergeDescendants = true) {},
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text("After ${Foods.display(initial.name).lowercase()}, last time", style = inter(14.sp, FontWeight.SemiBold))
+                if (!score.ranked) {
+                    Text("1 meal so far: ${Foods.delta(score.rise, unit)} ${unit.label}. Two make a pattern.", style = inter(13.sp, color = C.TextMuted))
+                } else {
+                    val r = Rise.of(score.rise)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(Foods.delta(score.rise, unit), style = numeral(24.sp))
+                        Spacer(Modifier.width(8.dp))
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(riseColor(r)))
+                        Spacer(Modifier.width(6.dp))
+                        Text("${r.word}, ${score.meals} meals", style = inter(13.sp, color = C.TextSecondary))
                     }
                 }
             }
+        }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton(if (isNew) "Cancel" else "Remove", Modifier.weight(1f), color = if (isNew) C.TextSecondary else C.Low) { onRemove() }
-                PrimaryButton("Done", Modifier.weight(1f), enabled = name.isNotBlank()) {
-                    onDone(item.copy(name = Foods.normalize(name), portion = portion.ifBlank { "1 portion" }), keep)
-                }
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GhostButton("Remove", Modifier.weight(1f), color = C.Low) { onRemove() }
+            PrimaryButton("Done", Modifier.weight(2f)) { onDone(item, keep) }
         }
     }
 }

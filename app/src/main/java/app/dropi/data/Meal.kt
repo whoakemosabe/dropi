@@ -36,8 +36,21 @@ data class MealItem(
     /** A drink with real sugar in it (not diet, zero or water). */
     val sugaryDrink: Boolean get() = (drink || Gi.isDrink(name)) && !Gi.isSugarFree(name) && ((sugars ?: carbs) >= 5.0)
 
-    /** "1 cup", "½ × 1 cup", "2 × 1 slice". */
-    fun portionText(): String = if (qty == 1.0) portion else "${Meal.qtyText(qty)} × $portion"
+    /** "1 cup", "2 eggs", "3 slices", "½ × 1 cup", "2 × 1 medium". */
+    fun portionText(): String {
+        if (qty == 1.0) return portion
+        val rest = portion.removePrefix("1 ")
+        val word = rest.split(' ').singleOrNull()
+        if (qty % 1.0 == 0.0 && portion.startsWith("1 ") && word != null && word !in sizeWords) {
+            val plural = if (word.endsWith("s")) word else if (word.endsWith("ch") || word.endsWith("sh")) word + "es" else word + "s"
+            return "${qty.toInt()} $plural"
+        }
+        return "${Meal.qtyText(qty)} × $portion"
+    }
+
+    private companion object {
+        val sizeWords = setOf("medium", "small", "large", "portion", "normal", "big")
+    }
 
     /** The same food at another amount, everything scaled from one portion. */
     fun withQty(q: Double): MealItem {

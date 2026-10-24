@@ -42,8 +42,12 @@ object MealWork {
         val photo: Uri? = null,
         /** The logged meal being changed, or null for a new one. */
         val forMeal: app.dropi.data.MealEntry? = null,
-        /** When the photo, words or label came in: the default time it was eaten. */
+        /** When it was eaten: when the photo, words or label came in, unless changed. */
         val started: Long = System.currentTimeMillis(),
+        /** Breakfast, lunch…; null: picked from the time. */
+        val name: String? = null,
+        /** The reading it starts from, when the person chose one. */
+        val before: Long? = null,
     )
 
     var draft by mutableStateOf<Draft?>(null)
@@ -74,7 +78,7 @@ object MealWork {
     private fun land(id: Long, d: Draft) {
         val now = draft
         // The time it started and the meal being changed carry over.
-        if (now?.id == id) draft = d.copy(started = now.started, forMeal = d.forMeal ?: now.forMeal)
+        if (now?.id == id) draft = d.copy(started = now.started, forMeal = d.forMeal ?: now.forMeal, name = d.name ?: now.name, before = d.before ?: now.before)
     }
 
     fun usual(context: Context): Map<String, Usual> = Prefs(context).usualFoods
@@ -218,8 +222,21 @@ object MealWork {
     /** A logged meal, opened for changes. */
     fun edit(entry: app.dropi.data.MealEntry) {
         val id = ++counter
-        draft = Draft(id, Status.Ready, entry.meal, forMeal = entry, started = entry.at)
+        draft = Draft(id, Status.Ready, entry.meal, forMeal = entry, started = entry.at, name = entry.name, before = entry.before)
         open = true
+    }
+
+    /** When it was eaten; a new time drops a chosen start reading. */
+    fun setWhen(at: Long) { draft = draft?.copy(started = at, before = null) }
+    fun setName(name: String) { draft = draft?.copy(name = name) }
+    fun setBefore(readingId: Long?) { draft = draft?.copy(before = readingId) }
+
+    /** Works out one food's numbers from its name and portion (the add-a-food preview). */
+    suspend fun lookup(context: Context, name: String, portion: String?): MealItem? {
+        if (!Ai.usable) return null
+        val words = if (portion.isNullOrBlank()) "1 normal portion of $name" else "$portion of $name"
+        val m = try { Ai.mealFromWords(context.applicationContext, MealAi.words(words), "typed") } catch (e: Throwable) { null }
+        return m?.items?.firstOrNull()
     }
 
     /** The person changed the meal on screen. */
