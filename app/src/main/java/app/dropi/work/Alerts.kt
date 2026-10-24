@@ -141,6 +141,7 @@ object Alerts {
     }
 
     /** Worked on while the screen was closed, and it couldn't be made out. */
+    @android.annotation.SuppressLint("MissingPermission") // canNotify checks it
     fun postMealFailed(context: Context) {
         createChannels(context)
         if (!canNotify(context)) return
