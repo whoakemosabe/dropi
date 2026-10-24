@@ -46,13 +46,16 @@ object Scan {
      * photo decoded whole runs the phone out of memory, and the text is just as readable).
      */
     internal suspend fun image(context: Context, uri: Uri): InputImage? {
-        settled(context, uri)
+        try { settled(context, uri) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e }
         val bmp = withContext(Dispatchers.IO) { Nano.loadScaled(context, uri, 2400) }
         if (bmp == null) {
             Diag.log(context, "Photo: couldn't open it (${Nano.lastLoadProblem ?: "?"}; ${describe(context, uri)})")
             return null
         }
-        return InputImage.fromBitmap(bmp, 0)
+        return try { InputImage.fromBitmap(bmp, 0) } catch (e: Throwable) {
+            Diag.log(context, "Photo: ML Kit wouldn't take it (${e.javaClass.simpleName}: ${e.message?.take(120)}; ${bmp.width}x${bmp.height} ${bmp.config})")
+            null
+        }
     }
 
     /** Our own photo file behind a FileProvider address, or null for a photo from elsewhere. */
@@ -117,7 +120,11 @@ object Scan {
     /** Every line of text on a photo, top to bottom (nutrition labels). The photo is then deleted. */
     suspend fun lines(context: Context, uri: Uri): List<String> = withContext(Dispatchers.Default) {
         problem = null
-        val image = try { image(context, uri) } catch (e: Throwable) { null }
+        val image = try { image(context, uri) } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Diag.log(context, "Label: opening the photo failed (${e.javaClass.simpleName}: ${e.message?.take(160)})")
+            null
+        }
         if (image == null) { problem = "Couldn't open the photo."; return@withContext emptyList() }
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         try {
@@ -144,7 +151,9 @@ object Scan {
                     .addOnFailureListener { e -> problem = "The text reader failed: ${e.message?.take(80)}"; Diag.log(context, "Scan: text reader failed (${e.message?.take(160)})"); cont.resume(emptyList()) }
             }
         } catch (e: Throwable) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             problem = "The text reader failed."
+            Diag.log(context, "Label: the text reader failed (${e.javaClass.simpleName}: ${e.message?.take(160)})")
             emptyList()
         } finally {
             recognizer.close()

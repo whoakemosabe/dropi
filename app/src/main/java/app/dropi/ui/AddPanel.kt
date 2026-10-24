@@ -216,6 +216,13 @@ fun MealLaunchers(state: AppState) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) MealWork.fromPhoto(context, uri)
     }
+    // A label or barcode from a photo already taken (when the camera hand-off doesn't work).
+    val labelPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) MealWork.fromLabel(context, uri)
+    }
+    val barcodePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) MealWork.fromBarcode(context, uri)
+    }
 
     fun run(action: String) {
         when (action) {
@@ -228,6 +235,8 @@ fun MealLaunchers(state: AppState) {
                 try { camera.launch(u) } catch (e: android.content.ActivityNotFoundException) { state.mealNote = "No camera app found." }
             }
             "pick" -> picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            "label-pick" -> labelPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            "barcode-pick" -> barcodePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             "words" -> { app.dropi.work.Ai.warm(context); MealWork.words() }
             "label" -> {
                 val u = Scan.photoUri(context, "label.jpg")
@@ -258,7 +267,7 @@ fun MealLaunchers(state: AppState) {
         Launch.mealAction.value = null
         state.addOpen = false
         // A label or meter is read by the text scanner and works on every phone; the rest needs the model.
-        val needsModel = want != "label" && want != "barcode" && want != "draft" && want != "meter"
+        val needsModel = want !in setOf("label", "barcode", "label-pick", "barcode-pick", "draft", "meter")
         if (needsModel && !Ai.usable) {
             Ai.refresh(context)
             if (!Ai.usable) { afterAi = want; return@LaunchedEffect }

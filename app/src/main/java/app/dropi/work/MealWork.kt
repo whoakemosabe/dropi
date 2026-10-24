@@ -292,7 +292,11 @@ object MealWork {
         val ctx = context.applicationContext
         val id = start(Status.Working("Reading the barcode…"))
         job(ctx) {
-            val code = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
+            val code = try { Barcodes.read(ctx, uri) } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Diag.log(ctx, "Barcode: reading failed (${e.javaClass.simpleName}: ${e.message?.take(160)})")
+                null
+            }
             forgetShot(ctx, "barcode.jpg")
             if (code == null) {
                 if (!Barcodes.unreadable) Diag.log(ctx, "Barcode: none found on the photo")

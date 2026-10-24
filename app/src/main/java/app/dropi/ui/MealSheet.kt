@@ -296,10 +296,16 @@ private fun LabelGrams(
     PrimaryButton("Next", Modifier.fillMaxWidth(), enabled = ready) {
         MealWork.labelGrams(context, Foods.normalize(name), grams, checked, code, packetG?.toDouble())
     }
-    if (source == "label") GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
-    else if (!read) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        GhostButton("Scan the label", Modifier.weight(1f), color = C.AccentText) { Launch.mealAction.value = "label" }
-        GhostButton("Barcode again", Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
+    if (source == "label") Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        GhostButton("Take it again", Modifier.weight(1f)) { Launch.mealAction.value = "label" }
+        GhostButton("Pick from photos", Modifier.weight(1f)) { Launch.mealAction.value = "label-pick" }
+    }
+    else if (!read) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GhostButton("Scan the label", Modifier.weight(1f), color = C.AccentText) { Launch.mealAction.value = "label" }
+            GhostButton("Barcode again", Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
+        }
+        GhostButton("Pick a barcode photo", Modifier.fillMaxWidth()) { Launch.mealAction.value = "barcode-pick" }
     }
     if (code != null) Text(
         if (source == "off") "Barcode $code · data from Open Food Facts (ODbL)" else "Barcode $code",

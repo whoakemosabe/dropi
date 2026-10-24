@@ -151,47 +151,70 @@ object Nano {
     /** Why the last photo couldn't be opened, for problem reports. */
     @Volatile var lastLoadProblem: String? = null
 
-    internal fun loadScaled(context: Context, uri: Uri, max: Int): Bitmap? = try {
+    /**
+     * A photo, upright and no bigger than [max] px on its long side. Decoded straight to about that
+     * size (a 50–200 MP camera photo decoded whole runs the app out of memory), first with
+     * Android's ImageDecoder (reads HEIF and Ultra HDR, turns the photo upright itself), then with
+     * the older BitmapFactory. Never throws: what went wrong is kept in [lastLoadProblem].
+     */
+    internal fun loadScaled(context: Context, uri: Uri, max: Int): Bitmap? {
         lastLoadProblem = null
         val cr = context.contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= max) sample *= 2
-        val decoded = cr.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
-        } ?: run {
-            // BitmapFactory can't read every format a camera saves (some HEIF photos); Android's
-            // newer decoder can, and it scales while decoding.
-            lastLoadProblem = "decoder read ${bounds.outWidth}x${bounds.outHeight} ${bounds.outMimeType ?: "unknown type"}"
-            if (android.os.Build.VERSION.SDK_INT >= 28) try {
-                android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(cr, uri)) { d, info, _ ->
-                    val big = maxOf(info.size.width, info.size.height)
-                    if (big > max) d.setTargetSize(info.size.width * max / big, info.size.height * max / big)
+        val problems = ArrayList<String>()
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            try {
+                val bmp = android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(cr, uri)) { d, info, _ ->
+                    // Halving keeps the shape whichever way the photo is turned.
+                    var sample = 1
+                    while (maxOf(info.size.width, info.size.height) / (sample * 2) >= max) sample *= 2
+                    d.setTargetSampleSize(sample)
                     d.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
                 }
-            } catch (e: Exception) { lastLoadProblem += "; second decoder: ${e.javaClass.simpleName} ${e.message?.take(80)}"; null } else null
-        }
-        val rotation = cr.openInputStream(uri)?.use {
-            when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                else -> 0f
+                return shrink(bmp, max, 0f)
+            } catch (e: Throwable) {
+                problems += "ImageDecoder ${e.javaClass.simpleName}: ${e.message?.take(100)}"
             }
-        } ?: 0f
-        if (decoded == null) null
-        else {
-            val scale = max.toFloat() / maxOf(decoded.width, decoded.height)
-            val m = Matrix().apply {
-                if (scale < 1f) postScale(scale, scale)
-                if (rotation != 0f) postRotate(rotation)
-            }
-            if (m.isIdentity) decoded
-            else Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, m, true).also { if (it != decoded) decoded.recycle() }
         }
-    } catch (e: Exception) {
-        lastLoadProblem = "${e.javaClass.simpleName}: ${e.message?.take(100)}"
-        null
+        try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            val big = maxOf(bounds.outWidth, bounds.outHeight)
+            // Size unknown: decode small rather than risk the whole photo.
+            var sample = if (big <= 0) 8 else 1
+            while (big / (sample * 2) >= max) sample *= 2
+            val decoded = cr.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+            }
+            if (decoded == null) {
+                problems += "BitmapFactory read ${bounds.outWidth}x${bounds.outHeight} ${bounds.outMimeType ?: "unknown type"}, gave nothing"
+            } else {
+                val rotation = try {
+                    cr.openInputStream(uri)?.use {
+                        when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                            else -> 0f
+                        }
+                    } ?: 0f
+                } catch (e: Exception) { 0f }
+                return shrink(decoded, max, rotation)
+            }
+        } catch (e: Throwable) {
+            problems += "BitmapFactory ${e.javaClass.simpleName}: ${e.message?.take(100)}"
+        }
+        lastLoadProblem = problems.joinToString("; ").ifEmpty { "nothing to read" }
+        return null
+    }
+
+    /** Scales a decoded photo down to [max] px and turns it upright. */
+    private fun shrink(decoded: Bitmap, max: Int, rotation: Float): Bitmap {
+        val scale = max.toFloat() / maxOf(decoded.width, decoded.height)
+        val m = Matrix().apply {
+            if (scale < 1f) postScale(scale, scale)
+            if (rotation != 0f) postRotate(rotation)
+        }
+        if (m.isIdentity) return decoded
+        return Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, m, true).also { if (it != decoded) decoded.recycle() }
     }
 }
