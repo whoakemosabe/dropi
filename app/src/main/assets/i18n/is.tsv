@@ -103,3 +103,186 @@ Reports you share (PDF or CSV) go only where you send them.	Skýrslur sem þú d
 Turn sync off any time in Dropi's Settings, or remove its access in Health Connect.	Þú getur slökkt á samstillingu hvenær sem er í stillingum Dropa eða fjarlægt aðgang hans í Health Connect.
 Done	Lokið
 On the range bar: {0} {1}	Á sviðsstikunni: {0} {1}
+1 h	1 klst.
+1.5 h	1,5 klst.
+2 h	2 klst.
+3 h ago	fyrir 3 klst.
+A notification with Log and Snooze	Tilkynning með hnöppum til að skrá og blunda
+A nudge for the after-eating check, counted from when you ate	Áminning um mælingu eftir mat, talið frá því þú borðaðir
+A while since you ate. Tap to log your after-eating reading.	Nokkur tími er liðinn síðan þú borðaðir. Ýttu til að skrá mælinguna eftir mat.
+Above range	Yfir mörkum
+Add a check time	Bæta við mælingartíma
+Add food, carbs…	Bæta við mat, kolvetnum…
+All readings	Allar mælingar
+App updates	Uppfærslur á appinu
+At this rate you could be under {0} in about {1} min. Check with your meter and follow your plan.	Með þessu áframhaldi gætirðu farið undir {0} eftir u.þ.b. {1} mín. Mældu með mælinum og fylgdu áætluninni þinni.
+Average	Meðaltal
+By time of day	Eftir tíma dags
+Cancel	Hætta við
+Change the time…	Breyta tímanum…
+Check it	Yfirfara
+Check reminders	Áminningar um mælingar
+Check time	Mælingartími
+Check times	Mælingartímar
+Close	Loka
+Connect your sensor	Tengdu nemann þinn
+Copy app.dropi	Afrita app.dropi
+Daily averages	Dagleg meðaltöl
+Day	Dagur
+Delete reading	Eyða mælingu
+Delete	Eyða
+Details and note	Nánar og athugasemd
+Details	Nánar
+Dropi is a log, not a medical device. Readings as entered by the person.	Dropi er dagbók, ekki lækningatæki. Mælingar eins og notandinn skráði þær.
+Dropi reminder	Áminning frá Dropa
+Edit reading	Breyta mælingu
+Est. A1C (GMI)	Áætlað HbA1c (GMI)
+Follows your meal: when you log a meal (or a before-eating reading), this check moves to after it.	Fylgir máltíðinni: þegar þú skráir máltíð (eða mælingu fyrir mat) færist þessi mæling á eftir henni.
+For Dexcom, Libre and other CGMs, through xDrip+, Juggluco or Health Connect	Fyrir Dexcom, Libre og aðra sírita (CGM), í gegnum xDrip+, Juggluco eða Health Connect
+From Health Connect	Frá Health Connect
+Heading low	Stefnir í lágt
+Heading low: {0} and falling	Stefnir í lágt: {0} og lækkar
+Heads-up before a low	Viðvörun á undan lágum blóðsykri
+High ({0}–{1})	Hátt ({0}–{1})
+Highest {0}	Hæst {0}
+If your CGM app saves to Health Connect, switch on sync in Settings. Values arrive less often this way.	Ef CGM-appið þitt vistar í Health Connect skaltu kveikja á samstillingu í Stillingum. Gildin berast sjaldnar á þennan hátt.
+In 20 min, about {0}	Eftir 20 mín. u.þ.b. {0}
+In range ({0}–{1})	Innan marka ({0}–{1})
+In range	Innan marka
+Last sensor value came {0}. Check your CGM app is still sending.	Síðasta gildi frá nemanum barst {0}. Athugaðu hvort CGM-appið sé enn að senda.
+Last value {0}, {1}	Síðasta gildi {0}, {1}
+Live from your sensor · {0}	Beint frá nemanum · {0}
+Live from your sensor: {0} {1}, {2}, {3}, {4}	Beint frá nemanum: {0} {1}, {2}, {3}, {4}
+Live mode is on. Waiting for the first value from your sensor.	Kveikt er á lifandi ham. Bíð eftir fyrsta gildinu frá nemanum.
+Live mode	Lifandi hamur
+Live notification	Lifandi tilkynning
+Live sensor value	Lifandi gildi frá nema
+Live sensor	Lifandi nemi
+Log reading	Skrá mælingu
+Low ({0}–{1})	Lágt ({0}–{1})
+Low readings (under {0}): {1}	Lágar mælingar (undir {0}): {1}
+Low	Lágt
+Low: {0}	Lágt: {0}
+Lowest {0}	Lægst {0}
+Lowest – highest	Lægst – hæst
+Meal photos and questions now work on your phone. Tap to try Ask Dropi.	Myndir af máltíðum og spurningar virka nú í símanum þínum. Ýttu til að prófa „Spyrðu Dropa“.
+Meal	Máltíð
+Meters read {0}	Mælar sýna {0}
+Moment	Tímapunktur
+New reading	Ný mæling
+Next: {0} {1}	Næst: {0} kl. {1}
+No check times set	Engir mælingartímar stilltir
+No readings yet	Engar mælingar enn
+Note added	Athugasemd bætt við
+Notifications	Tilkynningar
+Now	Núna
+On-device AI	Gervigreind í símanum
+On-device AI: the model download, and meals worked out while Dropi was closed	Gervigreind í símanum: niðurhal líkansins og máltíðir sem voru greindar meðan Dropi var lokaður
+On. Waiting for the first value	Kveikt. Bíð eftir fyrsta gildinu
+Open notification settings	Opna tilkynningastillingar
+Page {0}	Síða {0}
+Pick a day and time…	Veldu dag og tíma…
+Plan when you check each day. A check counts as done when you log within about an hour of it.	Skipuleggðu hvenær þú mælir á hverjum degi. Mæling telst lokið ef þú skráir innan u.þ.b. klukkustundar frá henni.
+Re-check your low	Mældu lága gildið aftur
+Reading in {0}	Mæling í {0}
+Reading the number…	Les töluna…
+Reading	Mæling
+Readings by range	Mælingar eftir bilum
+Readings	Mælingar
+Remind me after eating	Minna mig á eftir mat
+Remind me at these times	Áminning á þessum tímum
+Remove	Fjarlægja
+Save changes	Vista breytingar
+Save reading	Vista mælingu
+Saved {0}	Vistað: {0}
+Scan meter	Skanna mæli
+Scanned. Check it matches your meter.	Skannað. Athugaðu hvort talan passi við mælinn.
+Set	Stilla
+Settings › Inter-app settings › Broadcast locally: on. In Identify receiver, add app.dropi.	Settings › Inter-app settings › Broadcast locally: kveikt. Bættu app.dropi við í Identify receiver.
+Settings › xDrip+ broadcast: on, and add app.dropi as a receiver.	Settings › xDrip+ broadcast: kveikt, og bættu app.dropi við sem viðtakanda.
+Shares of logged readings. Consensus goals: in range over 70%, low under 4%, very low under 1%.	Hlutfall skráðra mælinga. Alþjóðleg viðmið: innan marka yfir 70%, lágt undir 4%, mjög lágt undir 1%.
+Snap a meal	Mynda máltíð
+Snap your plate	Myndaðu diskinn
+Snooze {0} min	Blunda í {0} mín.
+Still counts for	Gildir í
+Summary	Samantekt
+Sunday at 19:00: your week's time in range, lows and logging	Sunnudaga kl. 19:00: tími innan marka, lág gildi og skráningar vikunnar
+Sunday evening: your week's time in range, lows and logging	Sunnudagskvöld: tími innan marka, lág gildi og skráningar vikunnar
+Tap + to log one	Ýttu á + til að skrá
+Tap to delete	Ýttu til að eyða
+Tap to say what you ate, or add the foods yourself.	Ýttu til að segja hvað þú borðaðir, eða bættu matvörunum við handvirkt.
+Target	Markgildi
+Time for your after-eating check	Tími til að mæla eftir mat
+Time in range	Tími innan marka
+Time to check	Tími til að mæla
+Time to check: {0}	Tími til að mæla: {0}
+Time	Tími
+Turn on	Kveikja
+Type just the number on your meter, like {0}.	Sláðu bara inn töluna á mælinum, t.d. {0}.
+Type reading	Slá inn mælingu
+Type the number on your meter	Sláðu inn töluna á mælinum
+Variability (CV)	Breytileiki (CV)
+Very high (over {0})	Mjög hátt (yfir {0})
+Very low (under {0})	Mjög lágt (undir {0})
+Weekly recap	Vikuyfirlit
+When a new version of Dropi is ready	Þegar ný útgáfa af Dropa er tilbúin
+When the trend points under {0} within 20 minutes, or you're already under it.	Þegar stefnan bendir undir {0} innan 20 mínútna, eða gildið er þegar undir því.
+When your sensor trend points under {0} soon	Þegar stefna nemans bendir fljótlega undir {0}
+Your latest sensor value and trend, kept up to date	Nýjasta gildið frá nemanum og stefnan, alltaf uppfært
+Your meal: about {0} g carbs	Máltíðin þín: u.þ.b. {0} g kolvetni
+Your planned check times, after-eating checks and low re-checks	Áætlaðir mælingartímar, mælingar eftir mat og endurmælingar eftir lág gildi
+Your sensor reads {0}	Neminn sýnir {0}
+Your snoozed check. Tap to log it.	Mælingin sem þú frestaðir. Ýttu til að skrá hana.
+Your value and arrow, kept up to date. On Android 16 it shows as a chip in the status bar.	Gildið þitt og örin, alltaf uppfært. Á Android 16 birtist það sem flipi í stöðustikunni.
+Your week in Dropi	Vikan þín í Dropa
+Your {0} check. Tap to log it.	Mælingin þín kl. {0}. Ýttu til að skrá hana.
+above range	yfir mörkum
+average {0}	meðaltal {0}
+falling fast	lækkar hratt
+falling slowly	lækkar hægt
+falling	lækkar
+from your sensor	frá nemanum
+in range {0}%	innan marka {0}%
+in range	innan marka
+logged on {0} of 7 days	skráð á {0} af 7 dögum
+low	lágt
+no lows	engin lág gildi
+no trend yet	engin stefna enn
+not enough data	ekki næg gögn
+note	athugasemd
+rising fast	hækkar hratt
+rising slowly	hækkar hægt
+rising	hækkar
+steady	stöðugt
+urgent low	mjög lágt
+very high	mjög hátt
+{0} h	{0} klst.
+{0} low	{0} lágt gildi
+{0} lows	{0} lág gildi
+{0} min	{0} mín.
+{0} reading on {1} of {2} days	{0} mæling á {1} af {2} dögum
+{0} readings on {1} of {2} days	{0} mælingar á {1} af {2} dögum
+{0}. Is it right?	{0}. Er þetta rétt?
+{0}. Meals like this usually peak around {1}. Is it right?	{0}. Máltíðir eins og þessi ná yfirleitt toppi um {1}. Er þetta rétt?
+{0}: {1}. Tap to change.	{0}: {1}. Ýttu til að breyta.
+{0}½ h	{0}½ klst.
+Couldn't make out your meal	Ekki tókst að greina máltíðina
+Couldn't read the number ({0}). Try again closer, straight on and without glare, or type it.	Ekki tókst að lesa töluna ({0}). Reyndu aftur nær, beint á móti og án glampa, eða sláðu hana inn.
+Couldn't read the number. Try again closer, straight on and without glare, or type it.	Ekki tókst að lesa töluna. Reyndu aftur nær, beint á móti og án glampa, eða sláðu hana inn.
+Couldn't save that	Ekki tókst að vista þetta
+Dropi's estimate from your sensor trend, not a medical alarm.	Áætlun Dropa út frá stefnu nemans, ekki læknisfræðileg viðvörun.
+Dropi's heads-up is an estimate from the sensor trend, not a medical alarm. Keep your CGM app's own alarms on.	Viðvörun Dropa er áætlun út frá stefnu nemans, ekki læknisfræðileg viðvörun. Hafðu áfram kveikt á viðvörunum CGM-appsins sjálfs.
+Dropi's on-device AI is ready	Gervigreind Dropa í símanum er tilbúin
+Notifications are off for Dropi, so reminders can't show.	Slökkt er á tilkynningum fyrir Dropa, svo áminningar geta ekki birst.
+Notifications are off for Dropi, so these can't show.	Slökkt er á tilkynningum fyrir Dropa, svo þessar geta ekki birst.
+Take 15 g of fast-acting sugar now (4 glucose tablets or about 150 ml of juice). I'll remind you to re-check in 15 minutes. Follow your care plan.	Taktu 15 g af fljótvirkum sykri núna (4 þrúgusykurstöflur eða u.þ.b. 150 ml af safa). Ég minni þig á að mæla aftur eftir 15 mínútur. Fylgdu meðferðaráætluninni þinni.
+Tap to see what's new and update.	Ýttu til að sjá hvað er nýtt og uppfæra.
+That's under {0} {1}. Check with your meter and follow your plan for lows.	Það er undir {0} {1}. Mældu með mælinum og fylgdu áætluninni þinni við lágum blóðsykri.
+Use my sensor's values	Nota gildin frá nemanum mínum
+15 minutes are up. Check again to see you're back above {0}.	15 mínútur eru liðnar. Mældu aftur til að sjá hvort gildið sé aftur komið yfir {0}.
+Before breakfast	Fyrir morgunmat
+Before lunch	Fyrir hádegismat
+Before dinner	Fyrir kvöldmat
+After breakfast	Eftir morgunmat
+After lunch	Eftir hádegismat
+After dinner	Eftir kvöldmat

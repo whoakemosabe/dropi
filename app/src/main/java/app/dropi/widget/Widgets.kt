@@ -47,6 +47,7 @@ import app.dropi.data.GlucoseUnit
 import app.dropi.data.Reading
 import app.dropi.data.Schedule
 import app.dropi.data.Status
+import app.dropi.tr
 import app.dropi.work.Alerts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -183,8 +184,8 @@ private fun Value(d: Data, p: Pal, big: Int) {
     val r = d.latest
     val status = r?.let { Glucose.status(it.mmol, it.tag, d.targets) }
     if (r == null || status == null) {
-        Text("No readings yet", style = style(p.text, 16, FontWeight.Bold), maxLines = 1)
-        Text("Tap + to log one", style = style(p.text2, 13), maxLines = 1)
+        Text(tr("No readings yet"), style = style(p.text, 16, FontWeight.Bold), maxLines = 1)
+        Text(tr("Tap + to log one"), style = style(p.text2, 13), maxLines = 1)
         return
     }
     Row(verticalAlignment = Alignment.Bottom) {
@@ -230,7 +231,7 @@ private fun Slim(context: Context, d: Data, p: Pal) {
     Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
         Column(GlanceModifier.defaultWeight()) { Value(d, p, 26) }
         Spacer(GlanceModifier.width(8.dp))
-        Action(R.drawable.lc_plus, "Log reading", true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), false, GlanceModifier.width(44.dp))
+        Action(R.drawable.lc_plus, tr("Log reading"), true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), false, GlanceModifier.width(44.dp))
     }
 }
 
@@ -245,9 +246,9 @@ private fun Square(context: Context, d: Data, p: Pal, showNext: Boolean, short: 
         Spacer(GlanceModifier.defaultWeight())
         Row(GlanceModifier.fillMaxWidth()) {
             val h = if (short) 40 else 44
-            Action(R.drawable.lc_plus, "Log reading", true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), false, GlanceModifier.defaultWeight(), h)
+            Action(R.drawable.lc_plus, tr("Log reading"), true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), false, GlanceModifier.defaultWeight(), h)
             Spacer(GlanceModifier.width(8.dp))
-            Action(R.drawable.lc_camera, "Snap a meal", false, p, intent(context, Alerts.EXTRA_OPEN_MEAL, "camera"), false, GlanceModifier.defaultWeight(), h)
+            Action(R.drawable.lc_camera, tr("Snap a meal"), false, p, intent(context, Alerts.EXTRA_OPEN_MEAL, "camera"), false, GlanceModifier.defaultWeight(), h)
         }
     }
 }
@@ -262,9 +263,9 @@ private fun Wide(context: Context, d: Data, p: Pal) {
         }
         Spacer(GlanceModifier.width(10.dp))
         Column(GlanceModifier.width(118.dp)) {
-            Action(R.drawable.lc_plus, "Reading", true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), true, GlanceModifier.fillMaxWidth())
+            Action(R.drawable.lc_plus, tr("Reading"), true, p, intent(context, Alerts.EXTRA_LOG_TAG, "new"), true, GlanceModifier.fillMaxWidth())
             Spacer(GlanceModifier.height(8.dp))
-            Action(R.drawable.lc_camera, "Meal", false, p, intent(context, Alerts.EXTRA_OPEN_MEAL, "camera"), true, GlanceModifier.fillMaxWidth())
+            Action(R.drawable.lc_camera, tr("Meal"), false, p, intent(context, Alerts.EXTRA_OPEN_MEAL, "camera"), true, GlanceModifier.fillMaxWidth())
         }
     }
 }
@@ -273,7 +274,8 @@ private fun Wide(context: Context, d: Data, p: Pal) {
 private fun Next(d: Data, p: Pal) {
     val n = d.next
     Text(
-        if (n != null) "Next: ${n.slot.name} ${d.time(n.at)}" else "No check times set",
+        // Slot.name is built in English ("Before lunch"); the lookup shows the known names in the app's language.
+        if (n != null) tr("Next: {0} {1}", tr(n.slot.name), d.time(n.at)) else tr("No check times set"),
         style = style(p.muted, 12),
         maxLines = 1,
     )

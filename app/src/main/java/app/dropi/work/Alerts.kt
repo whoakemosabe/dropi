@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.dropi.MainActivity
 import app.dropi.R
+import app.dropi.tr
 
 /** Notification channels and the update notification. Check reminders are in Reminders. */
 object Alerts {
@@ -40,24 +41,25 @@ object Alerts {
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        // Channel names follow the app's language (L.set calls this again after a change); the IDs never change.
         nm.createNotificationChannel(
-            NotificationChannel(CH_REMINDERS, "Check reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Your planned check times, after-eating checks and low re-checks"
+            NotificationChannel(CH_REMINDERS, tr("Check reminders"), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = tr("Your planned check times, after-eating checks and low re-checks")
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_RECAP, "Weekly recap", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Sunday evening: your week's time in range, lows and logging"
+            NotificationChannel(CH_RECAP, tr("Weekly recap"), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = tr("Sunday evening: your week's time in range, lows and logging")
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_UPDATES, "App updates", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "When a new version of Dropi is ready"
+            NotificationChannel(CH_UPDATES, tr("App updates"), NotificationManager.IMPORTANCE_LOW).apply {
+                description = tr("When a new version of Dropi is ready")
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_AI, "On-device AI", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "On-device AI: the model download, and meals worked out while Dropi was closed"
+            NotificationChannel(CH_AI, tr("On-device AI"), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = tr("On-device AI: the model download, and meals worked out while Dropi was closed")
             }
         )
     }
@@ -82,8 +84,8 @@ object Alerts {
         val n = NotificationCompat.Builder(context, CH_UPDATES)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(0xFF6E5BFF.toInt())
-            .setContentTitle("Dropi $version is ready")
-            .setContentText("Tap to see what's new and update.")
+            .setContentTitle(tr("Dropi {0} is ready", version))
+            .setContentText(tr("Tap to see what's new and update."))
             .setContentIntent(open)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -107,8 +109,8 @@ object Alerts {
         val n = NotificationCompat.Builder(context, CH_AI)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(0xFF6E5BFF.toInt())
-            .setContentTitle("Dropi's on-device AI is ready")
-            .setContentText("Meal photos and questions now work on your phone. Tap to try Ask Dropi.")
+            .setContentTitle(tr("Dropi's on-device AI is ready"))
+            .setContentText(tr("Meal photos and questions now work on your phone. Tap to try Ask Dropi."))
             .setContentIntent(open)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -126,15 +128,16 @@ object Alerts {
             .putExtra(EXTRA_OPEN_MEAL, "draft")
         val open = PendingIntent.getActivity(context, ID_MEAL, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val list = foods.take(4).joinToString(", ") { app.dropi.data.Foods.display(it) }
-        val text = list + (peak?.let { ". Meals like this usually peak around $it" } ?: "") + ". Is it right?"
+        val text = if (peak != null) tr("{0}. Meals like this usually peak around {1}. Is it right?", list, peak)
+        else tr("{0}. Is it right?", list)
         val n = NotificationCompat.Builder(context, CH_AI)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(0xFF6E5BFF.toInt())
-            .setContentTitle("Your meal: about $carbs g carbs")
+            .setContentTitle(tr("Your meal: about {0} g carbs", carbs))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
-            .addAction(0, "Check it", open)
+            .addAction(0, tr("Check it"), open)
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(ID_MEAL, n)
@@ -152,8 +155,8 @@ object Alerts {
         val n = NotificationCompat.Builder(context, CH_AI)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(0xFF6E5BFF.toInt())
-            .setContentTitle("Couldn't make out your meal")
-            .setContentText("Tap to say what you ate, or add the foods yourself.")
+            .setContentTitle(tr("Couldn't make out your meal"))
+            .setContentText(tr("Tap to say what you ate, or add the foods yourself."))
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()

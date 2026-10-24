@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.Arrow
 import app.dropi.data.Glucose
 import app.dropi.data.SensorPoint
@@ -81,11 +82,11 @@ fun sensorColor(mmol: Double): Color = when {
 }
 
 fun sensorWords(mmol: Double): String = when {
-    mmol < Glucose.URGENT_LOW -> "urgent low"
-    mmol < Glucose.LOW -> "low"
-    mmol > Glucose.VERY_HIGH -> "very high"
-    mmol > Glucose.TIR_HIGH -> "above range"
-    else -> "in range"
+    mmol < Glucose.URGENT_LOW -> tr("urgent low")
+    mmol < Glucose.LOW -> tr("low")
+    mmol > Glucose.VERY_HIGH -> tr("very high")
+    mmol > Glucose.TIR_HIGH -> tr("above range")
+    else -> tr("in range")
 }
 
 /**
@@ -105,8 +106,10 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Column(
             Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-                contentDescription = "Live from your sensor: $value ${state.unit.label}, ${arrow?.words ?: "no trend yet"}, " +
-                    "${sensorWords(last.mmol)}, ${fmt.ago(last.at, now)}"
+                contentDescription = tr(
+                    "Live from your sensor: {0} {1}, {2}, {3}, {4}",
+                    value, state.unit.label, arrow?.label ?: tr("no trend yet"), sensorWords(last.mmol), fmt.ago(last.at, now),
+                )
             },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -116,7 +119,7 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
             ) {
                 LiveDot(color)
                 Spacer(Modifier.width(8.dp))
-                Text("Live from your sensor · ${fmt.ago(last.at, now)}", style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
+                Text(tr("Live from your sensor · {0}", fmt.ago(last.at, now)), style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // A small settle each time a new value lands.
@@ -138,7 +141,7 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
                 }
             }
             Text(
-                listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.words).joinToString(" · "),
+                listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.label).joinToString(" · "),
                 style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary),
             )
         }
@@ -150,11 +153,11 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
             val ahead = Trend.ahead(points, 20)
             Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(116.dp))
             Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Text("3 h ago", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
+                Text(tr("3 h ago"), style = inter(13.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
                 if (ahead != null) {
-                    Text("In 20 min, about ${Glucose.format(ahead, state.unit)}", style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+                    Text(tr("In 20 min, about {0}", Glucose.format(ahead, state.unit)), style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
                 } else {
-                    Text("Now", style = inter(13.sp, color = C.TextMuted))
+                    Text(tr("Now"), style = inter(13.sp, color = C.TextMuted))
                 }
             }
         }
@@ -261,8 +264,8 @@ fun LiveWaiting(state: AppState, now: Long, fmt: Fmt) {
         Ic(R.drawable.lc_activity, C.TextMuted, 18.dp)
         Spacer(Modifier.width(12.dp))
         Text(
-            if (last == null) "Live mode is on. Waiting for the first value from your sensor."
-            else "Last sensor value came ${fmt.ago(last.at, now)}. Check your CGM app is still sending.",
+            if (last == null) tr("Live mode is on. Waiting for the first value from your sensor.")
+            else tr("Last sensor value came {0}. Check your CGM app is still sending.", fmt.ago(last.at, now)),
             style = inter(13.sp, color = C.TextSecondary),
             modifier = Modifier.weight(1f),
         )
@@ -308,15 +311,15 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
         if (needsAsk) ask.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    StickySheetBody("Live sensor", close) {
-        SheetSection("Live mode") {
+    StickySheetBody(tr("Live sensor"), close) {
+        SheetSection(tr("Live mode")) {
             val last = Trend.latest(state.sensor)
             ToggleRow(
-                "Use my sensor's values",
+                tr("Use my sensor's values"),
                 when {
-                    !state.liveOn -> "For Dexcom, Libre and other CGMs, through xDrip+, Juggluco or Health Connect"
-                    last == null -> "On. Waiting for the first value"
-                    else -> "Last value ${Glucose.format(last.mmol, state.unit)}, ${fmt.ago(last.at, now)}"
+                    !state.liveOn -> tr("For Dexcom, Libre and other CGMs, through xDrip+, Juggluco or Health Connect")
+                    last == null -> tr("On. Waiting for the first value")
+                    else -> tr("Last value {0}, {1}", Glucose.format(last.mmol, state.unit), fmt.ago(last.at, now))
                 },
                 state.liveOn,
             ) { on ->
@@ -325,20 +328,20 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
             }
         }
 
-        SheetSection("Connect your sensor") {
-            Step("xDrip+", "Settings › Inter-app settings › Broadcast locally: on. In Identify receiver, add app.dropi.")
-            Step("Juggluco", "Settings › xDrip+ broadcast: on, and add app.dropi as a receiver.")
-            Step("Health Connect", "If your CGM app saves to Health Connect, switch on sync in Settings. Values arrive less often this way.")
-            Chip("Copy app.dropi", icon = R.drawable.lc_share) {
+        SheetSection(tr("Connect your sensor")) {
+            Step("xDrip+", tr("Settings › Inter-app settings › Broadcast locally: on. In Identify receiver, add app.dropi."))
+            Step("Juggluco", tr("Settings › xDrip+ broadcast: on, and add app.dropi as a receiver."))
+            Step("Health Connect", tr("If your CGM app saves to Health Connect, switch on sync in Settings. Values arrive less often this way."))
+            Chip(tr("Copy app.dropi"), icon = R.drawable.lc_share) {
                 val cm = context.getSystemService(ClipboardManager::class.java)
                 cm?.setPrimaryClip(ClipData.newPlainText("Dropi package", context.packageName))
             }
         }
 
-        SheetSection("Notifications") {
+        SheetSection(tr("Notifications")) {
             ToggleRow(
-                "Live notification",
-                "Your value and arrow, kept up to date. On Android 16 it shows as a chip in the status bar.",
+                tr("Live notification"),
+                tr("Your value and arrow, kept up to date. On Android 16 it shows as a chip in the status bar."),
                 state.liveNotify,
                 enabled = state.liveOn,
             ) { on ->
@@ -346,8 +349,8 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
                 if (on) needNotify()
             }
             ToggleRow(
-                "Heads-up before a low",
-                "When the trend points under ${Glucose.format(Glucose.LOW, state.unit)} within 20 minutes, or you're already under it.",
+                tr("Heads-up before a low"),
+                tr("When the trend points under {0} within 20 minutes, or you're already under it.", Glucose.format(Glucose.LOW, state.unit)),
                 state.headsUpOn,
                 enabled = state.liveOn,
             ) { on ->
@@ -355,8 +358,8 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
                 if (on) needNotify()
             }
             if (state.liveOn && !canNotify) {
-                SheetHint("Notifications are off for Dropi, so these can't show.")
-                Chip("Open notification settings", icon = R.drawable.lc_settings) {
+                SheetHint(tr("Notifications are off for Dropi, so these can't show."))
+                Chip(tr("Open notification settings"), icon = R.drawable.lc_settings) {
                     try {
                         context.startActivity(
                             android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -366,7 +369,7 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
                 }
             }
             SheetHint(
-                "Dropi's heads-up is an estimate from the sensor trend, not a medical alarm. Keep your CGM app's own alarms on."
+                tr("Dropi's heads-up is an estimate from the sensor trend, not a medical alarm. Keep your CGM app's own alarms on.")
             )
         }
     }

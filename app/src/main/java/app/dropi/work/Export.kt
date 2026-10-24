@@ -7,12 +7,17 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
+import app.dropi.L
 import app.dropi.data.Analytics
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
 import app.dropi.data.Reading
 import app.dropi.data.Report
 import app.dropi.data.Targets
+import app.dropi.tr
+import app.dropi.trn
+import app.dropi.ui.cap
+import app.dropi.ui.dayPattern
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -29,8 +34,7 @@ import kotlin.math.roundToInt
  * shared through the system share sheet; nothing is uploaded anywhere.
  */
 object Export {
-    private val day = DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.ENGLISH)
-    private val shortDay = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
+    /** For the CSV: fixed English, machine-readable. The PDF's day formats are made per report (in the app's language). */
     private val time = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
 
     private fun dir(context: Context) = File(context.cacheDir, "exports").apply { mkdirs() }
@@ -127,6 +131,10 @@ object Export {
         }
 
         private fun v(m: Double) = Glucose.format(m, unit)
+
+        // Made for each report, so the PDF follows the app's language at the time it's written.
+        private val day = dayPattern("EEE d MMM yyyy")
+        private val shortDay = dayPattern("d MMM")
         private val canvas get() = page!!.canvas
 
         private fun newPage() {
@@ -139,10 +147,10 @@ object Export {
         private fun finish(p: PdfDocument.Page) {
             val c = p.canvas
             c.drawText(
-                "Dropi is a log, not a medical device. Readings as entered by the person.",
+                tr("Dropi is a log, not a medical device. Readings as entered by the person."),
                 margin, h - 28f, paint(8f, muted),
             )
-            val n = "Page $pageNo"
+            val n = tr("Page {0}", pageNo)
             val pp = paint(8f, muted)
             c.drawText(n, w - margin - pp.measureText(n), h - 28f, pp)
             pdf.finishPage(p)
@@ -192,19 +200,21 @@ object Export {
 
         fun write() {
             newPage()
-            text("Blood glucose report", 22f, bold = true, gap = 4f)
+            text(tr("Blood glucose report"), 22f, bold = true, gap = 4f)
             text(
-                "${day.format(r.from)} – ${day.format(r.to)} · ${r.count} readings on ${r.daysLogged} of ${r.days} days · ${unit.label}",
+                "${day.format(r.from).cap()} – ${day.format(r.to).cap()} · " +
+                    trn(r.count, "{0} reading on {1} of {2} days", "{0} readings on {1} of {2} days", r.daysLogged, r.days) +
+                    " · ${unit.label}",
                 10f, ink2, gap = 10f,
             )
 
-            section("Summary")
+            section(tr("Summary"))
             val cw = (w - margin * 2) / 4
             val cols = listOf(
-                "Average" to (r.mean?.let { v(it) } ?: "—"),
-                "Time in range" to (r.bands?.let { "${it.inRange.roundToInt()}%" } ?: "—"),
-                "Est. A1C (GMI)" to (r.gmiPercent?.let { String.format(Locale.ROOT, "%.1f%% · %d mmol/mol", it, r.gmiMmolMol!!.roundToInt()) } ?: "not enough data"),
-                "Variability (CV)" to (r.cv?.let { "${it.roundToInt()}%" } ?: "—"),
+                tr("Average") to (r.mean?.let { v(it) } ?: "—"),
+                tr("Time in range") to (r.bands?.let { "${it.inRange.roundToInt()}%" } ?: "—"),
+                tr("Est. A1C (GMI)") to (r.gmiPercent?.let { String.format(Locale.ROOT, "%.1f%% · %d mmol/mol", it, r.gmiMmolMol!!.roundToInt()).replace('.', L.decimal) } ?: tr("not enough data")),
+                tr("Variability (CV)") to (r.cv?.let { "${it.roundToInt()}%" } ?: "—"),
             )
             need(44f)
             cols.forEachIndexed { i, (label, value) ->
@@ -213,19 +223,20 @@ object Export {
             }
             y += 40f
             text(
-                "Lowest ${r.readings.minOfOrNull { it.mmol }?.let { v(it) } ?: "—"} · Highest ${r.readings.maxOfOrNull { it.mmol }?.let { v(it) } ?: "—"} · " +
-                    "Low readings (under ${v(Glucose.LOW)}): ${r.lows}",
+                tr("Lowest {0}", r.readings.minOfOrNull { it.mmol }?.let { v(it) } ?: "—") + " · " +
+                    tr("Highest {0}", r.readings.maxOfOrNull { it.mmol }?.let { v(it) } ?: "—") + " · " +
+                    tr("Low readings (under {0}): {1}", v(Glucose.LOW), r.lows),
                 9.5f, ink2,
             )
 
             r.bands?.let { b ->
-                section("Readings by range")
+                section(tr("Readings by range"))
                 val segs = listOf(
-                    Triple("Very low (under ${v(Glucose.URGENT_LOW)})", b.veryLow, 0xFFA3134A.toInt()),
-                    Triple("Low (${v(Glucose.URGENT_LOW)}–${v(Glucose.LOW)})", b.low, 0xFFE04A78.toInt()),
-                    Triple("In range (${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)})", b.inRange, 0xFF00939A.toInt()),
-                    Triple("High (${v(Glucose.TIR_HIGH)}–${v(Glucose.VERY_HIGH)})", b.high, 0xFFB08000.toInt()),
-                    Triple("Very high (over ${v(Glucose.VERY_HIGH)})", b.veryHigh, 0xFFC23A0A.toInt()),
+                    Triple(tr("Very low (under {0})", v(Glucose.URGENT_LOW)), b.veryLow, 0xFFA3134A.toInt()),
+                    Triple(tr("Low ({0}–{1})", v(Glucose.URGENT_LOW), v(Glucose.LOW)), b.low, 0xFFE04A78.toInt()),
+                    Triple(tr("In range ({0}–{1})", v(Glucose.LOW), v(Glucose.TIR_HIGH)), b.inRange, 0xFF00939A.toInt()),
+                    Triple(tr("High ({0}–{1})", v(Glucose.TIR_HIGH), v(Glucose.VERY_HIGH)), b.high, 0xFFB08000.toInt()),
+                    Triple(tr("Very high (over {0})", v(Glucose.VERY_HIGH)), b.veryHigh, 0xFFC23A0A.toInt()),
                 )
                 need(30f)
                 var x = margin
@@ -245,13 +256,13 @@ object Export {
                     canvas.drawText(t, margin + 260f - p.measureText(t), y + 9f, p)
                     y += 14f
                 }
-                text("Shares of logged readings. Consensus goals: in range over 70%, low under 4%, very low under 1%.", 8.5f, muted)
+                text(tr("Shares of logged readings. Consensus goals: in range over 70%, low under 4%, very low under 1%."), 8.5f, muted)
             }
 
             if (r.byTag.isNotEmpty()) {
-                section("By time of day")
+                section(tr("By time of day"))
                 val widths = listOf(170f, 90f, 90f, 150f)
-                row(listOf("Moment", "Readings", "Average", "Target"), widths, 8.5f, bold = true, color = muted)
+                row(listOf(tr("Moment"), tr("Readings"), tr("Average"), tr("Target")), widths, 8.5f, bold = true, color = muted)
                 r.byTag.forEach { t ->
                     val (lo, hi) = targets.forTag(t.tag)
                     row(listOf(t.tag.label, "${t.count}", v(t.average), "${v(lo)}–${v(hi)}"), widths, 9.5f)
@@ -259,17 +270,17 @@ object Export {
             }
 
             if (r.byDay.isNotEmpty()) {
-                section("Daily averages")
+                section(tr("Daily averages"))
                 val widths = listOf(170f, 90f, 90f, 150f)
-                row(listOf("Day", "Readings", "Average", "Lowest – highest"), widths, 8.5f, bold = true, color = muted)
+                row(listOf(tr("Day"), tr("Readings"), tr("Average"), tr("Lowest – highest")), widths, 8.5f, bold = true, color = muted)
                 r.byDay.reversed().forEach { d ->
-                    row(listOf(day.format(d.day), "${d.count}", v(d.average), "${v(d.min)} – ${v(d.max)}"), widths, 9.5f)
+                    row(listOf(day.format(d.day).cap(), "${d.count}", v(d.average), "${v(d.min)} – ${v(d.max)}"), widths, 9.5f)
                 }
             }
 
-            section("All readings")
+            section(tr("All readings"))
             val widths = listOf(92f, 40f, 52f, 80f, 235f)
-            row(listOf("Day", "Time", unit.label, "Moment", "Details and note"), widths, 8.5f, bold = true, color = muted)
+            row(listOf(tr("Day"), tr("Time"), unit.label, tr("Moment"), tr("Details and note")), widths, 8.5f, bold = true, color = muted)
             r.readings.reversed().forEach { rd ->
                 val t = Instant.ofEpochMilli(rd.at).atZone(zone)
                 val extra = listOf(rd.detailsText(), rd.note).filter { it.isNotBlank() }.joinToString(" · ")

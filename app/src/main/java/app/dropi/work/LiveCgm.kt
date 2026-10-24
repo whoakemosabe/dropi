@@ -13,12 +13,14 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.dropi.MainActivity
 import app.dropi.Prefs
+import app.dropi.L
 import app.dropi.R
 import app.dropi.data.Db
 import app.dropi.data.Glucose
 import app.dropi.data.Heads
 import app.dropi.data.SensorPoint
 import app.dropi.data.Trend
+import app.dropi.tr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,14 +55,14 @@ object LiveCgm {
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         nm.createNotificationChannel(
-            NotificationChannel(CH_LIVE, "Live sensor value", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Your latest sensor value and trend, kept up to date"
+            NotificationChannel(CH_LIVE, tr("Live sensor value"), NotificationManager.IMPORTANCE_LOW).apply {
+                description = tr("Your latest sensor value and trend, kept up to date")
                 setShowBadge(false)
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CH_HEADS, "Heading low", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "When your sensor trend points under 3.9 mmol/L soon"
+            NotificationChannel(CH_HEADS, tr("Heading low"), NotificationManager.IMPORTANCE_HIGH).apply {
+                description = tr("When your sensor trend points under {0} soon", "3.9".replace('.', L.decimal) + " mmol/L")
             }
         )
     }
@@ -150,14 +152,14 @@ object LiveCgm {
         val value = Glucose.format(last.mmol, unit)
         val arrow = Trend.arrow(points)
         val words = when {
-            last.mmol < Glucose.LOW -> "Low"
-            last.mmol > Glucose.TIR_HIGH -> "Above range"
-            else -> "In range"
+            last.mmol < Glucose.LOW -> tr("Low")
+            last.mmol > Glucose.TIR_HIGH -> tr("Above range")
+            else -> tr("In range")
         }
         val n = NotificationCompat.Builder(context, CH_LIVE)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setContentTitle("$value ${unit.label}${arrow?.let { " ${it.glyph}" } ?: ""}")
-            .setContentText(listOfNotNull(words, arrow?.words?.replaceFirstChar { it.uppercase() }).joinToString(", ") + " · from your sensor")
+            .setContentText(listOfNotNull(words, arrow?.label?.replaceFirstChar { it.titlecase(L.locale) }).joinToString(", ") + " · " + tr("from your sensor"))
             .setShortCriticalText("$value${arrow?.glyph ?: ""}")
             .setContentIntent(openApp(context, ID_LIVE))
             .setOngoing(true)
@@ -187,16 +189,16 @@ object LiveCgm {
         val v = Glucose.format(mmol, unit)
         val low = Glucose.format(Glucose.LOW, unit)
         val (title, text) = when (kind) {
-            Heads.LOW_NOW -> "Your sensor reads $v" to
-                "That's under $low ${unit.label}. Check with your meter and follow your plan for lows."
-            Heads.HEADING_LOW -> "Heading low: $v and falling" to
-                "At this rate you could be under $low in about $minutes min. Check with your meter and follow your plan."
+            Heads.LOW_NOW -> tr("Your sensor reads {0}", v) to
+                tr("That's under {0} {1}. Check with your meter and follow your plan for lows.", low, unit.label)
+            Heads.HEADING_LOW -> tr("Heading low: {0} and falling", v) to
+                tr("At this rate you could be under {0} in about {1} min. Check with your meter and follow your plan.", low, minutes)
         }
         val n = NotificationCompat.Builder(context, CH_HEADS)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setContentTitle(title)
             .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n\nDropi's estimate from your sensor trend, not a medical alarm."))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text + "\n\n" + tr("Dropi's estimate from your sensor trend, not a medical alarm.")))
             .setContentIntent(openApp(context, ID_HEADS))
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

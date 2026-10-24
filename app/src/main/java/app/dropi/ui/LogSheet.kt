@@ -80,7 +80,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
+import app.dropi.L
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.Glucose
 import app.dropi.data.GlucoseUnit
 import app.dropi.data.MealTag
@@ -106,7 +108,8 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     val fmt = remember { Fmt(context, state.zone) }
     val isNew = initial.id == 0L
     val unit = state.unit
-    var text by remember { mutableStateOf(if (isNew) "" else Glucose.format(initial.mmol, unit)) }
+    // What's typed, always with a point ("6.4"); shown with the app's decimal mark (L.decimal).
+    var text by remember { mutableStateOf(if (isNew) "" else Glucose.plain(initial.mmol, unit)) }
     var tag by remember { mutableStateOf(initial.tag) }
     var note by remember { mutableStateOf(initial.note) }
     // When it was taken: now, a quick "15 min ago", or any day and time in the last week.
@@ -126,16 +129,17 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     LaunchedEffect(scan) {
         if (scan == null || !isNew) return@LaunchedEffect
         when {
-            scan.busy -> scanNote = "Reading the number…"
+            scan.busy -> scanNote = tr("Reading the number…")
             scan.value != null -> {
-                text = Glucose.format(scan.value, unit)
-                scanNote = "Scanned. Check it matches your meter."
+                text = Glucose.plain(scan.value, unit)
+                scanNote = tr("Scanned. Check it matches your meter.")
                 Haptics.confirm(view)
                 state.meterScan = null
             }
             else -> {
-                scanNote = "Couldn't read the number" + (scan.problem?.let { " ($it)" } ?: "") +
-                    ". Try again closer, straight on and without glare, or type it."
+                scanNote = scan.problem?.let {
+                    tr("Couldn't read the number ({0}). Try again closer, straight on and without glare, or type it.", it)
+                } ?: tr("Couldn't read the number. Try again closer, straight on and without glare, or type it.")
                 Haptics.reject(view)
                 state.meterScan = null
             }
@@ -165,7 +169,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             .padding(horizontal = 16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (isNew) "New reading" else "Edit reading", style = inter(17.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
+            Text(if (isNew) tr("New reading") else tr("Edit reading"), style = inter(17.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
             if (isNew) {
                 Row(
                     Modifier
@@ -178,7 +182,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                 ) {
                     Ic(R.drawable.lc_camera, C.TextSecondary, 16.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Scan meter", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+                    Text(tr("Scan meter"), style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
                 }
                 Spacer(Modifier.width(8.dp))
             }
@@ -194,17 +198,17 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Ic(R.drawable.lc_trash, C.Low, 16.dp, contentDescription = if (confirmDelete) null else "Delete reading")
+                    Ic(R.drawable.lc_trash, C.Low, 16.dp, contentDescription = if (confirmDelete) null else tr("Delete reading"))
                     if (confirmDelete) {
                         Spacer(Modifier.width(8.dp))
-                        Text("Tap to delete", style = inter(13.sp, FontWeight.SemiBold, C.Low))
+                        Text(tr("Tap to delete"), style = inter(13.sp, FontWeight.SemiBold, C.Low))
                     }
                 }
             }
             Box(
                 Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
                 contentAlignment = Alignment.Center,
-            ) { Ic(R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = "Close") }
+            ) { Ic(R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = tr("Close")) }
         }
 
         // The number, coloured by where it lands as you type.
@@ -218,7 +222,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                 modifier = Modifier.graphicsLayer { translationX = shake.value * 10.dp.toPx() * (if (shakes % 2 == 0) 1f else -1f) },
             ) {
                 Text(
-                    text.ifEmpty { if (unit == GlucoseUnit.MMOL) "0.0" else "0" },
+                    text.ifEmpty { if (unit == GlucoseUnit.MMOL) "0.0" else "0" }.replace('.', L.decimal),
                     style = numeral(56.sp, color),
                 )
                 Spacer(Modifier.width(8.dp))
@@ -226,12 +230,12 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             }
             when {
                 status != null -> StatusPill(status)
-                outOfRange -> Text("Meters read ${Glucose.rangeLabel(unit)}", style = inter(13.sp, FontWeight.Medium, C.High))
-                else -> Text("Type the number on your meter", style = inter(13.sp, color = C.TextMuted))
+                outOfRange -> Text(tr("Meters read {0}", Glucose.rangeLabel(unit)), style = inter(13.sp, FontWeight.Medium, C.High))
+                else -> Text(tr("Type the number on your meter"), style = inter(13.sp, color = C.TextMuted))
             }
             scanNote?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(top = 8.dp)) }
             if (initial.imported) {
-                Text("From Health Connect", style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(top = 8.dp))
+                Text(tr("From Health Connect"), style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(top = 8.dp))
             }
         }
 
@@ -251,7 +255,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(Modifier.weight(1f).fillMaxHeight()) {
-                Pill(tag.label, tag.icon(), "Moment", Modifier.fillMaxHeight()) { momentOpen = true }
+                Pill(tag.label, tag.icon(), tr("Moment"), Modifier.fillMaxHeight()) { momentOpen = true }
                 DropdownMenu(
                     expanded = momentOpen,
                     onDismissRequest = { momentOpen = false },
@@ -268,17 +272,17 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 val whenLabel = when (offsetMin) {
                     null -> fmt.dayTime(at)
-                    0 -> "Now"
-                    else -> if (offsetMin!! < 60) "$offsetMin min ago" else "${offsetMin!! / 60} h ago"
+                    0 -> tr("Now")
+                    else -> if (offsetMin!! < 60) tr("{0} min ago", offsetMin) else tr("{0} h ago", offsetMin!! / 60)
                 }
-                Pill(whenLabel, R.drawable.lc_clock, "Time", Modifier.fillMaxHeight()) { whenOpen = true }
+                Pill(whenLabel, R.drawable.lc_clock, tr("Time"), Modifier.fillMaxHeight()) { whenOpen = true }
                 DropdownMenu(
                     expanded = whenOpen,
                     onDismissRequest = { whenOpen = false },
                     modifier = Modifier.background(C.Card),
                 ) {
                     if (isNew) {
-                        listOf(0 to "Now", 15 to "15 min ago", 30 to "30 min ago", 60 to "1 h ago", 120 to "2 h ago").forEach { (m, label) ->
+                        listOf(0 to tr("Now"), 15 to tr("{0} min ago", 15), 30 to tr("{0} min ago", 30), 60 to tr("{0} h ago", 1), 120 to tr("{0} h ago", 2)).forEach { (m, label) ->
                             MenuRow(label, R.drawable.lc_clock, offsetMin == m) {
                                 offsetMin = m
                                 moveTo(openedAt - m * 60_000L)
@@ -286,7 +290,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                             }
                         }
                     }
-                    MenuRow(if (isNew) "Pick a day and time…" else "Change the time…", R.drawable.lc_pencil, offsetMin == null && isNew) {
+                    MenuRow(if (isNew) tr("Pick a day and time…") else tr("Change the time…"), R.drawable.lc_pencil, offsetMin == null && isNew) {
                         whenOpen = false
                         picking = true
                     }
@@ -295,12 +299,12 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 val summary = details.summary()
                 val shown = when {
-                    summary.isNotBlank() && note.isNotBlank() -> "$summary · note"
+                    summary.isNotBlank() && note.isNotBlank() -> summary + " · " + tr("note")
                     summary.isNotBlank() -> summary
-                    note.isNotBlank() -> "Note added"
-                    else -> "Add food, carbs…"
+                    note.isNotBlank() -> tr("Note added")
+                    else -> tr("Add food, carbs…")
                 }
-                Pill(shown, R.drawable.lc_plus, "Details", Modifier.fillMaxHeight()) { detailsOpen = true }
+                Pill(shown, R.drawable.lc_plus, tr("Details"), Modifier.fillMaxHeight()) { detailsOpen = true }
             }
         }
         if (picking) {
@@ -338,7 +342,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         }
 
         PrimaryButton(
-            if (isNew) "Save reading" else "Save changes",
+            if (isNew) tr("Save reading") else tr("Save changes"),
             Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
             icon = R.drawable.lc_check,
             enabled = mmol != null,
@@ -361,7 +365,10 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     }
 }
 
-/** 1–9, then point, 0 and backspace. The point is greyed out for mg/dL (whole numbers). */
+/**
+ * 1–9, then point, 0 and backspace. The point is greyed out for mg/dL (whole numbers). The key
+ * shows the app's decimal mark (a comma in Icelandic) but always sends '.'.
+ */
 @Composable
 private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifier, onKey: (Char) -> Unit) {
     val rows = listOf("123", "456", "789", ".0⌫")
@@ -382,10 +389,10 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
                         contentAlignment = Alignment.Center,
                     ) {
                         if (k == '⌫') {
-                            Ic(R.drawable.lc_delete, C.TextSecondary, 22.dp, contentDescription = "Delete")
+                            Ic(R.drawable.lc_delete, C.TextSecondary, 22.dp, contentDescription = tr("Delete"))
                         } else {
                             Text(
-                                k.toString(),
+                                if (k == '.') L.decimal.toString() else k.toString(),
                                 style = inter(22.sp, FontWeight.SemiBold, if (enabled) C.Text else C.TextMuted.copy(alpha = 0.3f)),
                                 textAlign = TextAlign.Center,
                             )
@@ -412,7 +419,7 @@ private fun Pill(text: String, icon: Int, label: String, modifier: Modifier = Mo
             .clip(RoundedCornerShape(Corner.M))
             .background(C.SurfaceLight)
             .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
-            .semantics { contentDescription = "$label: $text. Tap to change." }
+            .semantics { contentDescription = tr("{0}: {1}. Tap to change.", label, text) }
             .tap(press, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {

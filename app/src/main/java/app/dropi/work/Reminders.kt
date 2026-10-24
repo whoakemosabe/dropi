@@ -11,7 +11,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.dropi.MainActivity
 import app.dropi.Prefs
+import app.dropi.L
 import app.dropi.R
+import app.dropi.tr
+import app.dropi.trn
 import app.dropi.data.Analytics
 import app.dropi.data.Db
 import app.dropi.data.Glucose
@@ -98,7 +101,7 @@ object Reminders {
                 val key = "$day@${slot.id}"
                 if (key in sent) return@forEach
                 sent += key
-                post(app, idFor(slot.id), "Time to check: ${slot.name}", "Your ${clock(app, at, zone)} check. Tap to log it.", slot.tag)
+                post(app, idFor(slot.id), tr("Time to check: {0}", tr(slot.name)), tr("Your {0} check. Tap to log it.", clock(app, at, zone)), slot.tag)
             }
             p.notifiedSlots = sent
         }
@@ -107,11 +110,17 @@ object Reminders {
         val (due, later) = p.oneOffs.partition { it.at <= now + 60_000 }
         due.forEach { o ->
             val text = when (o.kind) {
-                OneOff.Kind.AFTER_MEAL -> "A while since you ate. Tap to log your after-eating reading."
-                OneOff.Kind.RECHECK -> "15 minutes are up. Check again to see you're back above 3.9."
-                OneOff.Kind.SNOOZE -> "Your snoozed check. Tap to log it."
+                OneOff.Kind.AFTER_MEAL -> tr("A while since you ate. Tap to log your after-eating reading.")
+                OneOff.Kind.RECHECK -> tr("15 minutes are up. Check again to see you're back above {0}.", Glucose.format(Glucose.LOW, p.unit))
+                OneOff.Kind.SNOOZE -> tr("Your snoozed check. Tap to log it.")
             }
-            post(app, 2000 + (o.at / 60_000 % 1000).toInt(), o.kind.title, text, o.tag, urgent = o.kind == OneOff.Kind.RECHECK)
+            // Kind.title is English (an enum constructor value); the shown title is picked here.
+            val title = when (o.kind) {
+                OneOff.Kind.AFTER_MEAL -> tr("Time for your after-eating check")
+                OneOff.Kind.RECHECK -> tr("Re-check your low")
+                OneOff.Kind.SNOOZE -> tr("Time to check")
+            }
+            post(app, 2000 + (o.at / 60_000 % 1000).toInt(), title, text, o.tag, urgent = o.kind == OneOff.Kind.RECHECK)
         }
         if (due.isNotEmpty()) p.oneOffs = later
 
@@ -137,10 +146,10 @@ object Reminders {
         if (!Alerts.canNotify(context)) return
         val unit = p.unit
         val parts = listOfNotNull(
-            r.bands?.let { "In range ${Math.round(it.inRange)}%" },
-            r.mean?.let { "average ${Glucose.format(it, unit)}" },
-            if (r.lows == 0) "no lows" else "${r.lows} low${if (r.lows == 1) "" else "s"}",
-            "logged on ${r.daysLogged} of 7 days",
+            r.bands?.let { tr("in range {0}%", Math.round(it.inRange)) },
+            r.mean?.let { tr("average {0}", Glucose.format(it, unit)) },
+            if (r.lows == 0) tr("no lows") else trn(r.lows, "{0} low", "{0} lows"),
+            tr("logged on {0} of 7 days", r.daysLogged),
         )
         val open = PendingIntent.getActivity(
             context, 3,
@@ -149,11 +158,11 @@ object Reminders {
                 .putExtra(Alerts.EXTRA_OPEN_TAB, "trends"),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val text = parts.joinToString(" · ").replaceFirstChar { it.uppercase() } + "."
+        val text = parts.joinToString(" · ").replaceFirstChar { it.titlecase(L.locale) } + "."
         val n = NotificationCompat.Builder(context, Alerts.CH_RECAP)
             .setSmallIcon(R.drawable.ic_stat_drop)
             .setColor(0xFF6E5BFF.toInt())
-            .setContentTitle("Your week in Dropi")
+            .setContentTitle(tr("Your week in Dropi"))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
@@ -178,8 +187,8 @@ object Reminders {
         val mmol = Glucose.parse(typed.trim().replace(',', '.'), unit)
         if (mmol == null) {
             post(
-                app, id, "Couldn't save that",
-                "Type just the number on your meter, like ${if (unit == GlucoseUnit.MMOL) "6.4" else "115"}.", tag,
+                app, id, tr("Couldn't save that"),
+                tr("Type just the number on your meter, like {0}.", if (unit == GlucoseUnit.MMOL) "6.4".replace('.', L.decimal) else "115"), tag,
             )
             return
         }
@@ -194,15 +203,15 @@ object Reminders {
             // A low saved from the notification still gets the standard steps and a re-check.
             p.oneOffs = p.oneOffs + OneOff(now + 15 * 60_000L, tag, OneOff.Kind.RECHECK, now)
             post(
-                app, 2999, "Low: $value",
-                "Take 15 g of fast-acting sugar now (4 glucose tablets or about 150 ml of juice). I'll remind you to re-check in 15 minutes. Follow your care plan.",
+                app, 2999, tr("Low: {0}", value),
+                tr("Take 15 g of fast-acting sugar now (4 glucose tablets or about 150 ml of juice). I'll remind you to re-check in 15 minutes. Follow your care plan."),
                 tag, urgent = true,
             )
         } else if (Alerts.canNotify(app)) {
             val n = NotificationCompat.Builder(app, Alerts.CH_REMINDERS)
                 .setSmallIcon(R.drawable.ic_stat_drop)
                 .setColor(0xFF6E5BFF.toInt())
-                .setContentTitle("Saved $value")
+                .setContentTitle(tr("Saved {0}", value))
                 .setContentText("${tag.label} · ${status.label}")
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
@@ -249,13 +258,13 @@ object Reminders {
 
     private fun clock(context: Context, at: Long, zone: ZoneId): String {
         val pattern = if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
-        return DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH).format(Instant.ofEpochMilli(at).atZone(zone))
+        return DateTimeFormatter.ofPattern(pattern, if (L.icelandic) L.locale else Locale.ENGLISH).format(Instant.ofEpochMilli(at).atZone(zone))
     }
 
     /** "Type reading": a reply box right in the notification (the PendingIntent has to be mutable for it). */
     private fun typeAction(context: Context, id: Int, tag: MealTag): NotificationCompat.Action {
         val unit = Prefs(context).unit
-        val input = androidx.core.app.RemoteInput.Builder(KEY_VALUE).setLabel("Reading in ${unit.label}").build()
+        val input = androidx.core.app.RemoteInput.Builder(KEY_VALUE).setLabel(tr("Reading in {0}", unit.label)).build()
         val pi = PendingIntent.getBroadcast(
             context, id + 5000,
             Intent(context, ReminderReceiver::class.java)
@@ -264,7 +273,7 @@ object Reminders {
                 .putExtra(EXTRA_ID, id),
             (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0) or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return NotificationCompat.Action.Builder(R.drawable.lc_pencil, "Type reading", pi)
+        return NotificationCompat.Action.Builder(R.drawable.lc_pencil, tr("Type reading"), pi)
             .addRemoteInput(input)
             .setAllowGeneratedReplies(false)
             .build()
@@ -305,11 +314,11 @@ object Reminders {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .apply {
-                if (snap != null) addAction(R.drawable.lc_camera, "Snap your plate", snap)
-                else addAction(R.drawable.lc_plus, "Log reading", open)
+                if (snap != null) addAction(R.drawable.lc_camera, tr("Snap your plate"), snap)
+                else addAction(R.drawable.lc_plus, tr("Log reading"), open)
             }
             .addAction(typeAction(context, id, tag))
-            .addAction(R.drawable.lc_clock, "Snooze $SNOOZE_MIN min", snooze)
+            .addAction(R.drawable.lc_clock, tr("Snooze {0} min", SNOOZE_MIN), snooze)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -317,7 +326,7 @@ object Reminders {
             .setPublicVersion(
                 NotificationCompat.Builder(context, Alerts.CH_REMINDERS)
                     .setSmallIcon(R.drawable.ic_stat_drop)
-                    .setContentTitle("Dropi reminder")
+                    .setContentTitle(tr("Dropi reminder"))
                     .build()
             )
             .build()

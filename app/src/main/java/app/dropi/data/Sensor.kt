@@ -1,5 +1,6 @@
 package app.dropi.data
 
+import app.dropi.tr
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -18,6 +19,17 @@ enum class Arrow(val glyph: String, val words: String) {
     DOWN_SLOW("↘", "falling slowly"),
     DOWN("↓", "falling"),
     DOWN_FAST("⇊", "falling fast");
+
+    /** [words] in the app's language, for showing. [words] itself stays English (it goes into AI prompts). */
+    val label: String get() = when (this) {
+        UP_FAST -> tr("rising fast")
+        UP -> tr("rising")
+        UP_SLOW -> tr("rising slowly")
+        FLAT -> tr("steady")
+        DOWN_SLOW -> tr("falling slowly")
+        DOWN -> tr("falling")
+        DOWN_FAST -> tr("falling fast")
+    }
 
     companion object {
         fun of(mmolPerMin: Double): Arrow {

@@ -51,7 +51,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import app.dropi.L
 import app.dropi.R
+import app.dropi.tr
 import app.dropi.data.MealTag
 import app.dropi.data.Slot
 import app.dropi.work.Alerts
@@ -87,29 +89,29 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
         canNotify = Alerts.canNotify(context)
     }
     val clock = remember {
-        DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", Locale.ENGLISH)
+        DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", if (L.icelandic) L.locale else Locale.ENGLISH)
     }
 
-    StickySheetBody("Check times", close) {
+    StickySheetBody(tr("Check times"), close) {
         Text(
-            "Plan when you check each day. A check counts as done when you log within about an hour of it.",
+            tr("Plan when you check each day. A check counts as done when you log within about an hour of it."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
 
         // Reminders.
         Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ToggleRow("Remind me at these times", "A notification with Log and Snooze", state.remindersOn) { on ->
+            ToggleRow(tr("Remind me at these times"), tr("A notification with Log and Snooze"), state.remindersOn) { on ->
                 Haptics.toggle(view, on)
                 if (on) turnOnReminders() else state.changeReminders(false)
             }
             if (state.remindersOn && !canNotify) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Notifications are off for Dropi, so reminders can't show.",
+                        tr("Notifications are off for Dropi, so reminders can't show."),
                         style = inter(13.sp, FontWeight.Medium, C.High),
                         modifier = Modifier.weight(1f),
                     )
-                    Chip("Turn on") {
+                    Chip(tr("Turn on")) {
                         val i = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -120,8 +122,8 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
                 }
             }
             ToggleRow(
-                "Remind me after eating",
-                "A nudge for the after-eating check, counted from when you ate",
+                tr("Remind me after eating"),
+                tr("A nudge for the after-eating check, counted from when you ate"),
                 state.afterMealOn,
             ) { on ->
                 Haptics.toggle(view, on)
@@ -131,12 +133,12 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
             if (state.afterMealOn) {
                 val options = listOf(60, 90, 120)
                 SlidingSegments(
-                    listOf("1 h", "1.5 h", "2 h"),
+                    listOf(tr("1 h"), tr("1.5 h"), tr("2 h")),
                     options.indexOf(state.afterMealMinutes).coerceAtLeast(0),
                     Modifier.fillMaxWidth(),
                 ) { state.changeAfterMeal(true, options[it]) }
             }
-            ToggleRow("Weekly recap", "Sunday at 19:00: your week's time in range, lows and logging", state.recapOn) { on ->
+            ToggleRow(tr("Weekly recap"), tr("Sunday at 19:00: your week's time in range, lows and logging"), state.recapOn) { on ->
                 Haptics.toggle(view, on)
                 state.changeRecap(on)
                 if (on && Build.VERSION.SDK_INT >= 33 && !canNotify) askOnly.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -154,7 +156,7 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
             )
         }
         if (state.slots.size < 10) {
-            PrimaryButton("Add a check time", Modifier.fillMaxWidth(), icon = R.drawable.lc_plus) {
+            PrimaryButton(tr("Add a check time"), Modifier.fillMaxWidth(), icon = R.drawable.lc_plus) {
                 val taken = state.slots.map { it.minute }.toSet()
                 // The next free whole hour after the last check, or 09:00.
                 var m = ((state.slots.maxOfOrNull { it.minute } ?: (8 * 60)) / 60 + 1) * 60
@@ -206,7 +208,8 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).clip(RoundedCornerShape(Corner.S)).tap(onClick = onTime)) {
                 Text(time, style = numeral(26.sp, if (s.enabled) C.Text else C.TextMuted))
-                Text(s.name, style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+                // Slot.name is built in English ("Before lunch"); the lookup shows the known names in the app's language.
+                Text(tr(s.name), style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
             }
             Switch(
                 checked = s.enabled,
@@ -216,20 +219,20 @@ private fun SlotCard(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot)
             Box(
                 Modifier.size(44.dp).clip(CircleShape).tap(onClick = onDelete),
                 contentAlignment = Alignment.Center,
-            ) { Ic(R.drawable.lc_trash, C.TextMuted, 18.dp, contentDescription = "Remove") }
+            ) { Ic(R.drawable.lc_trash, C.TextMuted, 18.dp, contentDescription = tr("Remove")) }
         }
         val tags = MealTag.entries.filter { it != MealTag.OTHER }
         ChoiceGrid(tags.map { Choice(it.label, it.icon()) }, tags.indexOf(s.tag), columns = 3, compact = true) {
             onChange(s.copy(tag = tags[it], window = if (s.window == Slot.defaultWindow(s.tag)) Slot.defaultWindow(tags[it]) else s.window))
         }
-        Text("Still counts for", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+        Text(tr("Still counts for"), style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
         val ws = Slot.WINDOWS
-        ChoiceGrid(ws.map { Choice(if (it < 60) "$it min" else if (it % 60 == 0) "${it / 60} h" else "${it / 60}½ h") }, ws.indexOf(s.window).takeIf { it >= 0 }, columns = 5, compact = true) {
+        ChoiceGrid(ws.map { Choice(if (it < 60) tr("{0} min", it) else if (it % 60 == 0) tr("{0} h", it / 60) else tr("{0}½ h", it / 60)) }, ws.indexOf(s.window).takeIf { it >= 0 }, columns = 5, compact = true) {
             onChange(s.copy(window = ws[it]))
         }
         if (s.tag == MealTag.AFTER_MEAL) {
             Text(
-                "Follows your meal: when you log a meal (or a before-eating reading), this check moves to after it.",
+                tr("Follows your meal: when you log a meal (or a before-eating reading), this check moves to after it."),
                 style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
             )
         }
@@ -253,7 +256,7 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Check time", style = heading(20.sp))
+            Text(tr("Check time"), style = heading(20.sp))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TimePicker(
                     state = st,
@@ -269,8 +272,8 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
             }
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton("Cancel", Modifier.weight(1f)) { onDismiss() }
-                PrimaryButton("Set", Modifier.weight(1f)) { onPick(st.hour * 60 + st.minute) }
+                GhostButton(tr("Cancel"), Modifier.weight(1f)) { onDismiss() }
+                PrimaryButton(tr("Set"), Modifier.weight(1f)) { onPick(st.hour * 60 + st.minute) }
             }
         }
     }
