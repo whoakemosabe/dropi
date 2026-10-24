@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,6 +79,8 @@ fun MealsPage(state: AppState) {
                 }
             }
         }
+        item(key = "totals") { TotalsCard(state, today) }
+        item(key = "patterns") { PatternsCard(state) }
         item(key = "plate") { FoodsCard(state) }
         if (byDay.isEmpty()) {
             item(key = "empty") {
@@ -97,8 +100,79 @@ fun MealsPage(state: AppState) {
                     else -> dayName.format(day)
                 }
                 MealsCard(state, meals.sortedByDescending { it.at }, now, fmt, "$title · ${meals.sumOf { it.carbs }} g carbs")
+                if (day != today) {
+                    Text(
+                        app.dropi.data.DayTotals.text(app.dropi.data.DayTotals.of(day, meals)),
+                        style = inter(12.sp, color = C.TextMuted),
+                        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                    )
+                }
             }
         }
+    }
+}
+
+/** Today's totals (carbs, sugars, fibre, protein, fat) and carbs a day this week against last. */
+@Composable
+private fun TotalsCard(state: AppState, today: LocalDate) {
+    val todays = state.meals.filter { Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() == today }
+    val t = app.dropi.data.DayTotals.of(today, todays)
+    val (week, last) = remember(state.meals, today) { app.dropi.data.DayTotals.weekCarbs(state.meals, today, state.zone) }
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Eaten today", style = SectionLabel)
+        if (todays.isEmpty()) {
+            Text("Nothing logged yet today.", style = inter(14.sp, color = C.TextSecondary))
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                listOf("Carbs" to t.carbs, "Sugars" to t.sugars, "Fibre" to t.fibre, "Protein" to t.protein, "Fat" to t.fat).forEach { (label, v) ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.semantics(mergeDescendants = true) {},
+                    ) {
+                        Text(v?.toString() ?: "–", style = numeral(22.sp), modifier = Modifier.semantics { contentDescription = if (v == null) "$label not known" else "$v grams $label" })
+                        Text(if (v == null) label else "$label g", style = inter(11.sp, color = C.TextMuted))
+                    }
+                }
+            }
+        }
+        if (week != null) {
+            val trend = when {
+                last == null -> ""
+                week < last -> ", down from $last g the week before"
+                week > last -> ", up from $last g the week before"
+                else -> ", the same as the week before"
+            }
+            Text("This week: about $week g carbs a day$trend.", style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
+        }
+    }
+}
+
+/** What the person's own meals show, once there's enough to say it. */
+@Composable
+private fun PatternsCard(state: AppState) {
+    val patterns = remember(state.readings, state.sensor, state.meals, state.unit) {
+        app.dropi.data.MealPatterns.find(state.readings, state.sensor, state.meals, state.unit)
+    }
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("What your meals show", style = SectionLabel)
+        if (patterns.isEmpty()) {
+            Text(
+                "After a few weeks of meals with readings before and after, this shows what makes a difference for you: " +
+                    "fibre, fat and protein, fast or slow carbs, a walk after, veg first, sugary drinks and alcohol.",
+                style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+            )
+        }
+        patterns.forEach { p ->
+            Row(verticalAlignment = Alignment.Top) {
+                Box(
+                    Modifier.padding(top = 6.dp).size(8.dp).clip(RoundedCornerShape(50))
+                        .background(if (p.good) C.InRange else C.AccentText),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(p.text, style = inter(14.sp).copy(lineHeight = 20.sp))
+            }
+        }
+        if (patterns.isNotEmpty()) Text("From your own log. Patterns, not advice.", style = inter(12.sp, color = C.TextMuted))
     }
 }
 

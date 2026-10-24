@@ -150,8 +150,18 @@ object Schedule {
      */
     private data class Anchor(val at: Long, val reading: Reading?, val meal: MealEntry?)
 
-    /** The gap after eating before the after-meal check: 3 h for a rich meal. */
-    fun gapFor(meal: MealEntry?, afterMin: Int) = if (meal?.meal?.rich == true) maxOf(afterMin, 180) else afterMin
+    /**
+     * The gap after eating before the after-meal check: 3 h when it's rich (or high in fat or
+     * protein by the numbers), 2½ h with some fat or protein, else the usual gap.
+     */
+    fun gapFor(meal: MealEntry?, afterMin: Int): Int {
+        val m = meal?.meal ?: return afterMin
+        return when {
+            m.slowDigesting -> maxOf(afterMin, 180)
+            m.someFatProtein -> maxOf(afterMin, 150)
+            else -> afterMin
+        }
+    }
 
     private fun anchorFor(s: Slot, slotAt: Long, readings: List<Reading>, meals: List<MealEntry>, afterMin: Int): Anchor? {
         if (s.tag != MealTag.AFTER_MEAL) return null

@@ -143,8 +143,13 @@ object Ask {
         if (c.meals.isNotEmpty()) {
             sb.append("Latest meals:\n")
             c.meals.sortedByDescending { it.at }.take(6).forEach { m ->
-                sb.append("- ${fmt.format(Instant.ofEpochMilli(m.at).atZone(c.zone))} ${m.name}: ${m.foods.joinToString(", ")}, ${m.carbs} g carbs\n")
+                val extra = listOfNotNull(m.meal.protein?.let { "$it g protein" }, m.meal.fat?.let { "$it g fat" }, m.meal.speed?.word?.lowercase())
+                sb.append("- ${fmt.format(Instant.ofEpochMilli(m.at).atZone(c.zone))} ${m.name}: ${m.foods.joinToString(", ")}, ${m.carbs} g carbs")
+                if (extra.isNotEmpty()) sb.append(", ").append(extra.joinToString(", "))
+                if (m.meal.tags.isNotEmpty()) sb.append(" (").append(m.meal.tags.joinToString(", ") { MealTags.label(it).lowercase() }).append(")")
+                sb.append('\n')
             }
+            MealPatterns.find(c.readings, c.sensor, c.meals, c.unit).forEach { sb.append("Pattern: ${it.text}\n") }
         }
         val scores = Foods.scores(c.readings, c.sensor, c.meals).filter { it.ranked }
         if (scores.isNotEmpty()) {

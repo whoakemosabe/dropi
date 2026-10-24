@@ -10,6 +10,7 @@ import app.dropi.data.Label
 import app.dropi.data.Meal
 import app.dropi.data.MealAi
 import app.dropi.data.MealItem
+import app.dropi.data.MealTags
 import app.dropi.data.Usual
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +75,8 @@ object MealWork {
     fun remember(context: Context, item: MealItem) {
         val p = Prefs(context)
         val per = if (item.qty > 0) 1.0 / item.qty else 1.0
-        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, Math.round(item.carbs * per).toInt(), item.sugars?.let { Math.round(it * per).toInt() }))
+        fun s(v: Int?) = v?.let { Math.round(it * per).toInt() }
+        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, Math.round(item.carbs * per).toInt(), s(item.sugars), s(item.protein), s(item.fat)))
     }
 
     fun forget(context: Context, food: String) {
@@ -106,6 +108,7 @@ object MealWork {
         val id = start(Status.Working("Working out your meal…"))
         scope.launch {
             val meal = try { Ai.mealFromWords(ctx, MealAi.words(text), "words") } catch (e: Throwable) { null }
+                ?.let { m -> m.copy(tags = (m.tags + MealTags.fromWords(text)).distinct()) }
             finish(ctx, id, meal, "Couldn't work that out. Try naming each food, like \"2 slices of toast and jam\".")
         }
     }
@@ -119,6 +122,7 @@ object MealWork {
         draft = draft!!.copy(id = id, status = Status.Working("Changing it…"), meal = current)
         scope.launch {
             val meal = try { Ai.mealFromWords(ctx, MealAi.change(current, text), current.source) } catch (e: Throwable) { null }
+                ?.let { m -> m.copy(tags = (current.tags + m.tags + MealTags.fromWords(text)).distinct()) }
             if (meal == null) land(id, Draft(id, Status.Ready, current, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()).also { failedChange = true })
             else finish(ctx, id, meal.copy(rich = meal.rich || current.rich), "")
         }
@@ -136,12 +140,15 @@ object MealWork {
             val found = Label.read(lines)
             // The on-device model reads the same text when the table didn't parse cleanly, and
             // fills in what's missing (sugars, fibre, the product's name).
-            val ai = if (lines.isNotEmpty() && Ai.usable && (found?.carbs == null || found.sugars == null || found.fibre == null)) {
+            val ai = if (lines.isNotEmpty() && Ai.usable && (found?.carbs == null || found.sugars == null || found.fibre == null || found.protein == null || found.fat == null)) {
                 try { Label.parseAi(Ai.text(ctx, Label.prompt(lines.joinToString("\n")))) } catch (e: Throwable) { null }
             } else null
             val p = when {
-                found?.carbs != null -> found.copy(sugars = found.sugars ?: ai?.sugars, fibre = found.fibre ?: ai?.fibre, name = ai?.name.orEmpty())
-                ai?.carbs != null -> ai
+                found?.carbs != null -> found.copy(
+                    sugars = found.sugars ?: ai?.sugars, fibre = found.fibre ?: ai?.fibre, name = ai?.name.orEmpty(),
+                    protein = found.protein ?: ai?.protein, fat = found.fat ?: ai?.fat,
+                )
+                ai?.carbs != null -> ai.copy(us = Label.isUs(lines))
                 else -> null
             }
             land(id, Draft(id, if (p != null) Status.NeedsGrams(p) else Status.NeedsGrams(Label.Per100(null, null, null), read = false)))
@@ -152,7 +159,7 @@ object MealWork {
     fun labelGrams(name: String, grams: Int, p: Label.Per100) {
         val d = draft ?: return
         val item = Label.item(name, grams, p)
-        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), false, "label"))
+        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), (item.fat ?: 0) >= 25 || (item.protein ?: 0) >= 40, "label"))
     }
 
     /** A meal logged before, again. */

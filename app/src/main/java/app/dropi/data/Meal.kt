@@ -18,8 +18,23 @@ data class MealItem(
     val fibre: Int? = null,
     /** The carbs came from the person's own "usual" for this food, not a guess. */
     val usual: Boolean = false,
+    val protein: Int? = null,
+    val fat: Int? = null,
+    /** Glycaemic index (glucose = 100) when the model gave one; else looked up by name. */
+    val gi: Int? = null,
+    /** A drink (juice, soda, sweet coffee…), told apart because sugar in a drink hits fastest. */
+    val drink: Boolean = false,
 ) {
     val key get() = Foods.normalize(name)
+
+    /** How fast its carbs hit: the given index, else the built-in table (null when unknown). */
+    val giValue: Int? get() = gi ?: Gi.lookup(name)
+
+    /** Glycaemic load: carbs weighted by how fast they hit. */
+    val load: Double? get() = giValue?.let { it * carbs / 100.0 }
+
+    /** A drink with real sugar in it (not diet, zero or water). */
+    val sugaryDrink: Boolean get() = (drink || Gi.isDrink(name)) && !Gi.isSugarFree(name) && ((sugars ?: carbs) >= 5)
 
     /** "1 cup", "½ × 1 cup", "2 × 1 slice". */
     fun portionText(): String = if (qty == 1.0) portion else "${Meal.qtyText(qty)} × $portion"
@@ -28,7 +43,7 @@ data class MealItem(
     fun withQty(q: Double): MealItem {
         val per = if (qty > 0) 1.0 / qty else 1.0
         fun s(v: Int?) = v?.let { (it * per * q).roundToInt() }
-        return copy(qty = q, carbs = (carbs * per * q).roundToInt(), sugars = s(sugars), fibre = s(fibre))
+        return copy(qty = q, carbs = (carbs * per * q).roundToInt(), sugars = s(sugars), fibre = s(fibre), protein = s(protein), fat = s(fat))
     }
 }
 
@@ -36,21 +51,49 @@ data class MealItem(
  * What was eaten with a reading: the foods and their numbers, and whether it was rich (high fat
  * or protein, so the rise may come later). [source] is "photo", "words", "label" or "typed".
  */
-data class Meal(val items: List<MealItem>, val rich: Boolean = false, val source: String = "typed") {
+data class Meal(
+    val items: List<MealItem>,
+    val rich: Boolean = false,
+    val source: String = "typed",
+    /** What else went with it: "veg_first", "walk_after", "alcohol", "ill", "stress" (see [MealTags]). */
+    val tags: List<String> = emptyList(),
+) {
     val carbs get() = items.sumOf { it.carbs }
     val sugars: Int? get() = items.mapNotNull { it.sugars }.takeIf { it.isNotEmpty() }?.sum()
     val fibre: Int? get() = items.mapNotNull { it.fibre }.takeIf { it.isNotEmpty() }?.sum()
+    val protein: Int? get() = items.mapNotNull { it.protein }.takeIf { it.isNotEmpty() }?.sum()
+    val fat: Int? get() = items.mapNotNull { it.fat }.takeIf { it.isNotEmpty() }?.sum()
+
+    /** Carb-weighted glycaemic index of the foods whose index is known (null when none are). */
+    val gi: Int? get() {
+        val known = items.filter { it.giValue != null && it.carbs > 0 }
+        val c = known.sumOf { it.carbs }
+        return if (c == 0) null else (known.sumOf { it.giValue!! * it.carbs } / c.toDouble()).roundToInt()
+    }
+    val load: Double? get() = items.mapNotNull { it.load }.takeIf { it.isNotEmpty() }?.sum()
+    val speed: Gi.Speed? get() = gi?.let { Gi.speed(it) }
+    val hasSugaryDrink get() = items.any { it.sugaryDrink }
+
+    /** High enough in fat or protein that the rise comes later: the switch, or the numbers. */
+    val slowDigesting get() = rich || (fat ?: 0) >= 25 || (protein ?: 0) >= 40
+    /** Some fat or protein: the peak moves a little later. */
+    val someFatProtein get() = (fat ?: 0) >= 15 || (protein ?: 0) >= 25
     val foods: List<String> get() = items.map { it.key }.filter { it.isNotEmpty() }.distinct()
 
     fun toJson(): String = JSONObject().apply {
         put("rich", rich)
         put("source", source)
+        if (tags.isNotEmpty()) put("tags", JSONArray(tags))
         put("items", JSONArray().apply {
             items.forEach { i ->
                 put(JSONObject().apply {
                     put("name", i.name); put("portion", i.portion); put("qty", i.qty); put("carbs", i.carbs)
                     i.sugars?.let { put("sugars", it) }
                     i.fibre?.let { put("fibre", it) }
+                    i.protein?.let { put("protein", it) }
+                    i.fat?.let { put("fat", it) }
+                    i.gi?.let { put("gi", it) }
+                    if (i.drink) put("drink", true)
                     if (i.usual) put("usual", true)
                 })
             }
@@ -73,9 +116,14 @@ data class Meal(val items: List<MealItem>, val rich: Boolean = false, val source
                         sugars = if (i.has("sugars")) i.optInt("sugars").coerceIn(0, 400) else null,
                         fibre = if (i.has("fibre")) i.optInt("fibre").coerceIn(0, 200) else null,
                         usual = i.optBoolean("usual", false),
+                        protein = if (i.has("protein")) i.optInt("protein").coerceIn(0, 300) else null,
+                        fat = if (i.has("fat")) i.optInt("fat").coerceIn(0, 300) else null,
+                        gi = if (i.has("gi")) i.optInt("gi").coerceIn(0, 110) else null,
+                        drink = i.optBoolean("drink", false),
                     )
                 }.filter { it.name.isNotBlank() }
-                if (items.isEmpty()) null else Meal(items, o.optBoolean("rich", false), o.optString("source", "typed"))
+                val tags = o.optJSONArray("tags")?.let { t -> (0 until t.length()).map { t.optString(it) }.filter { it in MealTags.KEYS } }.orEmpty()
+                if (items.isEmpty()) null else Meal(items, o.optBoolean("rich", false), o.optString("source", "typed"), tags)
             } catch (e: Exception) {
                 null
             }
@@ -167,16 +215,19 @@ object MealLink {
 }
 
 /** The person's own amount for a food: carbs (and sugars) in one [portion]. */
-data class Usual(val portion: String, val carbs: Int, val sugars: Int? = null)
+data class Usual(val portion: String, val carbs: Int, val sugars: Int? = null, val protein: Int? = null, val fat: Int? = null)
 
 /** Prompts for the on-device model, and reading its replies. */
 object MealAi {
     private const val SHAPE =
         "Reply with only JSON, no other text, in exactly this shape:\n" +
-            "{\"items\":[{\"food\":\"basmati rice\",\"portion\":\"1 cup\",\"carbs\":45,\"sugars\":0,\"fibre\":1}],\"rich\":false}\n" +
+            "{\"items\":[{\"food\":\"basmati rice\",\"portion\":\"1 cup\",\"carbs\":45,\"sugars\":0,\"fibre\":1,\"protein\":4,\"fat\":0,\"gi\":58,\"drink\":false}],\"rich\":false,\"tags\":[]}\n" +
             "One item per food, short everyday names, a simple household portion (cup, slice, piece, bowl, glass, spoon), " +
-            "and whole grams of carbohydrate, sugars and fibre for that portion. " +
-            "Set rich to true when the meal is high in fat or protein (fried food, cream, cheese, pizza, curry, big meat portions)."
+            "and whole grams for that portion of carbohydrate (not counting fibre, as on European labels), sugars, fibre, protein and fat. " +
+            "gi is the food's glycaemic index (glucose = 100), or null if it has almost no carbs. drink is true for anything drunk. " +
+            "Set rich to true when the meal is high in fat or protein (fried food, cream, cheese, pizza, curry, big meat portions). " +
+            "tags lists any of these the person mentioned: veg_first (ate vegetables or salad first), walk_after (walked or exercised after), " +
+            "alcohol, ill (sick or unwell), stress."
 
     val PHOTO = "This is a photo of a meal. Identify each food and estimate how much of it is on the plate. $SHAPE"
 
@@ -184,12 +235,13 @@ object MealAi {
         "(assume a normal portion when they didn't say). $SHAPE"
 
     fun change(current: Meal, change: String): String {
-        val list = current.items.joinToString("; ") { "${it.name}, ${it.portionText()}, ${it.carbs} g carbs" }
+        val list = current.items.joinToString("; ") { "${it.name}, ${it.portionText()}, ${it.carbs} g carbs" } +
+            (if (current.tags.isNotEmpty()) ". Tags: ${current.tags.joinToString(", ")}" else "")
         return "A meal was logged as: $list. The person says: \"${change.take(200)}\". Apply the change and give the whole meal again. $SHAPE"
     }
 
     /** JSON schema for models that can be held to it (Gemma through LiteRT-LM). */
-    const val SCHEMA = """{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"food":{"type":"string"},"portion":{"type":"string"},"carbs":{"type":"integer"},"sugars":{"type":"integer"},"fibre":{"type":"integer"}},"required":["food","portion","carbs"]}},"rich":{"type":"boolean"}},"required":["items","rich"]}"""
+    const val SCHEMA = """{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"food":{"type":"string"},"portion":{"type":"string"},"carbs":{"type":"integer"},"sugars":{"type":"integer"},"fibre":{"type":"integer"},"protein":{"type":"integer"},"fat":{"type":"integer"},"gi":{"type":["integer","null"]},"drink":{"type":"boolean"}},"required":["food","portion","carbs"]}},"rich":{"type":"boolean"},"tags":{"type":"array","items":{"type":"string","enum":["veg_first","walk_after","alcohol","ill","stress"]}}},"required":["items","rich"]}"""
 
     /**
      * Reads the model's reply. Tolerant: finds the JSON object in any surrounding words, and
@@ -214,9 +266,18 @@ object MealAi {
                             carbs = num(i, "carbs")?.coerceIn(0, 300) ?: 0,
                             sugars = num(i, "sugars")?.coerceIn(0, 300),
                             fibre = num(i, "fibre")?.coerceIn(0, 100),
+                            protein = num(i, "protein")?.coerceIn(0, 300),
+                            fat = num(i, "fat")?.coerceIn(0, 300),
+                            gi = num(i, "gi")?.takeIf { it in 1..110 },
+                            drink = i.optBoolean("drink", false),
                         )
                     }.distinctBy { it.key }.take(10)
-                    if (items.isNotEmpty()) return Meal(items, o.optBoolean("rich", false), source)
+                    val tags = o.optJSONArray("tags")?.let { t -> (0 until t.length()).map { t.optString(it) } }.orEmpty().filter { it in MealTags.KEYS }.distinct()
+                    if (items.isNotEmpty()) {
+                        val m = Meal(items, o.optBoolean("rich", false), source, tags)
+                        // Rich by the numbers too, whatever the model said.
+                        return m.copy(rich = m.rich || (m.fat ?: 0) >= 25 || (m.protein ?: 0) >= 40)
+                    }
                 }
             } catch (e: Exception) { }
         }
@@ -240,7 +301,11 @@ object MealAi {
     /** Puts the person's usual amounts in place of guesses, scaled to the portions seen. */
     fun applyUsual(meal: Meal, usual: Map<String, Usual>): Meal = meal.copy(items = meal.items.map { i ->
         val u = usual[i.key] ?: return@map i
-        i.copy(portion = u.portion, carbs = (u.carbs * i.qty).roundToInt(), sugars = u.sugars?.let { (it * i.qty).roundToInt() } ?: i.sugars, usual = true)
+        fun s(v: Int?) = v?.let { (it * i.qty).roundToInt() }
+        i.copy(
+            portion = u.portion, carbs = (u.carbs * i.qty).roundToInt(), sugars = s(u.sugars) ?: i.sugars,
+            protein = s(u.protein) ?: i.protein, fat = s(u.fat) ?: i.fat, usual = true,
+        )
     })
 }
 
@@ -250,7 +315,33 @@ object MealAi {
  * (EU labels all follow the same table: energy, fat, carbohydrate "of which sugars", fibre…).
  */
 object Label {
-    data class Per100(val carbs: Double?, val sugars: Double?, val fibre: Double?, val name: String = "")
+    /**
+     * Per 100 g. [us] is a US-style label ("Nutrition Facts", "Total Carbohydrate"), where the
+     * carbs include fibre; EU and Icelandic carbs already leave fibre out.
+     */
+    data class Per100(
+        val carbs: Double?, val sugars: Double?, val fibre: Double?, val name: String = "",
+        val protein: Double? = null, val fat: Double? = null, val us: Boolean = false,
+    ) {
+        /** Carbs that raise blood sugar: fibre taken off on a US label. */
+        val netCarbs: Double? get() = carbs?.let { if (us && fibre != null) (it - fibre).coerceAtLeast(0.0) else it }
+    }
+
+    private val proteinWords = listOf(
+        "prótein", "protein", "eiweiß", "eiweiss", "protéines", "proteines", "proteine", "proteínas", "proteinas", "eiwitten",
+        "białko", "bialko", "proteiini", "bílkoviny", "fehérje", "baltymai", "olbaltumvielas", "valk", "πρωτεΐνες", "bjelančevine",
+        "beljakovine", "proteine", "белтъци",
+    )
+    private val fatWords = listOf(
+        "fita", "fat", "fett", "matières grasses", "matieres grasses", "lipides", "grassi", "grasas", "gorduras", "vet",
+        "tłuszcz", "tluszcz", "rasva", "fedt", "tuky", "zsír", "riebalai", "tauki", "λιπαρά", "masti", "maščobe", "grăsimi", "мазнини",
+    )
+    /** Rows about saturated fat, which come right after the fat row and mustn't be read as it. */
+    private val saturatedWords = listOf(
+        "mettuð", "mettað", "mettaðar", "saturate", "saturated", "gesättigt", "gesattigt", "saturés", "satures", "saturi", "saturadas",
+        "saturados", "verzadigd", "nasycone", "tyydyttyneet", "mættede", "mättat", "mettet", "nasycen",
+    )
+    private val usMarks = listOf("nutrition facts", "total carbohydrate", "total carb", "dietary fiber", "total fat")
 
     // Lower case; matched inside the line, so "kohlenhydrate" also finds "Kohlenhydrate:".
     private val carbWords = listOf(
@@ -271,15 +362,16 @@ object Label {
     /** [lines] in reading order. The first amount on (or right after) a matching line is per 100 g. */
     fun read(lines: List<String>): Per100? {
         val clean = lines.map { normal(it) }
-        fun find(words: List<String>, avoid: List<String> = emptyList()): Double? {
+        fun find(words: List<String>, avoid: List<String> = emptyList(), skip: List<String> = emptyList()): Double? {
             for ((k, l) in clean.withIndex()) {
+                if (skip.any { l.contains(it) }) continue
                 val at = words.filter { l.contains(it) }.minOfOrNull { l.indexOf(it) } ?: continue
                 // "of which sugars" before the word means this row is about sugars, not carbs.
                 if (avoid.any { w -> l.indexOf(w).let { it in 0 until at } }) continue
                 val after = l.substring(words.filter { l.contains(it) }.maxOf { l.indexOf(it) + it.length })
                 val here = number(after) ?: number(l) ?: clean.getOrNull(k + 1)?.let { next ->
                     // A value on the next row, when that row isn't another nutrient.
-                    if ((carbWords + sugarWords + fibreWords).any { next.contains(it) }) null else number(next)
+                    if ((carbWords + sugarWords + fibreWords + proteinWords + fatWords).any { next.contains(it) }) null else number(next)
                 }
                 if (here != null) return here
             }
@@ -288,9 +380,15 @@ object Label {
         val carbs = find(carbWords, avoid = sugarWords + fibreWords)
         val sugars = find(sugarWords)
         val fibre = find(fibreWords)
+        val protein = find(proteinWords)
+        // Fat: never a carbs row ("kolvetni" holds "vet") or a saturated-fat row ("þar af mettuð fita").
+        val fatClean = find(fatWords, skip = carbWords + sugarWords + saturatedWords)
         if (carbs == null && sugars == null) return null
-        return Per100(carbs, sugars, fibre)
+        return Per100(carbs, sugars, fibre, protein = protein, fat = fatClean, us = isUs(clean))
     }
+
+    /** A US-style label, where carbs include fibre. */
+    fun isUs(lines: List<String>): Boolean = lines.any { l -> usMarks.any { l.lowercase(Locale.ROOT).contains(it) } }
 
     /** Lower case, decimal commas as points, and "per 100 g" headings taken out so 100 isn't read as a value. */
     private fun normal(s: String) = s.lowercase(Locale.ROOT)
@@ -307,7 +405,8 @@ object Label {
     fun prompt(text: String) =
         "This is text read by a camera from a food packet's nutrition label (it may be Icelandic, English or another " +
             "European language, with decimal commas). Find the values per 100 g or 100 ml, and the product's name if it's there. " +
-            "Reply with only JSON: {\"name\":\"granola\",\"carbs\":60.5,\"sugars\":22,\"fibre\":7}. Use null for anything missing.\n\n" +
+            "Reply with only JSON: {\"name\":\"granola\",\"carbs\":60.5,\"sugars\":22,\"fibre\":7,\"protein\":9,\"fat\":12}. " +
+            "Give the numbers as printed. Use null for anything missing.\n\n" +
             text.take(1500)
 
     /** Reads the model's reply to [prompt]. */
@@ -318,7 +417,10 @@ object Label {
         return try {
             val o = org.json.JSONObject(reply.substring(a, b + 1))
             fun d(k: String) = if (o.isNull(k)) null else o.optDouble(k).takeIf { !it.isNaN() && it in 0.0..100.0 }
-            val p = Per100(d("carbs"), d("sugars"), d("fibre"), o.optString("name").takeIf { it != "null" }.orEmpty().take(40))
+            val p = Per100(
+                d("carbs"), d("sugars"), d("fibre"), o.optString("name").takeIf { it != "null" }.orEmpty().take(40),
+                protein = d("protein"), fat = d("fat"),
+            )
             if (p.carbs == null && p.sugars == null) null else p
         } catch (e: Exception) { null }
     }
@@ -327,7 +429,9 @@ object Label {
     fun item(name: String, grams: Int, p: Per100): MealItem = MealItem(
         name = name.ifBlank { "packet food" },
         portion = "$grams g",
-        carbs = ((p.carbs ?: 0.0) * grams / 100.0).roundToInt(),
+        carbs = ((p.netCarbs ?: 0.0) * grams / 100.0).roundToInt(),
+        protein = p.protein?.let { (it * grams / 100.0).roundToInt() },
+        fat = p.fat?.let { (it * grams / 100.0).roundToInt() },
         sugars = p.sugars?.let { (it * grams / 100.0).roundToInt() },
         fibre = p.fibre?.let { (it * grams / 100.0).roundToInt() },
     )

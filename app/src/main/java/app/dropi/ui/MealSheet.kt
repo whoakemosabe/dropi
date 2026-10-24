@@ -62,6 +62,8 @@ import androidx.compose.ui.window.DialogProperties
 import app.dropi.R
 import app.dropi.data.Foods
 import app.dropi.data.Glucose
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.drawText
 import app.dropi.data.Meal
 import app.dropi.data.MealHistory
 import app.dropi.data.MealItem
@@ -192,6 +194,9 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean) {
     var name by remember { mutableStateOf(found.name) }
     var carbs by remember { mutableStateOf(fmt(found.carbs)) }
     var sugars by remember { mutableStateOf(fmt(found.sugars)) }
+    var fibre by remember { mutableStateOf(fmt(found.fibre)) }
+    var protein by remember { mutableStateOf(fmt(found.protein)) }
+    var fat by remember { mutableStateOf(fmt(found.fat)) }
     var grams by remember { mutableStateOf(100) }
     fun num(t: String) = t.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..100.0 }
     Text(
@@ -209,19 +214,40 @@ private fun LabelGrams(found: app.dropi.data.Label.Per100, read: Boolean) {
             FieldBox(sugars, "optional", numeric = true) { sugars = it.take(5) }
         }
     }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Fibre", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+            FieldBox(fibre, "optional", numeric = true) { fibre = it.take(5) }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Protein", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+            FieldBox(protein, "optional", numeric = true) { protein = it.take(5) }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Fat", style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+            FieldBox(fat, "optional", numeric = true) { fat = it.take(5) }
+        }
+    }
+    if (found.us) {
+        Text(
+            "This looks like a US label, where carbs include fibre. Dropi takes the fibre off, as European labels already do.",
+            style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+        )
+    }
     FieldBox(name, "What is it? (e.g. granola)", onChange = { name = it.take(40) })
     Text("How much did you eat?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
     val options = listOf(25, 50, 100, 150)
     ChoiceGrid(options.map { Choice("$it g") }, options.indexOf(grams).takeIf { it >= 0 }, columns = 4, compact = true) { grams = options[it] }
     NumberRow("Grams eaten", grams, step = 5, max = 2000) { grams = it }
     val c = num(carbs)
+    val checked = found.copy(carbs = c, sugars = num(sugars), fibre = num(fibre), protein = num(protein), fat = num(fat))
     Text(
-        if (c != null) "That's ${Math.round(c * grams / 100.0)} g carbs." else "Type the carbs per 100 g to work it out.",
+        if (c != null) "That's ${Math.round((checked.netCarbs ?: c) * grams / 100.0)} g carbs." else "Type the carbs per 100 g to work it out.",
         style = inter(15.sp, FontWeight.SemiBold),
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
     PrimaryButton("Next", Modifier.fillMaxWidth(), enabled = c != null) {
-        MealWork.labelGrams(Foods.normalize(name), grams, found.copy(carbs = c, sugars = num(sugars)))
+        MealWork.labelGrams(Foods.normalize(name), grams, checked)
     }
     GhostButton("Take the photo again", Modifier.fillMaxWidth()) { Launch.mealAction.value = "label" }
 }
@@ -261,7 +287,14 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     }
 
     // Where meals like this usually take the person, from their own log.
-    val est = start?.let { MealHistory.estimate(it.mmol, meal.foods, state.readings, state.sensor, state.meals.filter { m -> m.id != old?.id }) }
+    val others = remember(state.meals, old?.id) { state.meals.filter { m -> m.id != old?.id } }
+    val est = start?.let { MealHistory.estimate(it.mmol, meal.foods, state.readings, state.sensor, others) }
+    val perGram = remember(state.readings, state.sensor, others) { app.dropi.data.MealCurve.perGram(state.readings, state.sensor, others) }
+    val curve = app.dropi.data.MealCurve.predict(meal, perGram, est)
+    // What actually happened after a logged meal (minutes after eating, change from the start).
+    val actual = remember(old, state.readings, state.sensor, state.meals) {
+        old?.let { o -> Foods.meals(state.readings, state.sensor, state.meals).firstOrNull { it.entryId == o.id }?.after }.orEmpty()
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -283,31 +316,47 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                 "No reading before this meal. Take one before you eat, and Dropi shows where meals like this usually take you.",
                 style = inter(14.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
             )
-            est == null -> {
-                Text("Before: your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)} ${unit.label})", style = inter(16.sp, FontWeight.SemiBold))
-                Text("Not enough meals with these foods yet to say where you'll peak. It learns from each one.", style = inter(13.sp, color = C.TextMuted))
-            }
             else -> {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Column {
-                        Text("At ${fmt.time(start.at)}", style = inter(12.sp, color = C.TextMuted))
-                        Text(Glucose.format(est.start, unit), style = numeral(28.sp))
-                    }
-                    Text("→", style = inter(22.sp, FontWeight.SemiBold, C.AccentText), modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Meals like this usually peak at", style = inter(12.sp, color = C.TextMuted))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("about " + Glucose.format(est.peak, unit), style = numeral(28.sp, C.status(Glucose.status(est.peak, app.dropi.data.MealTag.AFTER_MEAL, state.targets))))
-                            Spacer(Modifier.width(6.dp))
-                            Text(unit.label, style = inter(12.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 4.dp))
-                        }
-                    }
+                Text("Before: your ${fmt.time(start.at)} reading (${Glucose.format(start.mmol, unit)} ${unit.label})", style = inter(15.sp, FontWeight.SemiBold))
+                if (curve == null) {
+                    Text("Add the foods to see where this meal is likely to take you.", style = inter(13.sp, color = C.TextMuted))
                 }
+            }
+        }
+        if (curve != null) {
+            val s0 = start?.mmol
+            val peakText = if (s0 != null) "about " + Glucose.format(s0 + curve.rise, unit) else "about " + Foods.delta(curve.rise, unit)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Column(Modifier.weight(1f)) {
+                    Text(if (s0 != null) "Likely peak" else "Likely rise", style = inter(12.sp, color = C.TextMuted))
+                    Text(
+                        peakText,
+                        style = numeral(28.sp, if (s0 != null) C.status(Glucose.status(s0 + curve.rise, app.dropi.data.MealTag.AFTER_MEAL, state.targets)) else C.Text),
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Around", style = inter(12.sp, color = C.TextMuted))
+                    Text(app.dropi.data.MealCurve.duration(curve.peakMin), style = inter(17.sp, FontWeight.Bold))
+                    Text("after eating", style = inter(12.sp, color = C.TextMuted))
+                }
+            }
+            ExpectedCurve(curve, s0, actual, unit)
+            val back = "Back near the start by about ${app.dropi.data.MealCurve.duration(curve.backMin)}."
+            val why = if (curve.reasons.isEmpty()) "" else " Shaped by: ${curve.reasons.joinToString(", ")}."
+            Text(back + why, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
+            val outcome = actual.filter { it.first in 30..240 }.maxByOrNull { it.second }
+            if (outcome != null && s0 != null) {
                 Text(
-                    "From your own readings after meals with ${est.foods.take(3).joinToString(" or ") { Foods.display(it) }}, ${est.meals} meals. Not advice.",
-                    style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+                    "How it went: peaked ${Glucose.format(s0 + outcome.second, unit)} at ${app.dropi.data.MealCurve.duration(outcome.first)} " +
+                        "(expected about ${Glucose.format(s0 + curve.rise, unit)} at ${app.dropi.data.MealCurve.duration(curve.peakMin)}).",
+                    style = inter(13.sp, FontWeight.SemiBold).copy(lineHeight = 19.sp),
                 )
             }
+            Text(
+                if (curve.personal) "An estimate from this meal's numbers and your own past meals. Not advice."
+                else "An estimate from this meal's numbers. It learns your own pattern after a few meals with readings before and after. Not advice.",
+                style = inter(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+            )
         }
     }
 
@@ -341,6 +390,15 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             if (parts.isNotEmpty()) Text("of which " + parts.joinToString(" · "), style = inter(13.sp, color = C.TextSecondary))
         }
     }
+    val more = listOfNotNull(
+        meal.protein?.let { "$it g protein" }, meal.fat?.let { "$it g fat" },
+        meal.speed?.let { "${it.word} (GI about ${meal.gi})" },
+        meal.load?.let { "load ${kotlin.math.round(it).toInt()}" },
+    )
+    if (more.isNotEmpty()) Text(more.joinToString(" · "), style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+    if (meal.hasSugaryDrink) {
+        Text("Includes a sugary drink: liquid sugar hits fastest.", style = inter(13.sp, FontWeight.SemiBold, C.High))
+    }
 
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Card)) {
         meal.items.forEachIndexed { i, item ->
@@ -369,22 +427,46 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     }
 
     if (meal.items.isNotEmpty()) {
+        Text("Anything else with it?", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            app.dropi.data.MealTags.ALL.forEach { t ->
+                val on = t.key in meal.tags
+                Chip(t.label, selected = on) {
+                    Haptics.tap(view)
+                    MealWork.update(meal.copy(tags = if (on) meal.tags - t.key else meal.tags + t.key))
+                }
+            }
+        }
+    }
+
+    if (meal.items.isNotEmpty()) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(C.Card)
-                .border(1.dp, if (meal.rich) C.High.copy(alpha = 0.5f) else C.GlassBorder, RoundedCornerShape(16.dp))
+                .border(1.dp, if (meal.slowDigesting) C.High.copy(alpha = 0.5f) else C.GlassBorder, RoundedCornerShape(16.dp))
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Ic(R.drawable.lc_clock, if (meal.rich) C.High else C.TextMuted, 18.dp)
+            val gapMin = app.dropi.data.Schedule.gapFor(app.dropi.data.MealEntry(at = 0, name = "", meal = meal), state.afterMealMinutes)
+            Ic(R.drawable.lc_clock, if (meal.slowDigesting) C.High else C.TextMuted, 18.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(if (meal.rich) "Rich meal: the rise may come later" else "Rich meal?", style = inter(15.sp, FontWeight.SemiBold))
                 Text(
-                    if (meal.rich) "High in fat or protein, so the after-eating check is 3 h after you ate."
-                    else "Switch on for fatty or creamy meals. The after-eating check then waits 3 h.",
+                    when {
+                        meal.slowDigesting -> "Rich meal: the rise comes later"
+                        meal.someFatProtein -> "Some fat and protein"
+                        else -> "Rich meal?"
+                    },
+                    style = inter(15.sp, FontWeight.SemiBold),
+                )
+                Text(
+                    when {
+                        meal.slowDigesting && !meal.rich -> "High in fat or protein by the numbers, so the after-eating check is ${app.dropi.data.MealCurve.duration(gapMin)} after you ate."
+                        meal.rich -> "High in fat or protein, so the after-eating check is ${app.dropi.data.MealCurve.duration(gapMin)} after you ate."
+                        else -> "After-eating check ${app.dropi.data.MealCurve.duration(gapMin)} after you ate. Switch on for fatty or creamy meals to wait 3 h."
+                    },
                     style = inter(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
                 )
             }
@@ -417,7 +499,7 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     } else {
         GhostButton("Start again", Modifier.fillMaxWidth()) { MealWork.discard(); close() }
     }
-    SheetHint("Carbs and sugars are estimates to check against labels and your usual amounts. Dropi doesn't suggest doses.")
+    SheetHint("Carbs, sugars, protein, fat and how fast carbs hit are estimates to check against labels and your usual amounts. Dropi doesn't suggest doses.")
 
     val open = editing
     if (open != null && open in meal.items.indices) {
@@ -435,7 +517,9 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         FoodEditDialog(MealItem("", "1 portion", carbs = 0), isNew = true, score = null, unit = unit, remembered = false,
             onDismiss = { adding = false }, onRemove = { adding = false },
         ) { item, remember ->
-            val withUsual = usual[item.key]?.takeIf { item.carbs == 0 }?.let { u -> item.copy(portion = u.portion, carbs = u.carbs, sugars = u.sugars, usual = true) } ?: item
+            val withUsual = usual[item.key]?.takeIf { item.carbs == 0 }?.let { u ->
+                item.copy(portion = u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein ?: item.protein, fat = u.fat ?: item.fat, usual = true)
+            } ?: item
             if (remember) MealWork.remember(context, withUsual)
             MealWork.update(meal.copy(items = meal.items + withUsual.copy(usual = remember || withUsual.usual)))
             adding = false
@@ -477,6 +561,10 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, unit: app.dropi.data.Gl
     val spoken = buildString {
         append("${Foods.display(item.name)}, ${item.portionText()}, ${item.carbs} grams of carbs")
         item.sugars?.let { append(", $it grams sugars") }
+        item.protein?.let { append(", $it grams protein") }
+        item.fat?.let { append(", $it grams fat") }
+        item.giValue?.takeIf { item.carbs > 0 }?.let { append(", ${app.dropi.data.Gi.speed(it).word.lowercase()}") }
+        if (item.sugaryDrink) append(", sugary drink")
         if (item.usual) append(", your usual amount")
         if (rise != null) append(", ${rise.word.lowercase()} last time")
     }
@@ -514,6 +602,11 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, unit: app.dropi.data.Gl
                     Text("${rise.word}, ${score.meals} meals", style = inter(12.sp, color = C.TextMuted))
                 }
             }
+            val facts = listOfNotNull(
+                if (item.sugaryDrink) "Sugary drink" else item.giValue?.takeIf { item.carbs > 0 }?.let { app.dropi.data.Gi.speed(it).word },
+                item.protein?.let { "$it g protein" }, item.fat?.let { "$it g fat" },
+            )
+            if (facts.isNotEmpty()) Text(facts.joinToString(" · "), style = inter(12.sp, color = C.TextMuted))
         }
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.Bottom) {
@@ -689,6 +782,11 @@ private fun FoodEditDialog(
             if (!isNew && initial.carbs != item.carbs) {
                 Text("Guessed ${initial.carbs} g. You changed it to ${item.carbs} g.", style = inter(12.sp, color = C.TextMuted), modifier = Modifier.align(Alignment.CenterHorizontally))
             }
+            Text("Protein (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+            NumberRow("Protein in grams", item.protein ?: 0, step = 5, max = 300) { item = item.copy(protein = it) }
+            Text("Fat (g)", style = inter(14.sp, FontWeight.SemiBold, C.TextSecondary))
+            NumberRow("Fat in grams", item.fat ?: 0, step = 5, max = 300) { item = item.copy(fat = it) }
+            Text("Fat and protein don't raise blood sugar much, but they make the rise come later.", style = inter(12.sp, color = C.TextMuted))
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -733,6 +831,75 @@ private fun FoodEditDialog(
                     onDone(item.copy(name = Foods.normalize(name), portion = portion.ifBlank { "1 portion" }), keep)
                 }
             }
+        }
+    }
+}
+
+/**
+ * The expected rise as a soft curve over the hours after eating, with the start as a baseline
+ * and, for a logged meal, what actually happened as dots on top.
+ */
+@Composable
+private fun ExpectedCurve(curve: app.dropi.data.MealCurve.Curve, start: Double?, actual: List<Pair<Int, Double>>, unit: app.dropi.data.GlucoseUnit) {
+    val line = C.AccentText
+    val fill = C.AccentText.copy(alpha = 0.14f)
+    val base = C.Border
+    val dot = C.Text
+    val muted = C.TextMuted
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val labelStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, color = muted)
+    val endMin = maxOf(curve.backMin + 30, actual.maxOfOrNull { it.first } ?: 0, 180).coerceAtMost(300)
+    val top = maxOf(curve.rise, actual.maxOfOrNull { it.second } ?: 0.0, 1.0) * 1.15
+    val bottom = minOf(0.0, actual.minOfOrNull { it.second } ?: 0.0) - 0.2
+    androidx.compose.foundation.Canvas(
+        Modifier
+            .fillMaxWidth()
+            .height(110.dp)
+            .semantics {
+                contentDescription = "Expected curve: rises about ${Foods.delta(curve.rise, unit)} ${unit.label}, peaking around " +
+                    "${app.dropi.data.MealCurve.duration(curve.peakMin)} after eating" +
+                    if (actual.isNotEmpty()) ", with your actual readings shown as dots" else ""
+            },
+    ) {
+        val labelH = 14.dp.toPx()
+        val w = size.width
+        val h = size.height - labelH
+        fun x(min: Double) = (min / endMin * w).toFloat()
+        fun y(v: Double) = (h - (v - bottom) / (top - bottom) * h).toFloat()
+        drawLine(base, androidx.compose.ui.geometry.Offset(0f, y(0.0)), androidx.compose.ui.geometry.Offset(w, y(0.0)), strokeWidth = 1.dp.toPx())
+        val path = androidx.compose.ui.graphics.Path()
+        val area = androidx.compose.ui.graphics.Path()
+        area.moveTo(0f, y(0.0))
+        var m = 0.0
+        while (m <= endMin) {
+            val px = x(m); val py = y(curve.at(m))
+            if (m == 0.0) path.moveTo(px, py) else path.lineTo(px, py)
+            area.lineTo(px, py)
+            m += 3.0
+        }
+        area.lineTo(w, y(0.0)); area.close()
+        drawPath(area, fill)
+        drawPath(
+            path, line,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                2.dp.toPx(), cap = StrokeCap.Round,
+                pathEffect = if (actual.isNotEmpty()) androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())) else null,
+            ),
+        )
+        actual.filter { it.first in 0..endMin }.forEach { (mm, v) ->
+            drawCircle(dot, 3.5.dp.toPx(), androidx.compose.ui.geometry.Offset(x(mm.toDouble()), y(v)))
+        }
+        // Hour marks along the bottom.
+        var hr = 0
+        while (hr * 60 <= endMin) {
+            val t = measurer.measure(if (hr == 0) "ate" else "${hr} h", labelStyle)
+            val px = (x(hr * 60.0) - t.size.width / 2f).coerceIn(0f, w - t.size.width)
+            drawText(t, topLeft = androidx.compose.ui.geometry.Offset(px, h + 2.dp.toPx()))
+            hr++
+        }
+        if (start != null) {
+            val t = measurer.measure(Glucose.format(start, unit), labelStyle)
+            drawText(t, topLeft = androidx.compose.ui.geometry.Offset(w - t.size.width, y(0.0) - t.size.height - 1.dp.toPx()))
         }
     }
 }

@@ -4,10 +4,10 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- New bar at the bottom: Today, Trends, Meals and More, with the big + still in the middle
-- Meals are logged on their own, at the time you ate, so you can test on waking and have breakfast later
-- Pick when you ate (now, 15 or 30 min ago, or any time) and call it breakfast, lunch, dinner or a snack
-- Each meal shows which reading it starts from, and your after-eating reminder counts from when you ate
-- Readings say what they belong to, like "2 h after breakfast", and moments now read Fasting (on waking), Before eating and After eating
-- The Meals page has every meal by day, your plate, and one-tap ways to log
-- More puts all readings, reports, Ask Dropi, backup and settings one tap away
+- Meals now show protein and fat, and how fast their carbs hit (fast, medium or slow), from photos, words or labels
+- Before you eat, see the likely peak, when it comes and when you're back down, drawn as a curve. Later, what actually happened shows on top
+- Label scan reads protein and fat too, and takes fibre off the carbs on US labels (European labels already leave it out)
+- Sugary drinks are flagged: liquid sugar hits fastest
+- Tap or say what else went with a meal: veg first, a walk after, alcohol, feeling ill or stressed
+- The after-eating check waits 2½ h with some fat or protein, 3 h for a rich meal
+- The Meals page adds up what you ate today and this week, and shows what makes a difference for you once there's enough to tell

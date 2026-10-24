@@ -18,6 +18,16 @@ object Demo {
 
     private data class Dish(val items: List<MealItem>, val rich: Boolean, val rise: Double)
 
+    /** Protein and fat for the demo foods (per the portions above). */
+    private val pf = mapOf(
+        "porridge" to (6 to 3), "banana" to (1 to 0), "skyr" to (17 to 0), "granola" to (4 to 6), "toast" to (5 to 2), "jam" to (0 to 0),
+        "eggs" to (13 to 10), "rye bread" to (3 to 1), "basmati rice" to (4 to 0), "chicken curry" to (25 to 18), "naan bread" to (7 to 8),
+        "fish soup" to (18 to 9), "chicken wrap" to (24 to 12), "apple" to (0 to 0), "salad" to (2 to 5), "hummus" to (2 to 5),
+        "pasta" to (13 to 2), "tomato sauce" to (2 to 3), "lamb" to (28 to 20), "potatoes" to (4 to 0), "salmon" to (25 to 14),
+        "brown rice" to (5 to 2), "pizza" to (30 to 33), "chicken" to (31 to 4), "vegetables" to (3 to 1),
+    )
+    private fun withPf(items: List<MealItem>) = items.map { i -> pf[i.name]?.let { (p, f) -> i.copy(protein = p, fat = f) } ?: i }
+
     private val breakfasts = listOf(
         Dish(listOf(MealItem("porridge", "1 bowl", carbs = 30, sugars = 1, fibre = 4), MealItem("banana", "1 medium", carbs = 23, sugars = 12, fibre = 3)), false, 2.4),
         Dish(listOf(MealItem("skyr", "1 cup", carbs = 12, sugars = 11), MealItem("granola", "40 g", carbs = 26, sugars = 9, fibre = 3)), false, 2.0),
@@ -61,7 +71,12 @@ object Demo {
             }
             fun eat(t: Long, name: String, dish: Dish, beforeAt: Long?) {
                 if (t > now) return
-                meals += MealEntry(at = t, name = name, meal = Meal(dish.items, dish.rich, "photo"), before = beforeAt)
+                val tags = buildList {
+                    if (rnd.nextInt(5) == 0) add("walk_after")
+                    if (name != "Breakfast" && rnd.nextInt(6) == 0) add("veg_first")
+                    if (name == "Dinner" && rnd.nextInt(7) == 0) add("alcohol")
+                }
+                meals += MealEntry(at = t, name = name, meal = Meal(withPf(dish.items), dish.rich, "photo", tags), before = beforeAt)
             }
             // Fasting on waking, then breakfast a while later (not always straight after).
             val fasting = 5.6 + drift + rnd.nextDouble(-0.6, 0.9)
@@ -79,9 +94,12 @@ object Demo {
                 add(beforeAt, before, MealTag.BEFORE_MEAL)
                 val ateAt = beforeAt + rnd.nextInt(5, 25) * MIN
                 eat(ateAt, if (hour == 12) "Lunch" else "Dinner", dish, beforeAt)
+                val m = meals.lastOrNull()?.takeIf { it.at == ateAt }
+                // A walk after or veg first softens the rise, as they do for most people.
+                val soften = (if (m != null && "walk_after" in m.meal.tags) 0.6 else 1.0) * (if (m != null && "veg_first" in m.meal.tags) 0.8 else 1.0)
                 if (rnd.nextInt(4) != 0) {
                     val gap = if (dish.rich) 180 else 120
-                    add(ateAt + (gap + rnd.nextInt(-10, 20)) * MIN, before + dish.rise + drift * 0.5 + rnd.nextDouble(-0.6, 0.8), MealTag.AFTER_MEAL)
+                    add(ateAt + (gap + rnd.nextInt(-10, 20)) * MIN, before + dish.rise * soften + drift * 0.5 + rnd.nextDouble(-0.6, 0.8), MealTag.AFTER_MEAL)
                 }
             }
             if (rnd.nextInt(6) != 0) add(at(day, 22, jitter(30)), 6.4 + drift + rnd.nextDouble(-0.8, 1.4), MealTag.BEDTIME)
