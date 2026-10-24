@@ -6,10 +6,9 @@ import kotlin.math.roundToInt
 /**
  * Food scores: how much each food tends to lift the person's own numbers.
  *
- * A meal is a reading with foods on it. Its starting point is that reading (or, for an
- * after-meal reading, the before-meal reading up to 3 hours earlier). What follows, from
- * readings and sensor points up to 4 hours later or until the next meal, gives the rise: the
- * highest value 45 min–3 h after, minus the start. A food's score is the median rise of the
+ * A meal is a logged meal entry. Its starting point is the reading just before it (see
+ * [MealLink.before]). What follows, from readings and sensor points up to 4 hours after eating
+ * or until the next meal, gives the rise: the highest value 45 min–3 h after, minus the start. A food's score is the median rise of the
  * meals it was part of.
  */
 object Foods {
@@ -38,6 +37,19 @@ object Foods {
     ) {
         /** The biggest rise 45 min–3 h after, or null with nothing in that window. */
         val rise: Double? get() = after.filter { it.first in 45..180 }.maxOfOrNull { it.second }
+    }
+
+    data class Score(
+        val food: String,
+        val meals: Int,
+        /** Median rise (mmol/L) across its meals. */
+        val rise: Double,
+        /** Median change in each half hour after eating, starting at (0, 0). */
+        val curve: List<Pair<Int, Double>>,
+        /** Every point that went into it, for the dots behind the curve. */
+        val points: List<Pair<Int, Double>>,
+    ) {
+        val ranked get() = meals >= MIN_MEALS
     }
 
     /**
