@@ -32,7 +32,7 @@ class MealTest {
     fun fallsBackToOldLines() {
         val m = MealAi.parse("FOODS: toast; jam\nCARBS: 44", "photo")!!
         assertEquals(listOf("toast", "jam"), m.foods)
-        assertEquals(44.0, m.carbs, 0.01)
+        assertEquals(45.0, m.carbs, 0.01) // the old reply rounds to 5 g, now split exactly
         assertNull(MealAi.parse("I can't tell what this is.", "photo"))
     }
 
