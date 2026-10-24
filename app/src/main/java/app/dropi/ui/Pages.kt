@@ -153,7 +153,7 @@ private fun TotalsCard(state: AppState, today: LocalDate) {
 @Composable
 private fun PatternsCard(state: AppState) {
     val patterns = remember(state.measured, state.readings, state.meals, state.unit) {
-        app.dropi.data.MealPatterns.find(state.measured, state.readings, state.meals, state.unit)
+        app.dropi.data.MealPatterns.fromMeasured(state.measured, state.readings, state.meals, state.unit)
     }
     Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("What your meals show", style = SectionLabel)

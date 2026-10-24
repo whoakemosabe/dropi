@@ -152,7 +152,7 @@ object Ask {
                 if (m.meal.tags.isNotEmpty()) sb.append(" (").append(m.meal.tags.joinToString(", ") { MealTags.label(it).lowercase() }).append(")")
                 sb.append('\n')
             }
-            MealPatterns.find(c.allMeasured, c.readings, c.meals, c.unit).forEach { sb.append("Pattern: ${it.text}\n") }
+            MealPatterns.fromMeasured(c.allMeasured, c.readings, c.meals, c.unit).forEach { sb.append("Pattern: ${it.text}\n") }
         }
         val scores = Foods.scores(c.allMeasured).filter { it.ranked }
         if (scores.isNotEmpty()) {

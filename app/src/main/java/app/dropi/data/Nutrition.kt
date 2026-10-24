@@ -189,10 +189,10 @@ object MealPatterns {
     }
 
     fun find(readings: List<Reading>, sensor: List<SensorPoint>, meals: List<MealEntry>, unit: GlucoseUnit, minEach: Int = 3): List<Pattern> =
-        find(Foods.meals(readings, sensor, meals), readings, meals, unit, minEach)
+        fromMeasured(Foods.meals(readings, sensor, meals), readings, meals, unit, minEach)
 
     /** The same, from meals already measured with [Foods.meals]. */
-    fun find(all: List<Foods.Meal>, readings: List<Reading>, meals: List<MealEntry>, unit: GlucoseUnit, minEach: Int = 3): List<Pattern> {
+    fun fromMeasured(all: List<Foods.Meal>, readings: List<Reading>, meals: List<MealEntry>, unit: GlucoseUnit, minEach: Int = 3): List<Pattern> {
         val ms = measured(all, meals)
         val out = ArrayList<Pattern>()
         fun d(v: Double) = Foods.delta(abs(v), unit).removePrefix("+")
