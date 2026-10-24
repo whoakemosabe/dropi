@@ -37,10 +37,18 @@ class ScanExportTest {
     fun csvHasBothUnitsAndSafeNotes() {
         val zone = ZoneId.of("Atlantic/Reykjavik")
         val at = LocalDateTime.of(2026, 10, 23, 7, 30).atZone(zone).toInstant().toEpochMilli()
-        val csv = Export.csv(listOf(Reading(1, at, 5.5, MealTag.FASTING, "toast, jam", carbs = 45, insulin = 4.5, insulinKind = app.dropi.data.InsulinKind.RAPID)), zone)
+        val breakfast = app.dropi.data.MealEntry(
+            at = at + 40 * 60_000L, name = "Breakfast",
+            meal = app.dropi.data.Meal(listOf(app.dropi.data.MealItem("toast", "2 slices", carbs = 30))),
+        )
+        val csv = Export.csv(
+            listOf(Reading(1, at, 5.5, MealTag.FASTING, "toast, jam", carbs = 45, insulin = 4.5, insulinKind = app.dropi.data.InsulinKind.RAPID)),
+            zone, listOf(breakfast),
+        )
         assertEquals(
             "date,time,mmol_per_l,mg_per_dl,moment,carbs_g,insulin_units,insulin_kind,tablets,exercise_min,foods,note\n" +
-                "2026-10-23,07:30,5.5,99,Fasting,45,4.5,Rapid,,,,\"toast, jam\"\n",
+                "2026-10-23,07:30,5.5,99,Fasting (on waking),45,4.5,Rapid,,,,\"toast, jam\"\n" +
+                "2026-10-23,08:10,,,Breakfast,30,,,,,Toast (2 slices),\n",
             csv,
         )
         assertEquals("'=SUM(A1)", Export.quote("=SUM(A1)"))
