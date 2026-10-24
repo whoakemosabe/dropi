@@ -108,7 +108,9 @@ object L {
     /** Picks the singular or plural text for [n], by each language's own rule. */
     fun n(n: Long, one: String, other: String, args: Array<out Any?>): String {
         val singular = if (icelandic) isOne(n) else n == 1L
-        val all = arrayOf<Any?>(n) + args
+        val all = arrayOfNulls<Any?>(args.size + 1)
+        all[0] = n
+        for (i in args.indices) all[i + 1] = args[i]
         return fill(t(if (singular) one else other), all)
     }
 
