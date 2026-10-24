@@ -391,6 +391,15 @@ object Gemma {
         }
         val text = StringBuilder()
         val done = kotlinx.coroutines.CompletableDeferred<Throwable?>()
+        // Stopping and closing never overlap, and a stop is never asked from inside the model's own callback.
+        val guard = Any()
+        var closed = false
+        var stopAsked = false
+        fun stop() {
+            if (stopAsked) return
+            stopAsked = true
+            scope.launch { synchronized(guard) { if (!closed) try { conv.cancelProcess() } catch (_: Throwable) { } } }
+        }
         try {
             if (spec) markTrying(context, true)
             conv.sendMessageAsync(
@@ -401,7 +410,7 @@ object Gemma {
                         // Chunks are usually new text; if one repeats what came before, it's the whole text so far.
                         if (text.isNotEmpty() && piece.startsWith(text.toString())) { text.setLength(0); text.append(piece) } else text.append(piece)
                         partial?.invoke(text.toString())
-                        if (stopAtJson && jsonEnd(text) >= 0) try { conv.cancelProcess() } catch (_: Throwable) { }
+                        if (stopAtJson && jsonEnd(text) >= 0) stop()
                     }
                     override fun onDone() { done.complete(null) }
                     override fun onError(throwable: Throwable) { done.complete(throwable) }
@@ -413,7 +422,7 @@ object Gemma {
                 done.await()
             } catch (c: kotlinx.coroutines.CancellationException) {
                 // Stop the model, and wait for it to stop before closing (closing mid-answer can crash).
-                try { conv.cancelProcess() } catch (_: Throwable) { }
+                synchronized(guard) { try { conv.cancelProcess() } catch (_: Throwable) { } }
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
                     kotlinx.coroutines.withTimeoutOrNull(5_000) { done.await() }
                 }
@@ -431,7 +440,7 @@ object Gemma {
             val end = if (stopAtJson) jsonEnd(s) else -1
             return if (end >= 0) s.substring(0, end + 1) else s
         } finally {
-            if (done.isCompleted) try { conv.close() } catch (_: Throwable) { }
+            if (done.isCompleted) synchronized(guard) { closed = true; try { conv.close() } catch (_: Throwable) { } }
         }
     }
 
