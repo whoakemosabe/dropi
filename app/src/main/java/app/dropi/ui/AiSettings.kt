@@ -2,7 +2,6 @@ package app.dropi.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,7 +14,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
-import app.dropi.R
 import app.dropi.tr
 import app.dropi.work.Ai
 import app.dropi.work.Gemma
@@ -60,8 +58,10 @@ fun OnDeviceAiSection() {
                     style = body,
                 )
                 if (g is Gemma.State.Failed) Text(g.shown, style = inter(13.sp, color = C.Low))
-                Chip(if (g is Gemma.State.Failed) tr("Try again") else tr("Download (2.6 GB)"), icon = R.drawable.lc_download, selected = true) {
-                    scope.launch { Gemma.download(context) }
+                SettingsRows {
+                    SettingsActionRow(if (g is Gemma.State.Failed) tr("Try again") else tr("Download (2.6 GB)"), labelColor = C.AccentText) {
+                        scope.launch { Gemma.download(context) }
+                    }
                 }
             }
             g is Gemma.State.WaitingForWifi || g is Gemma.State.Downloading -> {
@@ -72,7 +72,9 @@ fun OnDeviceAiSection() {
                     style = body,
                 )
                 ProgressLine(done.toFloat() / Gemma.SIZE)
-                Chip(tr("Cancel"), icon = R.drawable.lc_x) { scope.launch { Gemma.remove(context) } }
+                SettingsRows {
+                    SettingsActionRow(tr("Cancel")) { scope.launch { Gemma.remove(context) } }
+                }
             }
             g is Gemma.State.Verifying -> Text(tr("Almost ready: setting up on-device AI on your phone (about half a minute)…"), style = body)
             g is Gemma.State.Ready -> {
@@ -84,10 +86,13 @@ fun OnDeviceAiSection() {
                 val runsOn = Gemma.backendName ?: Gemma.lastBackend(context)
                 Text(
                     if (runsOn != null) tr("Runs on {0}.", Gemma.backendShown(runsOn)) else tr("Runs on: shown after its first answer."),
-                    style = inter(13.sp, FontWeight.Medium, if (runsOn?.contains("CPU") == true) C.High else C.TextSecondary),
+                    style = mono(13.sp, FontWeight.Medium, if (runsOn?.contains("CPU") == true) C.High else C.TextSecondary),
                 )
-                Row {
-                    Chip(if (confirmRemove) tr("Tap again to remove") else tr("Remove model"), icon = R.drawable.lc_trash, selected = confirmRemove) {
+                SettingsRows {
+                    SettingsActionRow(
+                        if (confirmRemove) tr("Tap again to remove") else tr("Remove model"),
+                        labelColor = if (confirmRemove) C.AccentText else C.Text,
+                    ) {
                         if (confirmRemove) scope.launch { Gemma.remove(context); confirmRemove = false }
                         else confirmRemove = true
                     }

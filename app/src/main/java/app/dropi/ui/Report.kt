@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,13 +61,14 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
             tr("Say what didn't work, then send it. Dropi adds what it knows about the problem, so it can be fixed without guessing."),
             style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
         )
+        RuleHeader(tr("What happened"), modifier = Modifier.padding(bottom = 0.dp))
+        // An outlined field, no fill: the hairline turns champagne once there's something in it.
         Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 110.dp)
                 .clip(RoundedCornerShape(Corner.M))
-                .background(C.SurfaceLight)
-                .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
+                .border(1.dp, if (note.isNotEmpty()) C.AccentText.copy(alpha = 0.6f) else C.Border, RoundedCornerShape(Corner.M))
                 .padding(16.dp),
         ) {
             if (note.isEmpty()) Text(tr("e.g. I scanned the skyr label and it said it couldn't read the numbers"), style = inter(15.sp, color = C.TextMuted))
@@ -100,10 +100,11 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
         }
         if (preview) {
             SelectionContainer {
+                // The report itself is a real object, so it gets a quiet panel, set in mono like a printout.
                 Text(
                     Diag.report(context, note),
-                    style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.M)).background(C.Card).padding(12.dp),
+                    style = mono(12.sp, color = C.TextSecondary).copy(lineHeight = 17.sp),
+                    modifier = Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.M)).padding(12.dp),
                 )
             }
         }

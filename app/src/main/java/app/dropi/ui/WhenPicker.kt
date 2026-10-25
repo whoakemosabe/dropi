@@ -64,8 +64,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
                 .padding(horizontal = 16.dp, vertical = 24.dp)
                 .widthIn(max = 440.dp)
                 .fillMaxWidth()
-                .clip(shape)
-                .background(C.Card)
+                .card(shape)
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -91,14 +90,7 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 TimePicker(
                     state = time,
-                    colors = TimePickerDefaults.colors(
-                        clockDialColor = C.SurfaceLight,
-                        selectorColor = C.AccentText,
-                        timeSelectorSelectedContainerColor = C.AccentText.copy(alpha = 0.22f),
-                        timeSelectorUnselectedContainerColor = C.SurfaceLight,
-                        periodSelectorSelectedContainerColor = C.AccentText.copy(alpha = 0.22f),
-                        clockDialSelectedContentColor = C.OnAccent,
-                    ),
+                    colors = whenClockColors(),
                 )
             }
             if (future) {
@@ -115,3 +107,26 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
         }
     }
 }
+
+/**
+ * The clock in the instrument palette: a quiet dial, the hand and selected number in the
+ * signature colour with the card's colour on top (readable in all three themes), hairline edges.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun whenClockColors() = TimePickerDefaults.colors(
+    clockDialColor = C.SurfaceLight,
+    clockDialSelectedContentColor = C.Card,
+    clockDialUnselectedContentColor = C.Text,
+    selectorColor = C.AccentText,
+    containerColor = C.Card,
+    periodSelectorBorderColor = C.Border,
+    periodSelectorSelectedContainerColor = C.AccentText.copy(alpha = 0.22f),
+    periodSelectorUnselectedContainerColor = Color.Transparent,
+    periodSelectorSelectedContentColor = C.Text,
+    periodSelectorUnselectedContentColor = C.TextSecondary,
+    timeSelectorSelectedContainerColor = C.AccentText.copy(alpha = 0.22f),
+    timeSelectorUnselectedContainerColor = C.SurfaceLight,
+    timeSelectorSelectedContentColor = C.Text,
+    timeSelectorUnselectedContentColor = C.TextSecondary,
+)

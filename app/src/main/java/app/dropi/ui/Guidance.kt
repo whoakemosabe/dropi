@@ -2,12 +2,15 @@ package app.dropi.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,56 +62,68 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val shape = RoundedCornerShape(Corner.XL)
+        // A panel edged in the range colour, with a band of it across the top: the colour says
+        // which kind of reading this is; the words say what to do.
         Column(
             Modifier
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 24.dp, vertical = 24.dp)
                 .widthIn(max = 420.dp)
                 .fillMaxWidth()
                 .clip(shape)
                 .background(C.Card)
-                .border(1.dp, c.copy(alpha = 0.5f), shape)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .border(1.dp, c.copy(alpha = 0.6f), shape)
+                .verticalScroll(rememberScrollState()),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(36.dp).clip(RoundedCornerShape(Corner.S)).background(c.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center,
-                ) { Ic(if (low) R.drawable.lc_circle_alert else R.drawable.lc_heart_pulse, c, 20.dp) }
-                Spacer(Modifier.width(12.dp))
+            Box(Modifier.fillMaxWidth().height(4.dp).background(c))
+            Column(
+                Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics(mergeDescendants = true) {}) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RangeSquare(c)
+                            Spacer(Modifier.width(8.dp))
+                            Text(caps(status.label), style = mono(12.sp, FontWeight.SemiBold, C.Text, 0.08f))
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(value, style = numeral(34.sp, c))
+                    }
+                    Ic(if (low) R.drawable.lc_circle_alert else R.drawable.lc_heart_pulse, c, 24.dp)
+                }
                 Column {
-                    Text(status.label, style = SectionLabel)
-                    Text(value, style = numeral(26.sp))
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                steps.forEachIndexed { i, s ->
-                    Row {
-                        Text("${i + 1}", style = inter(13.sp, FontWeight.Bold, C.TextMuted), modifier = Modifier.width(20.dp))
-                        Text(s, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
+                    steps.forEachIndexed { i, s ->
+                        val urgent = status == Status.URGENT_LOW && i == steps.lastIndex
+                        Row(Modifier.fillMaxWidth().ruleTop().padding(vertical = 10.dp)) {
+                            Text("${i + 1}", style = mono(13.sp, FontWeight.SemiBold, if (urgent) c else C.TextSecondary), modifier = Modifier.width(24.dp))
+                            Text(
+                                s,
+                                style = inter(15.sp, if (urgent) FontWeight.SemiBold else FontWeight.Normal, C.Text).copy(lineHeight = 20.sp),
+                            )
+                        }
                     }
                 }
-            }
-            Text(
-                tr("General guidance only. Follow the plan you agreed with your care team."),
-                style = inter(13.sp, color = C.TextMuted),
-            )
-            if (low && onRecheck != null) {
-                val at = recheckAt
-                if (at == null) {
-                    PrimaryButton(tr("Remind me to re-check in 15 min"), Modifier.fillMaxWidth(), icon = R.drawable.lc_clock) {
-                        recheckAt = onRecheck()
+                Text(
+                    tr("General guidance only. Follow the plan you agreed with your care team."),
+                    style = inter(13.sp, color = C.TextMuted),
+                )
+                if (low && onRecheck != null) {
+                    val at = recheckAt
+                    if (at == null) {
+                        PrimaryButton(tr("Remind me to re-check in 15 min"), Modifier.fillMaxWidth(), icon = R.drawable.lc_clock) {
+                            recheckAt = onRecheck()
+                        }
+                        GhostButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
+                    } else {
+                        Text(
+                            tr("I'll remind you at {0}.", Fmt(context, java.time.ZoneId.systemDefault()).time(at)),
+                            style = inter(13.sp, FontWeight.SemiBold, C.Text),
+                        )
+                        PrimaryButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
                     }
-                    GhostButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
                 } else {
-                    Text(
-                        tr("I'll remind you at {0}.", Fmt(context, java.time.ZoneId.systemDefault()).time(at)),
-                        style = inter(13.sp, FontWeight.SemiBold, C.Text),
-                    )
                     PrimaryButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
                 }
-            } else {
-                PrimaryButton(tr("Got it"), Modifier.fillMaxWidth()) { onClose() }
             }
         }
     }

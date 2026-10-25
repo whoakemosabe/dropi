@@ -76,14 +76,19 @@ private class Pal(context: Context) {
         else -> androidx.glance.color.ColorProvider(day = Color(light), night = Color(dark))
     }
 
+    // 1.1 "Instrument & logbook": the app's own panel and surface colours (Theme.kt C.Card,
+    // C.SurfaceLight), the dark-smoke accent fill with champagne on it, champagne for marks.
     val bg = cp(0xFF1A1C23, 0xFFFFFFFF, 0xFF170A0E)
-    val surface = cp(0xFF262932, 0xFFE9EEFB, 0xFF261018)
+    val surface = cp(0xFF262932, 0xFFE3E9FA, 0xFF261018)
     val text = cp(0xFFF2F3F5, 0xFF0E1638, 0xFFF6E9EC)
     val text2 = cp(0xFFC4C7CF, 0xFF3C4670, 0xFFCDA6B0)
     val muted = cp(0xFF9296A1, 0xFF5A6488, 0xFFA57E8A)
-    val accent = cp(0xFFB3A5FF, 0xFF4B3BD6, 0xFFFF5C7A)
-    val brand = cp(0xFF6347F0, 0xFF5B47F0, 0xFFA3001B)
-    val white = ColorProvider(Color.White)
+    val accent = cp(0xFFE2CB97, 0xFF0E1638, 0xFFFF5C7A)
+    val brand = cp(0xFF2A251B, 0xFF0E1638, 0xFFA3001B)
+    val onBrand = cp(0xFFEBD8AC, 0xFFFFFFFF, 0xFFFFFFFF)
+    /** Hairlines: champagne at 40% round the main button, the app's border colour round the rest. */
+    val edgeAccent = cp(0x66E2CB97, 0x660E1638, 0x66FF5C7A)
+    val edge = cp(0xFF383C47, 0xFFCDD6EE, 0xFF3D1621)
 
     fun status(s: Status): ColorProvider = when (s) {
         Status.URGENT_LOW -> cp(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
@@ -165,7 +170,8 @@ private fun Content(context: Context, d: Data, p: Pal) {
     Box(
         GlanceModifier
             .fillMaxSize()
-            .cornerRadius(24.dp)
+            // Square-ish, like the app's panels (launchers on Android 12+ may round it further).
+            .cornerRadius(12.dp)
             .background(p.bg)
             .clickable(actionStartActivity(open))
             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -194,34 +200,45 @@ private fun Value(d: Data, p: Pal, big: Int) {
         Text(d.unit.label, style = style(p.text2, 12, FontWeight.Medium), maxLines = 1, modifier = GlanceModifier.padding(bottom = (big / 6).dp))
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(GlanceModifier.size(width = 4.dp, height = 14.dp).cornerRadius(2.dp).background(p.status(status))) {}
+        // A small square of the range colour, as in the app.
+        Box(GlanceModifier.size(8.dp).cornerRadius(1.dp).background(p.status(status))) {}
         Spacer(GlanceModifier.width(6.dp))
         Text("${status.label} · ${d.time(r.at)}", style = style(p.text2, 13, FontWeight.Medium), maxLines = 1)
     }
 }
 
-/** A round button with an icon (and, when there's room, a word). */
+/** A button with an icon (and, when there's room, a word): small corners, the accent fill when it's the main one. */
 @Composable
 private fun Action(icon: Int, label: String, filled: Boolean, p: Pal, intent: Intent, showLabel: Boolean, modifier: GlanceModifier, tall: Int = 44) {
-    Row(
+    // Glance has no borders: the hairline is a 1 dp frame of colour around the button's fill,
+    // champagne on the main one (like the app's PrimaryButton), the quiet border colour otherwise.
+    Box(
         modifier
             .height(tall.dp)
-            .cornerRadius((tall / 2).dp)
-            .background(if (filled) p.brand else p.surface)
-            .clickable(actionStartActivity(intent))
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .cornerRadius(8.dp)
+            .background(if (filled) p.edgeAccent else p.edge)
+            .padding(1.dp),
     ) {
-        Image(
-            ImageProvider(icon),
-            contentDescription = label,
-            colorFilter = ColorFilter.tint(if (filled) p.white else p.text),
-            modifier = GlanceModifier.size(20.dp),
-        )
-        if (showLabel) {
-            Spacer(GlanceModifier.width(6.dp))
-            Text(label, style = style(if (filled) p.white else p.text, 14, FontWeight.Bold), maxLines = 1)
+        Row(
+            GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(7.dp)
+                .background(if (filled) p.brand else p.surface)
+                .clickable(actionStartActivity(intent))
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(
+                ImageProvider(icon),
+                contentDescription = label,
+                colorFilter = ColorFilter.tint(if (filled) p.onBrand else p.text),
+                modifier = GlanceModifier.size(20.dp),
+            )
+            if (showLabel) {
+                Spacer(GlanceModifier.width(6.dp))
+                Text(label, style = style(if (filled) p.onBrand else p.text, 14, FontWeight.Bold), maxLines = 1)
+            }
         }
     }
 }

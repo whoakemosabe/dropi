@@ -3,10 +3,11 @@ package app.dropi.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -23,6 +24,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -94,7 +97,7 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
             tr("Your readings, check times, targets and lab results in one file locked with a password. Save it to Drive or Files and you can restore it on a new phone."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
-        Text(tr("Back up"), style = SectionLabel, modifier = Modifier.padding(top = 4.dp))
+        RuleHeader(tr("Back up"))
         PasswordField(pass, tr("Password (6 characters or more)")) { pass = it }
         PasswordField(pass2, tr("The same password again")) { pass2 = it }
         if (pass2.isNotEmpty() && pass != pass2) Text(tr("The passwords don't match."), style = inter(13.sp, FontWeight.Medium, C.High))
@@ -102,7 +105,7 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
             create.launch("dropi-backup-${LocalDate.now(state.zone)}.dropi")
         }
 
-        Text(tr("Restore"), style = SectionLabel, modifier = Modifier.padding(top = 12.dp))
+        RuleHeader(tr("Restore"), modifier = Modifier.padding(top = 8.dp))
         if (restoreUri == null) {
             GhostButton(tr("Choose a backup file"), Modifier.fillMaxWidth(), color = C.AccentText) {
                 try { open.launch(arrayOf("*/*")) } catch (e: Exception) { note = tr("No file picker found.") }
@@ -150,11 +153,14 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
 
 @Composable
 private fun PasswordField(value: String, hint: String, onChange: (String) -> Unit) {
+    // An outlined field, no fill; the hairline turns champagne once something's typed.
+    val shape = RoundedCornerShape(Corner.M)
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Corner.M))
-            .background(C.SurfaceLight)
+            .heightIn(min = 52.dp)
+            .clip(shape)
+            .border(1.dp, if (value.isNotEmpty()) C.AccentText.copy(alpha = 0.6f) else C.Border, shape)
             .padding(horizontal = 16.dp, vertical = 15.dp),
     ) {
         if (value.isEmpty()) Text(hint, style = inter(15.sp, color = C.TextMuted))
@@ -166,7 +172,7 @@ private fun PasswordField(value: String, hint: String, onChange: (String) -> Uni
             cursorBrush = SolidColor(C.AccentText),
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = hint },
         )
     }
 }

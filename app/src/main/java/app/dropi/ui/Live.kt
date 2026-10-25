@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -90,9 +91,10 @@ fun sensorWords(mmol: Double): String = when {
 }
 
 /**
- * The home screen in live mode: the sensor's number set big and left, an arrow tilted to the
- * actual rate of change (not just seven fixed directions), and the last three hours drawn as one
- * line running into a dotted look 20 minutes ahead.
+ * The home screen in live mode, laid out like Today's readout: the sensor's number set big and
+ * left, an arrow tilted to the actual rate of change (not just seven fixed directions), the range
+ * tape beside it, and the last three hours drawn as one line running into a dotted look 20
+ * minutes ahead.
  */
 @Composable
 fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
@@ -103,61 +105,72 @@ fun LiveHero(state: AppState, now: Long, fmt: Fmt) {
     val color = sensorColor(last.mmol)
     val value = Glucose.format(last.mmol, state.unit)
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Column(
-            Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-                contentDescription = tr(
-                    "Live from your sensor: {0} {1}, {2}, {3}, {4}",
-                    value, state.unit.label, arrow?.label ?: tr("no trend yet"), sensorWords(last.mmol), fmt.ago(last.at, now),
-                )
-            },
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Row(
-                Modifier.clip(CircleShape).tap { state.liveOpen = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                Modifier.weight(1f).semantics(mergeDescendants = true) {
+                    contentDescription = tr(
+                        "Live from your sensor: {0} {1}, {2}, {3}, {4}",
+                        value, state.unit.label, arrow?.label ?: tr("no trend yet"), sensorWords(last.mmol), fmt.ago(last.at, now),
+                    )
+                },
             ) {
-                LiveDot(color)
-                Spacer(Modifier.width(8.dp))
-                Text(tr("Live from your sensor · {0}", fmt.ago(last.at, now)), style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary))
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // A small settle each time a new value lands.
-                val pop = remember { Animatable(1f) }
-                LaunchedEffect(last.at) {
-                    pop.snapTo(0.92f)
-                    pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f))
+                Row(
+                    Modifier.heightIn(min = 48.dp).tap { state.liveOpen = true },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    LiveDot(color)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        caps(tr("Live from your sensor · {0}", fmt.ago(last.at, now))),
+                        style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.04f),
+                    )
                 }
-                Text(
-                    value,
-                    style = numeral(if (state.unit == app.dropi.data.GlucoseUnit.MGDL) 116.sp else 136.sp).copy(lineHeight = 140.sp),
-                    modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value },
-                )
-                if (slope != null) {
-                    Spacer(Modifier.width(4.dp))
-                    val tilt = remember { Animatable(0f) }
-                    LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
-                    TrendArrow(C.Text, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // A small settle each time a new value lands.
+                    val pop = remember { Animatable(1f) }
+                    LaunchedEffect(last.at) {
+                        pop.snapTo(0.92f)
+                        pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 380f))
+                    }
+                    Text(
+                        value,
+                        style = numeral(if (state.unit == app.dropi.data.GlucoseUnit.MGDL) 86.sp else 96.sp).copy(lineHeight = 100.sp),
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = pop.value; scaleY = pop.value
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 1f)
+                        },
+                    )
+                    if (slope != null) {
+                        Spacer(Modifier.width(4.dp))
+                        val tilt = remember { Animatable(0f) }
+                        LaunchedEffect(slope) { tilt.animateTo(Trend.degrees(slope), spring(dampingRatio = 0.7f, stiffness = 200f)) }
+                        TrendArrow(C.Text, tilt.value, double = arrow == Arrow.UP_FAST || arrow == Arrow.DOWN_FAST)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(state.unit.label, style = mono(13.sp, color = C.TextSecondary))
+                    Spacer(Modifier.width(10.dp))
+                    RangeSquare(color)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        listOfNotNull(sensorWords(last.mmol), arrow?.label).joinToString(" · "),
+                        style = inter(13.sp, FontWeight.SemiBold),
+                    )
                 }
             }
-            Text(
-                listOfNotNull(state.unit.label, sensorWords(last.mmol), arrow?.label).joinToString(" · "),
-                style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary),
-            )
+            RangeTape(last.mmol, state.unit, Modifier.width(80.dp).height(150.dp))
         }
-        Spacer(Modifier.height(12.dp))
-        RangeRuler(last.mmol, state.unit)
-        Spacer(Modifier.height(8.dp))
-        // The last three hours in aurora colours, running into a dotted 20 minutes ahead.
-        Column(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L)).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)) {
+        // The last three hours, running into a dotted 20 minutes ahead, under a hairline.
+        Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp, bottom = 4.dp)) {
             val ahead = Trend.ahead(points, 20)
             Trace(points.filter { it.at >= now - 3 * 60 * MIN }, ahead, now, Modifier.fillMaxWidth().height(116.dp))
             Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Text(tr("3 h ago"), style = inter(13.sp, color = C.TextMuted), modifier = Modifier.weight(1f))
+                Text(caps(tr("3 h ago")), style = mono(12.sp, color = C.TextMuted, tracking = 0.04f), modifier = Modifier.weight(1f))
                 if (ahead != null) {
-                    Text(tr("In 20 min, about {0}", Glucose.format(ahead, state.unit)), style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+                    Text(tr("In 20 min, about {0}", Glucose.format(ahead, state.unit)), style = mono(12.sp, FontWeight.Medium, C.TextSecondary))
                 } else {
-                    Text(tr("Now"), style = inter(13.sp, color = C.TextMuted))
+                    Text(caps(tr("Now")), style = mono(12.sp, color = C.TextMuted, tracking = 0.04f))
                 }
             }
         }
@@ -194,19 +207,21 @@ private fun TrendArrow(color: Color, degrees: Float, double: Boolean) {
     }
 }
 
-/** A dot that breathes while data is live. */
+/** A small square of the range colour that breathes while data is live. */
 @Composable
 private fun LiveDot(color: Color) {
     val t = rememberInfiniteTransition(label = "live")
     val r by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "ring")
-    Canvas(Modifier.size(12.dp)) {
+    Canvas(Modifier.size(14.dp)) {
         val c = center
-        drawCircle(color.copy(alpha = (1f - r) * 0.5f), radius = size.minDimension / 2 * (0.5f + r * 0.5f), center = c)
-        drawCircle(color, radius = size.minDimension / 4, center = c)
+        val outer = size.minDimension * (0.5f + r * 0.5f)
+        drawRect(color.copy(alpha = (1f - r) * 0.5f), Offset(c.x - outer / 2, c.y - outer / 2), androidx.compose.ui.geometry.Size(outer, outer))
+        val inner = 8.dp.toPx()
+        drawRect(color, Offset(c.x - inner / 2, c.y - inner / 2), androidx.compose.ui.geometry.Size(inner, inner))
     }
 }
 
-/** The line: three hours to now, the target band behind it, then 20 minutes of dotted guess. */
+/** The line: three hours to now, the in-range band behind it, then 20 minutes of dotted guess. */
 @Composable
 private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier: Modifier) {
     val band = C.InRange
@@ -214,7 +229,8 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
     val line = C.Text
     val grid = C.Border
     val cardC = C.Card
-    val aurora = C.Aurora
+    // One solid line, the sensor colour used on the Trends chart.
+    val trace = C.Aurora[1]
     val from = now - 3 * 60 * MIN
     val to = now + 25 * MIN
     val lo = minOf(2.8, (points.minOfOrNull { it.mmol } ?: 4.0) - 0.6, ahead?.minus(0.4) ?: 99.0)
@@ -238,7 +254,7 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
             if (prev == null || p.at - prev.at > 15 * MIN) path.moveTo(x(p.at), y(p.mmol)) else path.lineTo(x(p.at), y(p.mmol))
             prev = p
         }
-        drawPath(path, Brush.horizontalGradient(aurora), style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path, trace, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         val last = prev!!
         if (ahead != null) {
             drawLine(
@@ -258,10 +274,10 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
 fun LiveWaiting(state: AppState, now: Long, fmt: Fmt) {
     val last = Trend.latest(state.sensor)
     Row(
-        Modifier.fillMaxWidth().card().tap { state.liveOpen = true }.padding(horizontal = 16.dp, vertical = 16.dp),
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).ruleTop().tap { state.liveOpen = true }.padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Ic(R.drawable.lc_activity, C.TextMuted, 18.dp)
+        Ic(R.drawable.lc_activity, C.TextSecondary, 18.dp)
         Spacer(Modifier.width(12.dp))
         Text(
             if (last == null) tr("Live mode is on. Waiting for the first value from your sensor.")
@@ -269,13 +285,19 @@ fun LiveWaiting(state: AppState, now: Long, fmt: Fmt) {
             style = inter(13.sp, color = C.TextSecondary),
             modifier = Modifier.weight(1f),
         )
+        Spacer(Modifier.width(12.dp))
+        Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
     }
 }
 
+/** A ruled settings row: name and hint on the left, the switch on the right. */
 @Composable
 fun ToggleRow(title: String, sub: String?, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     val view = LocalView.current
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop().padding(top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, style = inter(15.sp, FontWeight.SemiBold))
             if (sub != null) Text(sub, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp))
@@ -377,7 +399,7 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
 
 @Composable
 private fun Step(name: String, text: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(name, style = inter(15.sp, FontWeight.SemiBold))
         Text(text, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp))
     }

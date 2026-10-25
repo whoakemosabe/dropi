@@ -16,6 +16,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,6 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,6 +104,8 @@ fun WelcomeFlow(state: AppState) {
         }
     }
     BackHandler(enabled = step != Step.WELCOME) { go(-1) }
+    // The steps that count towards "2 / 6": everything after the welcome that isn't skipped here.
+    val counted = Step.entries.filter { it != Step.WELCOME && !skipped(it) }
 
     // What's been allowed so far, rechecked whenever the person comes back from a system screen.
     var notifyOk by remember { mutableStateOf(Alerts.canNotify(context)) }
@@ -145,14 +152,13 @@ fun WelcomeFlow(state: AppState) {
         ) {
             // Progress: one segment per step after the welcome.
             if (step != Step.WELCOME) {
-                val steps = Step.entries.filter { it != Step.WELCOME && !skipped(it) }
-                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    steps.forEach { s ->
+                // Hairline segments, square-ended: the done ones in the signature colour.
+                Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    counted.forEach { s ->
                         Box(
                             Modifier
                                 .weight(1f)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
+                                .height(2.dp)
                                 .background(if (s.ordinal <= step.ordinal) C.AccentText else C.Border),
                         )
                     }
@@ -178,7 +184,7 @@ fun WelcomeFlow(state: AppState) {
                     ) {
                         when (s) {
                             Step.WELCOME -> {
-                                Badge(R.drawable.lc_droplet, big = true)
+                                Ic(R.drawable.lc_droplet, C.AccentText, 32.dp)
                                 // First choice: the language, written in both so either reader finds theirs.
                                 Text("Language · Tungumál", style = SectionLabel)
                                 LanguagePicker(Modifier.fillMaxWidth(), height = 52.dp)
@@ -192,7 +198,7 @@ fun WelcomeFlow(state: AppState) {
                                 Text(tr("Next: a few quick choices and what Dropi needs your OK for."), style = inter(15.sp, color = C.TextMuted))
                             }
                             Step.UNITS -> {
-                                Badge(R.drawable.lc_droplet)
+                                StepMark(R.drawable.lc_droplet, counted.indexOf(s) + 1, counted.size)
                                 Title(tr("How does your meter show it?"))
                                 Text(tr("Readings are always saved exactly, so you can switch later without changing them."), style = body())
                                 Spacer(Modifier.height(4.dp))
@@ -209,7 +215,7 @@ fun WelcomeFlow(state: AppState) {
                                 )
                             }
                             Step.NOTIFY -> {
-                                Badge(R.drawable.lc_clock)
+                                StepMark(R.drawable.lc_clock, counted.indexOf(s) + 1, counted.size)
                                 Title(tr("Notifications"))
                                 Text(tr("Dropi only uses them for things you'd want to know:"), style = body())
                                 Point(R.drawable.lc_clock, tr("Reminders at your check times, and a check after you eat"))
@@ -219,7 +225,7 @@ fun WelcomeFlow(state: AppState) {
                                 if (notifyOk) Allowed(tr("Notifications are on"))
                             }
                             Step.HEALTH -> {
-                                Badge(R.drawable.lc_heart_pulse)
+                                StepMark(R.drawable.lc_heart_pulse, counted.indexOf(s) + 1, counted.size)
                                 Title("Health Connect")
                                 Text(
                                     tr("Share blood glucose with other apps, both ways. Readings from a CGM or another meter app come into Dropi, and yours go out. Blood glucose only, nothing else."),
@@ -230,7 +236,7 @@ fun WelcomeFlow(state: AppState) {
                                 hcNote?.let { Text(it, style = inter(15.sp, color = C.High)) }
                             }
                             Step.UPDATES -> {
-                                Badge(R.drawable.lc_download)
+                                StepMark(R.drawable.lc_download, counted.indexOf(s) + 1, counted.size)
                                 Title(tr("Updates in one tap"))
                                 Text(
                                     tr("Dropi isn't from the Play Store, so Android asks once whether it may install its own updates. Turn on \"Allow from this source\" on the next screen, then come back."),
@@ -240,7 +246,7 @@ fun WelcomeFlow(state: AppState) {
                                 if (installOk) Allowed(tr("Allowed"))
                             }
                             Step.AI -> {
-                                Badge(R.drawable.lc_message_circle)
+                                StepMark(R.drawable.lc_message_circle, counted.indexOf(s) + 1, counted.size)
                                 Title(tr("On-device AI"))
                                 if (Ai.nano || Ai.checking) {
                                     Text(
@@ -270,19 +276,23 @@ fun WelcomeFlow(state: AppState) {
                                 }
                             }
                             Step.DONE -> {
-                                Badge(R.drawable.lc_check, big = true)
+                                StepMark(R.drawable.lc_check, counted.indexOf(s) + 1, counted.size)
                                 Title(tr("You're all set"))
                                 Text(tr("Here's what Dropi can do on this phone:"), style = body())
-                                CheckLine(tr("Reminders and alerts"), notifyOk)
-                                if (hcAvailable || hcInstall) CheckLine(tr("Health Connect sync"), state.healthSync)
-                                CheckLine(tr("One-tap updates"), installOk)
-                                if (!skipped(Step.AI)) {
-                                    val g = Gemma.state
-                                    CheckLine(
-                                        tr("On-device AI"),
-                                        Nano.state == Nano.State.READY || Nano.state == Nano.State.DOWNLOADING || g == Gemma.State.Ready ||
-                                            g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying,
-                                    )
+                                // A ruled list, like a logbook page: label left, status right.
+                                Column(Modifier.fillMaxWidth()) {
+                                    CheckLine(tr("Reminders and alerts"), notifyOk)
+                                    if (hcAvailable || hcInstall) CheckLine(tr("Health Connect sync"), state.healthSync)
+                                    CheckLine(tr("One-tap updates"), installOk)
+                                    if (!skipped(Step.AI)) {
+                                        val g = Gemma.state
+                                        CheckLine(
+                                            tr("On-device AI"),
+                                            Nano.state == Nano.State.READY || Nano.state == Nano.State.DOWNLOADING || g == Gemma.State.Ready ||
+                                                g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying,
+                                        )
+                                    }
+                                    Box(Modifier.fillMaxWidth().height(1.dp).ruleTop())
                                 }
                                 Text(
                                     tr("Anything you skipped is in Settings. Using a CGM? Settings › Live sensor connects it."),
@@ -409,14 +419,24 @@ private fun Title(text: String) {
     Text(text, style = heading(30.sp).copy(lineHeight = 36.sp))
 }
 
-/** The step's icon on a tile of aurora light. */
+/**
+ * Where you are in the setup, in the new language: the step's plain icon, a mono counter
+ * ("2 / 6") and a hairline to the edge. No tile, no gradient.
+ */
 @Composable
-private fun Badge(icon: Int, big: Boolean = false) {
-    val size = if (big) 72.dp else 56.dp
-    Box(
-        Modifier.size(size).clip(RoundedCornerShape(if (big) 22.dp else 18.dp)).background(C.Accent),
-        contentAlignment = Alignment.Center,
-    ) { Ic(icon, C.OnAccent, if (big) 34.dp else 26.dp) }
+private fun StepMark(icon: Int, number: Int, total: Int) {
+    val said = tr("Step {0} of {1}", number, total)
+    Row(
+        Modifier.fillMaxWidth().then(if (number > 0) Modifier.semantics { contentDescription = said } else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Ic(icon, C.AccentText, 22.dp)
+        if (number > 0) {
+            Text("$number / $total", style = mono(13.sp, FontWeight.Medium, C.TextSecondary, 0.04f), modifier = Modifier.clearAndSetSemantics {})
+        }
+        Box(Modifier.weight(1f).height(1.dp).background(C.Border))
+    }
 }
 
 @Composable
@@ -430,8 +450,9 @@ private fun Point(icon: Int, text: String) {
 
 @Composable
 private fun Allowed(text: String) {
+    val shape = RoundedCornerShape(Corner.S)
     Row(
-        Modifier.clip(RoundedCornerShape(50)).background(C.InRange.copy(alpha = 0.14f)).padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.clip(shape).border(1.dp, C.InRange.copy(alpha = 0.5f), shape).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Ic(R.drawable.lc_check, C.InRange, 16.dp)
@@ -442,14 +463,17 @@ private fun Allowed(text: String) {
 
 @Composable
 private fun CheckLine(label: String, on: Boolean) {
-    Row(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.M)).padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).ruleTop().padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(label, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
         if (on) {
-            Ic(R.drawable.lc_check, C.InRange, 18.dp)
+            RangeSquare(C.InRange)
             Spacer(Modifier.width(8.dp))
-            Text(tr("On"), style = inter(15.sp, FontWeight.SemiBold, C.InRange))
+            Text(caps(tr("On")), style = mono(13.sp, FontWeight.SemiBold, C.InRange, 0.06f))
         } else {
-            Text(tr("Skipped"), style = inter(15.sp, color = C.TextMuted))
+            Text(caps(tr("Skipped")), style = mono(13.sp, FontWeight.Medium, C.TextMuted, 0.06f))
         }
     }
 }

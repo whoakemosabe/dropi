@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -58,15 +62,16 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, rea
                 .padding(horizontal = 24.dp)
                 .widthIn(max = 420.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(Corner.XL))
-                .background(C.Card)
+                .card(RoundedCornerShape(Corner.XL))
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier.size(52.dp).clip(RoundedCornerShape(Corner.M)).background(C.Accent),
-                contentAlignment = Alignment.Center,
-            ) { Ic(R.drawable.lc_message_circle, C.OnAccent, 24.dp) }
+            // What this is about, in the small mono capitals: no icon tile.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Ic(R.drawable.lc_message_circle, C.AccentText, 16.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(caps(tr("On-device AI")), style = mono(12.sp, FontWeight.Medium, C.AccentText, 0.08f))
+            }
 
             when {
                 Ai.usable -> {

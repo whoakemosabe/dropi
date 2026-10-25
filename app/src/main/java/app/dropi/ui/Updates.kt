@@ -39,10 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -88,21 +90,15 @@ fun UpdateBanner() {
             Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp)
-                .clip(RoundedCornerShape(Corner.M))
-                .background(C.Card)
-                .background(auroraWash(0.16f))
-                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(Corner.M))
+                .card(RoundedCornerShape(Corner.M))
                 .tap { act() }
                 .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
-                    contentAlignment = Alignment.Center,
-                ) { Ic(R.drawable.lc_download, C.OnAccent, 16.dp) }
+                Ic(R.drawable.lc_download, C.AccentText, 18.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(tr("Dropi {0} is ready", shownVersion.orEmpty()), style = inter(15.sp, FontWeight.Bold, C.Text))
+                    Text(tr("Dropi {0} is ready", shownVersion.orEmpty()), style = inter(15.sp, FontWeight.SemiBold, C.Text))
                     Text(
                         when (ui) {
                             UpdateUi.Idle, UpdateUi.UpToDate, is UpdateUi.Available -> tr("See what's new")
@@ -111,19 +107,11 @@ fun UpdateBanner() {
                             is UpdateUi.Ready -> ui.note ?: tr("Downloaded. Tap to install")
                             is UpdateUi.Error -> ui.message
                         },
-                        style = inter(13.sp, color = C.TextSecondary),
+                        style = if (ui is UpdateUi.Downloading) mono(13.sp, color = C.TextSecondary) else inter(13.sp, color = C.TextSecondary),
                     )
                 }
                 if (ui !is UpdateUi.Downloading) {
-                    Text(
-                        if (ui is UpdateUi.Ready) tr("Install") else tr("Update"),
-                        style = inter(13.sp, FontWeight.Bold, C.OnAccent),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
-                            .tap { act() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
+                    BannerAction(if (ui is UpdateUi.Ready) tr("Install") else tr("Update")) { act() }
                 }
                 Text(
                     "×",
@@ -173,13 +161,8 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     scaleX = 0.96f + 0.04f * enter.value
                     scaleY = scaleX
                 }
-                .clip(shape)
-                .background(C.Card)
-                .border(1.dp, auroraEdge(0.5f), shape),
+                .card(shape),
         ) {
-          Box(Modifier.fillMaxWidth()) {
-            // The same northern lights as behind every page, glowing over the title.
-            AuroraGlow(Modifier.matchParentSize())
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -187,21 +170,20 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(28.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
-                        contentAlignment = Alignment.Center,
-                    ) { Ic(R.drawable.lc_zap, C.OnAccent, 16.dp) }
-                    Spacer(Modifier.width(12.dp))
-                    Text(tr("Update ready"), style = SectionLabel.copy(color = C.AccentText), modifier = Modifier.weight(1f))
+                    Ic(R.drawable.lc_zap, C.AccentText, 16.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        caps(tr("Update ready")),
+                        style = mono(12.sp, FontWeight.Medium, C.AccentText, 0.08f),
+                        modifier = Modifier.weight(1f),
+                    )
                     if (behind > 1) {
                         Text(
-                            if (behind >= 30) tr("30+ updates behind") else trn(behind, "{0} update behind", "{0} updates behind"),
-                            style = inter(13.sp, FontWeight.SemiBold, C.High),
+                            caps(if (behind >= 30) tr("30+ updates behind") else trn(behind, "{0} update behind", "{0} updates behind")),
+                            style = mono(12.sp, FontWeight.SemiBold, C.High, 0.04f),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(Corner.S))
-                                .background(C.High.copy(alpha = 0.12f))
-                                .border(1.dp, C.High.copy(alpha = 0.4f), RoundedCornerShape(Corner.S))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                .border(1.dp, C.High.copy(alpha = 0.5f), RoundedCornerShape(Corner.S))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -211,14 +193,12 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                 )
                 if (behind > 1) Text(tr("Installing v{0} brings you fully up to date.", version), style = inter(13.sp, color = C.TextSecondary))
             }
-          }
 
             Column(
                 Modifier
                     .heightIn(max = 320.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 lines.forEachIndexed { i, n -> Highlight(n, i) }
             }
@@ -231,7 +211,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
                     is UpdateUi.Downloading -> {
                         Text(
                             tr("Downloading… {0}%", (UpdateWatch.progress * 100).toInt()),
-                            style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
+                            style = mono(13.sp, FontWeight.Medium, C.TextSecondary),
                             modifier = Modifier.padding(horizontal = 4.dp),
                         )
                         ProgressLine(UpdateWatch.progress)
@@ -274,22 +254,51 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
 private fun Highlight(text: String, index: Int) {
     val a = remember { Animatable(0f) }
     LaunchedEffect(Unit) { a.animateTo(1f, tween(280, delayMillis = 180 + index * 70, easing = FastOutSlowInEasing)) }
+    // A logbook line: its number in mono, the note beside it, a hairline above.
     Row(
-        Modifier.graphicsLayer {
-            alpha = a.value
-            translationX = (1f - a.value) * 16.dp.toPx()
-        },
+        Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                alpha = a.value
+                translationX = (1f - a.value) * 16.dp.toPx()
+            }
+            .ruleTop()
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.padding(top = 4.dp).size(8.dp).clip(RoundedCornerShape(50)).background(C.Accent))
-        Spacer(Modifier.width(12.dp))
+        Text(
+            (index + 1).toString().padStart(2, '0'),
+            style = mono(12.sp, FontWeight.Medium, C.TextMuted),
+            modifier = Modifier.padding(top = 2.dp).width(24.dp).clearAndSetSemantics {},
+        )
+        Spacer(Modifier.width(8.dp))
         Text(text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
     }
 }
 
-/** A soft wash of the aurora (green → cyan → violet) across a card. */
-internal fun auroraWash(alpha: Float): Brush =
-    Brush.horizontalGradient(C.Aurora.mapIndexed { i, c -> c.copy(alpha = if (i == 1) alpha / 2 else alpha) })
+/**
+ * A banner's one action: a small button in the dark accent with the champagne hairline, a full
+ * 48 dp to tap around it.
+ */
+@Composable
+internal fun BannerAction(label: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(Corner.S)
+    Box(
+        Modifier
+            .minimumInteractiveComponentSize()
+            .clip(shape)
+            .background(C.Accent)
+            .border(1.dp, C.AccentText.copy(alpha = 0.4f), shape)
+            .tap { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(caps(label), style = mono(12.sp, FontWeight.SemiBold, C.OnAccent, 0.06f), maxLines = 1)
+    }
+}
 
-/** A hairline edge in the aurora colours. */
-internal fun auroraEdge(alpha: Float): Brush = Brush.horizontalGradient(C.Aurora.map { it.copy(alpha = alpha) })
+/** 1.1: no gradients. Once the aurora wash on banners; now a faint solid tint of the signature colour. */
+internal fun auroraWash(alpha: Float): Brush = SolidColor(C.AccentText.copy(alpha = alpha * 0.5f))
+
+/** 1.1: no gradients. Once an aurora-coloured edge; now a plain hairline. */
+internal fun auroraEdge(alpha: Float): Brush = SolidColor(C.Border.copy(alpha = (alpha + 0.1f).coerceAtMost(1f)))

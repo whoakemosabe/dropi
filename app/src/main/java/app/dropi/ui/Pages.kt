@@ -536,13 +536,12 @@ fun MealDraftCard() {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .clip(RoundedCornerShape(Corner.M))
-            .background(C.AccentText.copy(alpha = 0.12f))
-            .border(1.dp, C.AccentText.copy(alpha = 0.45f), RoundedCornerShape(Corner.M))
+            // A real object (a meal waiting), so a quiet panel: small corners, a hairline.
+            .card(RoundedCornerShape(Corner.M))
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Ic(R.drawable.lc_utensils, C.AccentText, 20.dp)
+        Ic(R.drawable.lc_utensils, C.AccentText, 18.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
             Text(title, style = inter(15.sp, FontWeight.SemiBold))
@@ -550,17 +549,12 @@ fun MealDraftCard() {
         }
         if (d.status !is MealWork.Status.Working) {
             Text(
-                tr("Discard"),
-                style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary),
-                modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).semantics { role = Role.Button }
-                    .tap { MealWork.discard() }.padding(horizontal = 12.dp, vertical = 16.dp),
+                caps(tr("Discard")),
+                style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.06f),
+                modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(Corner.S)).semantics { role = Role.Button }
+                    .tap { MealWork.discard() }.padding(horizontal = 10.dp, vertical = 16.dp),
             )
         }
-        Text(
-            tr("Open"),
-            style = inter(15.sp, FontWeight.Bold, C.OnAccent),
-            modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).background(C.Accent).semantics { role = Role.Button }
-                .tap { MealWork.open = true }.padding(horizontal = 16.dp, vertical = 16.dp),
-        )
+        BannerAction(tr("Open")) { MealWork.open = true }
     }
 }

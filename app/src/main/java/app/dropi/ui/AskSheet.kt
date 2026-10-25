@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -32,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -74,6 +74,8 @@ fun AskSheet(state: AppState) {
 
 private class Turn(val q: String, a: String?) {
     var a by mutableStateOf(a)
+    /** When it was asked, for the logbook margin. */
+    val at: Long = System.currentTimeMillis()
 }
 
 /**
@@ -121,38 +123,54 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         }
     }
 
+    val fmt = remember(state.zone) { Fmt(context, state.zone) }
+
     StickySheetBody(tr("Ask Dropi"), close) {
-        // Ready-made questions: worked out exactly from the log, on every phone.
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Ask.Q.entries.chunked(2).forEach { pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pair.forEach { q ->
-                        Text(
-                            q.text,
-                            style = inter(15.sp, FontWeight.SemiBold),
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 56.dp)
-                                .clip(RoundedCornerShape(Corner.M))
-                                .background(C.SurfaceLight)
-                                .tap {
-                                    turns += Turn(q.text, Ask.answer(q, state.askCtx()))
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                        )
-                    }
+        // Ready-made questions: worked out exactly from the log, on every phone. Ruled rows, like an index.
+        Column(Modifier.fillMaxWidth()) {
+            RuleHeader(tr("Questions"), Ask.Q.entries.size.toString())
+            Ask.Q.entries.forEach { q ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .ruleTop()
+                        .tap { turns += Turn(q.text, Ask.answer(q, state.askCtx())) }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(q.text, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(12.dp))
+                    Text("→", style = mono(15.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.clearAndSetSemantics {})
                 }
             }
         }
 
-        turns.forEach { t ->
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(t.q, style = heading(17.sp))
-                val a = t.a
-                Text(
-                    a ?: Ai.warmUp ?: tr("Thinking…"),
-                    style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
-                )
+        // Answers, written up like logbook entries: the time in the margin, the question, the answer.
+        if (turns.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth()) {
+                RuleHeader(tr("Answers"), turns.size.toString())
+                turns.forEach { t ->
+                    Row(
+                        Modifier.fillMaxWidth().ruleTop().padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
+                    ) {
+                        Text(
+                            fmt.time(t.at),
+                            style = mono(12.sp, color = C.TextMuted),
+                            maxLines = 1,
+                            modifier = Modifier.width(if (fmt.is24) 48.dp else 72.dp).padding(top = 3.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(t.q, style = heading(17.sp))
+                            val a = t.a
+                            Text(
+                                a ?: Ai.warmUp ?: tr("Thinking…"),
+                                style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -162,14 +180,17 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                 askTyped(text)
             }
         }
+        // The input bar: an outlined field with a squared send button, no fill.
         run {
+            val canSend = text.isNotBlank() && !busy
+            val shape = RoundedCornerShape(Corner.M)
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(Corner.M))
-                    .background(C.SurfaceLight)
-                    .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
-                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(top = 4.dp)
+                    .clip(shape)
+                    .border(1.dp, if (text.isNotEmpty()) C.AccentText.copy(alpha = 0.6f) else C.Border, shape)
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
@@ -185,14 +206,19 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                Spacer(Modifier.width(8.dp))
+                val btn = RoundedCornerShape(Corner.S)
                 Box(
                     Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (text.isNotBlank() && !busy) C.Accent else C.Card)
-                        .tap(enabled = text.isNotBlank() && !busy) { askTyped(text) },
+                        .size(48.dp)
+                        .clip(btn)
+                        .then(
+                            if (canSend) Modifier.background(C.Accent).border(1.dp, C.AccentText.copy(alpha = 0.45f), btn)
+                            else Modifier.border(1.dp, C.Border, btn)
+                        )
+                        .tap(enabled = canSend) { askTyped(text) },
                     contentAlignment = Alignment.Center,
-                ) { Ic(R.drawable.lc_send, if (text.isNotBlank() && !busy) C.OnAccent else C.TextMuted, 18.dp, contentDescription = tr("Ask")) }
+                ) { Ic(R.drawable.lc_send, if (canSend) C.OnAccent else C.TextMuted, 18.dp, contentDescription = tr("Ask")) }
             }
         }
 

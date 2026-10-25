@@ -47,8 +47,9 @@ fun HistorySheet(state: AppState) {
 }
 
 /**
- * Every reading ever logged, newest first, grouped by day with each day's average. A filter
- * grid (pinned with the title) narrows it to one moment. Tap a reading to edit it.
+ * Every reading ever logged, newest first, as ledger rows under a ruled header per day with the
+ * day's count and average. A filter grid (pinned with the title) narrows it to one moment. Tap a
+ * reading to edit it.
  */
 @Composable
 private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
@@ -58,7 +59,10 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
     val all = state.history
     val shown = remember(all, filter) { all.filter { filter == null || it.tag == filter }.reversed() }
     val byDay = remember(shown) { shown.groupBy { it.date(state.zone) } }
-    val dayName = remember { dayPattern("EEEE d MMMM yyyy") }
+    // Short day names so the ruled header fits one line; the year only when it isn't this one.
+    val dayName = remember { dayPattern("EEE d MMM") }
+    val dayYear = remember { dayPattern("EEE d MMM yyyy") }
+    val thisYear = remember(state.zone) { java.time.LocalDate.now(state.zone).year }
     val backdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
     var headerPx by remember { mutableIntStateOf(0) }
@@ -69,7 +73,6 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
         LazyColumn(
             Modifier.fillMaxWidth().layerBackdrop(backdrop).background(C.Sheet),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = headerDp + 20.dp, bottom = nav.calculateBottomPadding() + 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (shown.isEmpty()) {
                 item(key = "empty") {
@@ -83,15 +86,13 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
             byDay.forEach { (day, rs) ->
                 item(key = "d$day") {
                     val avg = rs.map { it.mmol }.average()
-                    Row(Modifier.fillMaxWidth().padding(top = 12.dp, start = 4.dp), verticalAlignment = Alignment.Bottom) {
-                        Text(dayName.format(day).cap(), style = inter(13.sp, FontWeight.Bold, C.Text), modifier = Modifier.weight(1f))
-                        Text(
-                            trn(rs.size, "{0} reading · avg {1}", "{0} readings · avg {1}", Glucose.format(avg, state.unit)),
-                            style = inter(13.sp, color = C.TextMuted),
-                        )
-                    }
+                    RuleHeader(
+                        (if (day.year == thisYear) dayName else dayYear).format(day),
+                        trn(rs.size, "{0} reading · avg {1}", "{0} readings · avg {1}", Glucose.format(avg, state.unit)),
+                        Modifier.padding(top = 4.dp),
+                    )
                 }
-                item(key = "l$day") { ReadingsCard(state, rs, C.SurfaceLight) { fmt.time(it.at) } }
+                item(key = "l$day") { ReadingsCard(state, rs) { fmt.time(it.at) } }
             }
         }
         GlassHeader(backdrop, headerDp + 16.dp, Modifier.align(Alignment.TopCenter), fade = 16.dp, base = C.Sheet)
@@ -104,9 +105,9 @@ private fun ColumnScope.HistoryContent(state: AppState, close: () -> Unit) {
         ) {
             SheetTitle(tr("All readings"), close)
             Text(
-                trn(all.size, "{0} reading in total", "{0} readings in total"),
-                style = inter(13.sp, color = C.TextMuted),
-                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                caps(trn(all.size, "{0} reading in total", "{0} readings in total")),
+                style = mono(12.sp, color = C.TextMuted, tracking = 0.06f),
+                modifier = Modifier.padding(bottom = 8.dp),
             )
             val options = listOf<MealTag?>(null) + MealTag.entries
             ChoiceGrid(

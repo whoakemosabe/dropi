@@ -119,42 +119,26 @@ fun AiBanner(state: AppState) {
             Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp)
-                .clip(RoundedCornerShape(Corner.M))
-                .background(C.Card)
-                .background(auroraWash(0.16f))
-                .border(1.dp, auroraEdge(0.55f), RoundedCornerShape(Corner.M))
+                .card(RoundedCornerShape(Corner.M))
                 .then(if (action != null) Modifier.tap { act() } else Modifier)
                 .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Ic(
-                        when (kind) {
-                            "ready" -> R.drawable.lc_message_circle
-                            "failed" -> R.drawable.lc_circle_alert
-                            else -> R.drawable.lc_download
-                        },
-                        C.OnAccent, 16.dp,
-                    )
-                }
+                Ic(
+                    when (kind) {
+                        "ready" -> R.drawable.lc_message_circle
+                        "failed" -> R.drawable.lc_circle_alert
+                        else -> R.drawable.lc_download
+                    },
+                    if (kind == "failed") C.Low else C.AccentText, 18.dp,
+                )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = inter(15.sp, FontWeight.Bold, C.Text))
+                    Text(title, style = inter(15.sp, FontWeight.SemiBold, C.Text))
                     Text(line, style = inter(13.sp, color = if (kind == "failed") C.Low else C.TextSecondary))
                 }
                 if (action != null) {
-                    Text(
-                        action,
-                        style = inter(13.sp, FontWeight.Bold, C.OnAccent),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
-                            .tap { act() }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
+                    BannerAction(action) { act() }
                 }
                 Text(
                     "×",

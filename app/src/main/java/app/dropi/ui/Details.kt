@@ -1,12 +1,15 @@
 package app.dropi.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -107,18 +110,19 @@ fun DetailsDialog(
                 .widthIn(max = 440.dp)
                 .fillMaxWidth()
                 .imePadding()
-                .clip(RoundedCornerShape(Corner.XL))
-                .background(C.Card)
+                .card(RoundedCornerShape(Corner.XL))
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(tr("Details"), style = heading(20.sp))
+            Text(tr("Details"), style = heading(22.sp))
+            Spacer(Modifier.height(6.dp))
             Text(
                 tr("All optional. Meals are logged on their own with the + button, at the time you ate."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
             )
+            Spacer(Modifier.height(16.dp))
 
+            // Ruled rows: name and value on the left, squared − and + keys on the right.
             Stepper(tr("Carbs"), d.carbs?.let { tr("{0} g", it) }, R.drawable.lc_utensils,
                 onMinus = { d = d.copy(carbs = d.carbs?.let { (it - 5).takeIf { v -> v > 0 } }) },
                 onPlus = { d = d.copy(carbs = ((d.carbs ?: 0) + 5).coerceAtMost(400)) },
@@ -129,7 +133,10 @@ fun DetailsDialog(
             )
             if (d.insulin != null) {
                 val kinds = InsulinKind.entries
-                ChoiceGrid(kinds.map { Choice(it.label) }, kinds.indexOf(d.kind ?: InsulinKind.RAPID), columns = 3, compact = true) {
+                ChoiceGrid(
+                    kinds.map { Choice(it.label) }, kinds.indexOf(d.kind ?: InsulinKind.RAPID), columns = 3, compact = true,
+                    modifier = Modifier.padding(start = 30.dp, bottom = 12.dp),
+                ) {
                     d = d.copy(kind = kinds[it])
                 }
             }
@@ -137,10 +144,13 @@ fun DetailsDialog(
                 onMinus = { d = d.copy(exercise = d.exercise?.let { (it - 15).takeIf { v -> v > 0 } }) },
                 onPlus = { d = d.copy(exercise = ((d.exercise ?: 0) + 15).coerceAtMost(600)) },
             )
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Ic(R.drawable.lc_check, C.TextMuted, 18.dp)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Ic(R.drawable.lc_check, C.TextSecondary, 18.dp)
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(tr("Took my tablets"), style = inter(15.sp, FontWeight.SemiBold))
                     Text(tr("Diabetes medicine other than insulin"), style = inter(13.sp, color = C.TextMuted))
                 }
@@ -151,12 +161,16 @@ fun DetailsDialog(
                 )
             }
 
+            // The note: an outlined field under a hairline.
             Box(
                 Modifier
                     .fillMaxWidth()
+                    .ruleTop()
+                    .padding(top = 12.dp)
+                    .heightIn(min = 52.dp)
                     .clip(RoundedCornerShape(Corner.M))
-                    .background(C.SurfaceLight)
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .border(1.dp, C.Border, RoundedCornerShape(Corner.M))
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
             ) {
                 if (note.isEmpty()) Text(tr("Note: how you feel, anything unusual…"), style = inter(15.sp, color = C.TextMuted))
                 BasicTextField(
@@ -170,6 +184,7 @@ fun DetailsDialog(
                 )
             }
 
+            Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GhostButton(tr("Clear all"), Modifier.weight(1f)) {
                     d = Details()
@@ -181,15 +196,18 @@ fun DetailsDialog(
     }
 }
 
-/** − value + on one row; the value shows "Add" until it's set. */
+/** A ruled row: name and value (mono) on the left, − and + on the right; "Not logged" until set. */
 @Composable
 private fun Stepper(label: String, value: String?, icon: Int, onMinus: () -> Unit, onPlus: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Ic(icon, C.TextMuted, 18.dp)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Ic(icon, C.TextSecondary, 18.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, style = inter(15.sp, FontWeight.SemiBold))
-            Text(value ?: tr("Not logged"), style = inter(13.sp, FontWeight.Medium, if (value != null) C.Text else C.TextMuted))
+            Text(value ?: tr("Not logged"), style = mono(13.sp, FontWeight.Medium, if (value != null) C.Text else C.TextMuted))
         }
         RoundButton("−", tr("Less {0}", label), enabled = value != null, action = onMinus)
         Spacer(Modifier.width(8.dp))
@@ -197,7 +215,7 @@ private fun Stepper(label: String, value: String?, icon: Int, onMinus: () -> Uni
     }
 }
 
-/** Tap to step once; hold to keep stepping (so 75 g of carbs isn't 15 taps). */
+/** A squared, outlined key. Tap to step once; hold to keep stepping (so 75 g of carbs isn't 15 taps). */
 @Composable
 private fun RoundButton(symbol: String, description: String, enabled: Boolean, action: () -> Unit) {
     val view = LocalView.current
@@ -209,8 +227,8 @@ private fun RoundButton(symbol: String, description: String, enabled: Boolean, a
         Modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .size(48.dp)
-            .clip(CircleShape)
-            .background(if (enabled) C.SurfaceLight else C.SurfaceLight.copy(alpha = 0.4f))
+            .clip(RoundedCornerShape(Corner.S))
+            .border(1.dp, if (enabled) C.Border else C.Border.copy(alpha = 0.35f), RoundedCornerShape(Corner.S))
             .semantics {
                 contentDescription = description
                 role = Role.Button
@@ -246,6 +264,6 @@ private fun RoundButton(symbol: String, description: String, enabled: Boolean, a
             },
         contentAlignment = Alignment.Center,
     ) {
-        Text(symbol, style = inter(22.sp, FontWeight.SemiBold, if (enabled) C.Text else C.TextMuted))
+        Text(symbol, style = mono(22.sp, FontWeight.Medium, if (enabled) C.Text else C.TextMuted.copy(alpha = 0.5f)))
     }
 }

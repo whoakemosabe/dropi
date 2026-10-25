@@ -5,22 +5,24 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.ui.C
 import app.dropi.ui.DropiTheme
 import app.dropi.ui.PrimaryButton
+import app.dropi.ui.RuleHeader
+import app.dropi.ui.heading
 import app.dropi.ui.inter
+import app.dropi.ui.ruleTop
 
 /**
  * How Dropi uses Health Connect data. Health Connect opens this from its permission screen and
@@ -44,9 +46,10 @@ class PrivacyActivity : ComponentActivity() {
                         .safeDrawingPadding()
                         .verticalScroll(rememberScrollState())
                         .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text(tr("Dropi and your health data"), style = inter(24.sp, FontWeight.ExtraBold))
+                    Text(tr("Dropi and your health data"), style = heading(24.sp), modifier = Modifier.padding(bottom = 4.dp))
+                    RuleHeader(tr("Health Connect"))
+                    // Ruled paragraphs, like the rest of 1.1: a hairline between each, no cards.
                     listOf(
                         tr("Dropi only asks Health Connect for blood glucose. Nothing else."),
                         tr("Reading: blood glucose other apps saved (a sensor or another meter app) is copied into Dropi so your log, trends and reports are complete."),
@@ -54,8 +57,17 @@ class PrivacyActivity : ComponentActivity() {
                         tr("Everything stays on your phone. Dropi has no account and no servers, and never sends your readings anywhere. It only goes online to check GitHub for app updates and, if you ask for it, to download the on-device AI model once."),
                         tr("Reports you share (PDF or CSV) go only where you send them."),
                         tr("Turn sync off any time in Dropi's Settings, or remove its access in Health Connect."),
-                    ).forEach { Text(it, style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 22.sp)) }
-                    PrimaryButton(tr("Done"), Modifier.padding(top = 8.dp)) { finish() }
+                    ).forEachIndexed { i, para ->
+                        Text(
+                            para,
+                            style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 22.sp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (i > 0) Modifier.ruleTop() else Modifier)
+                                .padding(vertical = 12.dp),
+                        )
+                    }
+                    PrimaryButton(tr("Done"), Modifier.fillMaxWidth().padding(top = 16.dp)) { finish() }
                 }
             }
         }

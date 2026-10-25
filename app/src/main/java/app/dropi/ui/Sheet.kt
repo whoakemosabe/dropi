@@ -206,7 +206,7 @@ fun ColumnScope.StickySheetBody(
                 .background(C.Sheet)
                 .verticalScroll(rememberScrollState())
                 .then(if (footer == null) Modifier.navigationBarsPadding() else Modifier)
-                .padding(start = 16.dp, end = 16.dp, top = headerDp + 24.dp, bottom = 24.dp),
+                .padding(start = 20.dp, end = 20.dp, top = headerDp + 12.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )
@@ -216,11 +216,11 @@ fun ColumnScope.StickySheetBody(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .onSizeChanged { headerPx = it.height }
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
         ) { SheetTitle(title, close) }
     }
     if (footer != null) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(C.GlassBorder))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(C.Border))
         Box(
             Modifier
                 .fillMaxWidth()

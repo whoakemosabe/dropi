@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
 import app.dropi.data.Status
@@ -131,9 +132,9 @@ fun inter(size: TextUnit, weight: FontWeight = FontWeight.Normal, color: Color =
         fontFeatureSettings = "tnum",
     )
 
-/** A section's name: sentence case in Bricolage, not shouted. */
+/** A small section name inside a panel: mono, a little tracked (1.1). Sections themselves use RuleHeader. */
 val SectionLabel: TextStyle get() = TextStyle(
-    fontFamily = BricolageLabel, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = C.TextSecondary,
+    fontFamily = PlexMono, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = C.TextSecondary, letterSpacing = 0.08.em,
 )
 
 @Composable
@@ -149,6 +150,14 @@ fun DropiTheme(content: @Composable () -> Unit) {
             surfaceVariant = C.SurfaceLight,
             onSurfaceVariant = C.TextSecondary,
             outline = C.Border,
+        ),
+        // 1.1: small, instrument-like corners on menus, dialogs and pickers too.
+        shapes = androidx.compose.material3.Shapes(
+            extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+            small = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+            medium = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            large = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
         ),
         content = content,
     )

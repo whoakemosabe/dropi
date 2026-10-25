@@ -56,6 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -168,54 +170,45 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             .navigationBarsPadding()
             .padding(horizontal = 16.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (isNew) tr("New reading") else tr("Edit reading"), style = inter(17.sp, FontWeight.Bold), modifier = Modifier.weight(1f))
+        SheetTitle(if (isNew) tr("New reading") else tr("Edit reading"), close) {
             if (isNew) {
                 Row(
                     Modifier
                         .minimumInteractiveComponentSize()
-                        .clip(RoundedCornerShape(50))
-                        .background(C.SurfaceLight)
+                        .clip(RoundedCornerShape(Corner.S))
+                        .border(1.dp, C.Border, RoundedCornerShape(Corner.S))
                         .tap { Launch.mealAction.value = "meter" }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Ic(R.drawable.lc_camera, C.TextSecondary, 16.dp)
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text(tr("Scan meter"), style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
                 }
-                Spacer(Modifier.width(8.dp))
-            }
-            if (!isNew) {
+            } else {
                 Row(
                     Modifier
                         .minimumInteractiveComponentSize()
-                        .clip(RoundedCornerShape(50))
-                        .background(if (confirmDelete) C.Low.copy(alpha = 0.16f) else Color.Transparent)
+                        .clip(RoundedCornerShape(Corner.S))
+                        .border(1.dp, if (confirmDelete) C.Low.copy(alpha = 0.6f) else Color.Transparent, RoundedCornerShape(Corner.S))
                         .tap {
                             if (confirmDelete) { state.delete(initial); close() } else confirmDelete = true
                         }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Ic(R.drawable.lc_trash, C.Low, 16.dp, contentDescription = if (confirmDelete) null else tr("Delete reading"))
                     if (confirmDelete) {
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text(tr("Tap to delete"), style = inter(13.sp, FontWeight.SemiBold, C.Low))
                     }
                 }
             }
-            Box(
-                Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
-                contentAlignment = Alignment.Center,
-            ) { Ic(R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = tr("Close")) }
         }
 
-        // The number, coloured by where it lands as you type.
-        Column(
-            Modifier.fillMaxWidth().padding(top = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        // The readout: the number big and left, coloured by where it lands as you type; under it
+        // the range in words with a small scale, or what to do.
+        Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             val color = status?.let { C.status(it) } ?: if (text.isEmpty()) C.TextMuted.copy(alpha = 0.5f) else C.Text
             Row(
                 verticalAlignment = Alignment.Bottom,
@@ -223,19 +216,26 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             ) {
                 Text(
                     text.ifEmpty { if (unit == GlucoseUnit.MMOL) "0.0" else "0" }.replace('.', L.decimal),
-                    style = numeral(56.sp, color),
+                    style = numeral(64.sp, color).copy(lineHeight = 68.sp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(unit.label, style = inter(15.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 16.dp))
+                Text(unit.label, style = mono(13.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 12.dp))
             }
-            when {
-                status != null -> StatusPill(status)
-                outOfRange -> Text(tr("Meters read {0}", Glucose.rangeLabel(unit)), style = inter(13.sp, FontWeight.Medium, C.High))
-                else -> Text(tr("Type the number on your meter"), style = inter(13.sp, color = C.TextMuted))
+            Row(Modifier.fillMaxWidth().heightIn(min = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                when {
+                    status != null -> {
+                        RangeSquare(C.status(status))
+                        Spacer(Modifier.width(6.dp))
+                        Text(caps(status.label), style = mono(12.sp, FontWeight.SemiBold, C.Text, 0.06f), modifier = Modifier.weight(1f))
+                        mmol?.let { MicroScale(it, width = 64.dp) }
+                    }
+                    outOfRange -> Text(tr("Meters read {0}", Glucose.rangeLabel(unit)), style = inter(13.sp, FontWeight.Medium, C.High))
+                    else -> Text(tr("Type the number on your meter"), style = inter(13.sp, color = C.TextMuted))
+                }
             }
-            scanNote?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(top = 8.dp)) }
+            scanNote?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(top = 6.dp)) }
             if (initial.imported) {
-                Text(tr("From Health Connect"), style = inter(13.sp, color = C.TextMuted), modifier = Modifier.padding(top = 8.dp))
+                Text(caps(tr("From Health Connect")), style = mono(12.sp, color = C.TextMuted, tracking = 0.04f), modifier = Modifier.padding(top = 6.dp))
             }
         }
 
@@ -246,16 +246,24 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             if (isNew) tag = state.suggestTag(t)
         }
 
-        // Moment, time and note as three pills in one row, each opening a menu, so the keypad
+        // Moment, time and note as three ruled cells in one row, each opening a menu, so the keypad
         // and Save always fit on screen without scrolling.
         var momentOpen by remember { mutableStateOf(false) }
         var whenOpen by remember { mutableStateOf(false) }
+        val rule = C.Border
         Row(
-            Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .padding(top = 12.dp)
+                .drawBehind {
+                    val w = 1.dp.toPx()
+                    drawLine(rule, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = w)
+                    drawLine(rule, Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), strokeWidth = w)
+                },
         ) {
             Box(Modifier.weight(1f).fillMaxHeight()) {
-                Pill(tag.label, tag.icon(), tr("Moment"), Modifier.fillMaxHeight()) { momentOpen = true }
+                Pill(tag.label, tr("Moment"), Modifier.fillMaxHeight(), first = true) { momentOpen = true }
                 DropdownMenu(
                     expanded = momentOpen,
                     onDismissRequest = { momentOpen = false },
@@ -275,7 +283,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     0 -> tr("Now")
                     else -> if (offsetMin!! < 60) tr("{0} min ago", offsetMin) else tr("{0} h ago", offsetMin!! / 60)
                 }
-                Pill(whenLabel, R.drawable.lc_clock, tr("Time"), Modifier.fillMaxHeight()) { whenOpen = true }
+                Pill(whenLabel, tr("Time"), Modifier.fillMaxHeight()) { whenOpen = true }
                 DropdownMenu(
                     expanded = whenOpen,
                     onDismissRequest = { whenOpen = false },
@@ -304,7 +312,7 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
                     note.isNotBlank() -> tr("Note added")
                     else -> tr("Add food, carbs…")
                 }
-                Pill(shown, R.drawable.lc_plus, tr("Details"), Modifier.fillMaxHeight()) { detailsOpen = true }
+                Pill(shown, tr("Details"), Modifier.fillMaxHeight()) { detailsOpen = true }
             }
         }
         if (picking) {
@@ -366,7 +374,8 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
 }
 
 /**
- * 1–9, then point, 0 and backspace. The point is greyed out for mg/dL (whole numbers). The key
+ * 1–9, then point, 0 and backspace, as squared, outlined instrument keys with mono figures. The
+ * point is greyed out for mg/dL (whole numbers). The key
  * shows the app's decimal mark (a comma in Icelandic) but always sends '.'.
  */
 @Composable
@@ -383,8 +392,8 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
                             .weight(1f)
                             .height(keyHeight)
                             .pressed(press)
-                            .clip(RoundedCornerShape(Corner.M))
-                            .background(C.SurfaceLight)
+                            .clip(RoundedCornerShape(Corner.S))
+                            .border(1.dp, if (enabled) C.Border else C.Border.copy(alpha = 0.35f), RoundedCornerShape(Corner.S))
                             .clickable(press.source, LocalIndication.current, enabled = enabled) { onKey(k) },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -393,7 +402,7 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
                         } else {
                             Text(
                                 if (k == '.') L.decimal.toString() else k.toString(),
-                                style = inter(22.sp, FontWeight.SemiBold, if (enabled) C.Text else C.TextMuted.copy(alpha = 0.3f)),
+                                style = mono(24.sp, FontWeight.Medium, if (enabled) C.Text else C.TextMuted.copy(alpha = 0.3f)),
                                 textAlign = TextAlign.Center,
                             )
                         }
@@ -405,38 +414,38 @@ private fun Keypad(decimal: Boolean, keyHeight: Dp, modifier: Modifier = Modifie
 }
 
 /**
- * A tile that opens a menu: what it sets on top (MOMENT, TIME, DETAILS) and the current value
- * in full underneath, wrapping to a second line rather than cutting off.
+ * A ruled cell that opens a menu: what it sets on top in mono capitals (MOMENT, TIME, DETAILS)
+ * and the current value in full underneath, wrapping to a second line rather than cutting off.
+ * Cells after the first have a hairline on their left.
  */
 @Composable
-private fun Pill(text: String, icon: Int, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun Pill(text: String, label: String, modifier: Modifier = Modifier, first: Boolean = false, onClick: () -> Unit) {
     val press = rememberPress()
+    val rule = C.Border
     Column(
         modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp)
+            .drawBehind {
+                if (!first) drawLine(rule, Offset(0f, 10.dp.toPx()), Offset(0f, size.height - 10.dp.toPx()), strokeWidth = 1.dp.toPx())
+            }
             .pressed(press)
-            .clip(RoundedCornerShape(Corner.M))
-            .background(C.SurfaceLight)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
             .semantics { contentDescription = tr("{0}: {1}. Tap to change.", label, text) }
             .tap(press, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(start = if (first) 0.dp else 12.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Ic(icon, C.TextMuted, 12.dp)
-            Spacer(Modifier.width(4.dp))
-            Text(
-                label,
-                style = inter(13.sp, FontWeight.Medium, C.TextMuted),
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.weight(1f),
-            )
-            Ic(R.drawable.lc_chevron_down, C.TextMuted, 12.dp)
-        }
+        Text(
+            caps(label),
+            style = mono(12.sp, FontWeight.Medium, C.TextMuted, 0.02f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Spacer(Modifier.height(4.dp))
-        Text(text, style = inter(15.sp, FontWeight.SemiBold, C.Text).copy(lineHeight = 20.sp))
+        Row(verticalAlignment = Alignment.Top) {
+            Text(text, style = inter(15.sp, FontWeight.SemiBold, C.Text).copy(lineHeight = 20.sp), modifier = Modifier.weight(1f, fill = false))
+            Spacer(Modifier.width(4.dp))
+            Ic(R.drawable.lc_chevron_down, C.TextMuted, 12.dp, modifier = Modifier.padding(top = 4.dp))
+        }
     }
 }
 

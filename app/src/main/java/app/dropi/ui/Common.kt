@@ -38,6 +38,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.graphics.Brush
@@ -79,18 +84,23 @@ fun rememberNow(periodMs: Long): Long {
  * large (cards), extra large (sheets and dialogs). Hairline bars (2–3 dp) are the only others.
  */
 object Corner {
-    val S = 8.dp
-    val M = 14.dp
-    val L = 20.dp
-    val XL = 28.dp
+    // 1.1: tighter, instrument-like corners. Rounder only for sheets.
+    val S = 4.dp
+    val M = 8.dp
+    val L = 8.dp
+    val XL = 20.dp
 }
 
 val CardShape = RoundedCornerShape(Corner.L)
 
+/**
+ * A panel for things that really are objects (a banner, a draft, a receipt): a quiet fill, a
+ * hairline edge, small corners. Plain sections use [RuleHeader] and [ruleTop] instead.
+ */
 fun Modifier.card(shape: Shape = CardShape, fill: Color = C.Card): Modifier = this
     .clip(shape)
     .background(fill)
-    .border(1.dp, C.GlassBorder, shape)
+    .border(1.dp, C.Border.copy(alpha = 0.6f), shape)
 
 @Composable
 fun Chip(
@@ -106,9 +116,9 @@ fun Chip(
             // A 48 dp touch area (Android's minimum) around the smaller chip.
             .minimumInteractiveComponentSize()
             .pressed(press)
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) C.Accent else C.SurfaceLight)
-            .border(1.dp, if (selected) C.AccentText.copy(alpha = 0.45f) else C.GlassBorder, RoundedCornerShape(50))
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (selected) C.Accent else Color.Transparent)
+            .border(1.dp, if (selected) C.AccentText.copy(alpha = 0.45f) else C.Border, RoundedCornerShape(6.dp))
             .tap(press, onClick = onClick)
             // Screen readers hear whether it's on, not just the colour.
             .semantics { this.selected = selected }
@@ -116,8 +126,8 @@ fun Chip(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
     ) {
-        if (icon != null) Ic(icon, if (selected) C.OnAccent else C.TextMuted, 14.dp)
-        Text(text, style = inter(13.sp, FontWeight.SemiBold, if (selected) C.OnAccent else C.TextSecondary), maxLines = 1)
+        if (icon != null) Ic(icon, if (selected) C.OnAccent else C.TextSecondary, 14.dp)
+        Text(text, style = inter(13.sp, FontWeight.SemiBold, if (selected) C.OnAccent else C.Text), maxLines = 1)
     }
 }
 
@@ -138,7 +148,7 @@ fun PrimaryButton(
             .clip(RoundedCornerShape(Corner.M))
             .background(
                 if (enabled) androidx.compose.ui.graphics.SolidColor(C.Accent)
-                else Brush.horizontalGradient(listOf(C.SurfaceLight, C.SurfaceLight))
+                else androidx.compose.ui.graphics.SolidColor(C.SurfaceLight)
             )
             .border(1.dp, if (enabled) C.AccentText.copy(alpha = 0.4f) else Color.Transparent, RoundedCornerShape(Corner.M))
             .tap(press, enabled = enabled, onClick = onClick)
@@ -166,8 +176,7 @@ fun GhostButton(text: String, modifier: Modifier = Modifier, color: Color = C.Te
         modifier
             .heightIn(min = 48.dp)
             .clip(shape)
-            .background(color.copy(alpha = 0.08f))
-            .border(1.dp, color.copy(alpha = 0.28f), shape)
+            .border(1.dp, if (color == C.TextSecondary) C.Border else color.copy(alpha = 0.45f), shape)
             .semantics { role = Role.Button }
             .tap(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -179,63 +188,62 @@ fun GhostButton(text: String, modifier: Modifier = Modifier, color: Color = C.Te
 @Composable
 fun ProgressLine(progress: Float) {
     val shown by animateFloatAsState(progress, tween(260), label = "progress")
-    Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(C.SurfaceLight)) {
+    Box(Modifier.fillMaxWidth().height(3.dp).background(C.Border)) {
         Box(
             Modifier
                 .fillMaxWidth(shown.coerceIn(0f, 1f))
-                .height(4.dp)
-                .clip(CircleShape)
-                .background(androidx.compose.ui.graphics.SolidColor(C.Accent))
+                .height(3.dp)
+                .background(C.AccentText)
         )
     }
 }
 
 /**
- * Track with a brand pill that glides (and slightly overshoots) to the chosen option, like the
- * segment rows in Ljós and F1 Pro. Labels fade between muted and white as the pill passes.
+ * Options in a row, the chosen one underlined: a 2 dp line in the signature colour glides (with
+ * a little overshoot) to it, labels in mono capitals, a hairline under the whole row.
  */
 @Composable
 fun SlidingSegments(
     options: List<String>,
     selected: Int,
     modifier: Modifier = Modifier,
-    height: Dp = 40.dp,
+    height: Dp = 44.dp,
     onSelect: (Int) -> Unit,
 ) {
     val view = LocalView.current
     val pos by animateFloatAsState(selected.toFloat(), spring(dampingRatio = 0.62f, stiffness = 380f), label = "segment")
+    val line = C.Border
+    val accent = C.AccentText
     BoxWithConstraints(
         modifier
-            .height(height)
-            .clip(RoundedCornerShape(Corner.M))
-            .background(C.SurfaceLight)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.M))
-            .padding(4.dp)
+            .height(height.coerceAtLeast(44.dp))
+            .drawBehind { drawLine(line, Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), strokeWidth = 1.dp.toPx()) }
     ) {
         val segW = maxWidth / options.size
         Box(
             Modifier
+                .align(Alignment.BottomStart)
                 .offset { IntOffset((segW * pos).roundToPx(), 0) }
                 .width(segW)
-                .height(height - 6.dp)
-                .clip(RoundedCornerShape(Corner.S))
-                .background(androidx.compose.ui.graphics.SolidColor(C.Accent))
+                .height(2.dp)
+                .background(accent)
         )
-        Row(Modifier.fillMaxWidth().height(height - 6.dp)) {
+        Row(Modifier.fillMaxSize()) {
             options.forEachIndexed { i, label ->
                 val closeness = (1f - kotlin.math.abs(pos - i)).coerceIn(0f, 1f)
-                val color = lerp(C.TextMuted, C.OnAccent, closeness)
+                val color = lerp(C.TextMuted, C.Text, closeness)
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(height - 6.dp)
+                        .fillMaxHeight()
+                        .semantics { this.selected = i == selected; role = Role.Tab }
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                             if (i != selected) Haptics.segment(view)
                             onSelect(i)
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(label, style = inter(13.sp, FontWeight.SemiBold, color), maxLines = 1)
+                    Text(caps(label), style = mono(13.sp, if (i == selected) FontWeight.SemiBold else FontWeight.Medium, color, 0.04f), maxLines = 1)
                 }
             }
         }
@@ -246,11 +254,11 @@ fun SlidingSegments(
 @Composable
 fun SheetTitle(title: String, close: () -> Unit, trailing: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = heading(20.sp), modifier = Modifier.weight(1f))
+        Text(title, style = heading(24.sp), modifier = Modifier.weight(1f).semantics { heading() })
         trailing()
         Spacer(Modifier.width(8.dp))
         Box(
-            Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(C.SurfaceLight).tap { close() },
+            Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).border(1.dp, C.Border, CircleShape).tap { close() },
             contentAlignment = Alignment.Center,
         ) { Ic(app.dropi.R.drawable.lc_x, C.TextSecondary, 18.dp, contentDescription = tr("Close")) }
     }
@@ -261,7 +269,7 @@ data class Choice(val label: String, @DrawableRes val icon: Int? = null)
 
 /**
  * Options laid out as a grid of tiles that all fit on screen: nothing scrolls or swipes sideways.
- * The chosen tile fills with the brand gradient and pops slightly.
+ * The chosen tile fills with the accent and pops slightly.
  */
 @Composable
 fun ChoiceGrid(
@@ -296,11 +304,8 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
             .heightIn(min = if (compact) 48.dp else 64.dp)
             .pressed(press)
             .clip(shape)
-            .background(
-                if (selected) androidx.compose.ui.graphics.SolidColor(C.Accent)
-                else Brush.linearGradient(listOf(C.SurfaceLight, C.SurfaceLight))
-            )
-            .border(1.dp, if (selected) Color.Transparent else C.GlassBorder, shape)
+            .background(if (selected) C.Accent else Color.Transparent)
+            .border(1.dp, if (selected) C.AccentText.copy(alpha = 0.45f) else C.Border, shape)
             .semantics { this.selected = selected }
             .tap(press, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = if (compact) 8.dp else 10.dp),
@@ -308,12 +313,12 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
         verticalArrangement = Arrangement.Center,
     ) {
         if (c.icon != null && !compact) {
-            Ic(c.icon, if (selected) C.OnAccent else C.TextMuted, 18.dp)
+            Ic(c.icon, if (selected) C.OnAccent else C.TextSecondary, 18.dp)
             Spacer(Modifier.height(4.dp))
         }
         Text(
             c.label,
-            style = inter(13.sp, FontWeight.SemiBold, fg),
+            style = inter(13.sp, FontWeight.SemiBold, if (selected) C.OnAccent else C.Text),
             maxLines = 2,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -321,7 +326,7 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
 }
 
 /**
- * Switch colours for every toggle: on is the brand violet; off is a dark track with a clear
+ * Switch colours for every toggle: on is the accent; off is a dark track with a clear
  * outline and a light thumb, so it reads as "off" rather than greyed out and disabled.
  */
 @Composable

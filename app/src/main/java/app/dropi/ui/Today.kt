@@ -240,27 +240,16 @@ private fun DemoBanner(state: AppState) {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .clip(RoundedCornerShape(Corner.M))
-            .background(C.High.copy(alpha = 0.14f))
-            .border(1.dp, C.High.copy(alpha = 0.6f), RoundedCornerShape(Corner.M))
+            .card()
             .semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
-            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(tr("Demo data"), style = inter(15.sp, FontWeight.Bold))
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(caps(tr("Demo data")), style = mono(12.sp, FontWeight.SemiBold, C.AccentText, 0.08f))
             Text(tr("Made-up readings. Your real log is safe."), style = inter(13.sp, color = C.TextSecondary))
         }
-        Text(
-            tr("Leave"),
-            style = inter(13.sp, FontWeight.Bold, C.Text),
-            modifier = Modifier
-                .heightIn(min = 44.dp)
-                .clip(RoundedCornerShape(50))
-                .border(1.dp, C.Border, RoundedCornerShape(50))
-                .tap { state.leaveDemo() }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        )
+        GhostButton(tr("Leave"), color = C.Text) { state.leaveDemo() }
     }
 }
 
@@ -270,60 +259,59 @@ fun StatusPill(status: Status) {
     val c = C.status(status)
     Row(
         Modifier
-            .clip(RoundedCornerShape(50))
-            .background(c.copy(alpha = 0.16f))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .border(1.dp, c.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(c))
+        RangeSquare(c)
         Spacer(Modifier.width(8.dp))
-        Text(status.label, style = inter(13.sp, FontWeight.Bold, C.Text))
+        Text(caps(status.label), style = mono(12.sp, FontWeight.SemiBold, C.Text, 0.06f))
     }
 }
 
-/** A run of readings in one glass card, a hairline between each. */
+/** A run of readings as ledger rows: a hairline above each, time · moment · number. */
 @Composable
-fun ReadingsCard(state: AppState, readings: List<Reading>, fill: Color = C.Card, time: (Reading) -> String) {
-    Column(Modifier.fillMaxWidth().card(RoundedCornerShape(Corner.L), fill)) {
-        readings.forEachIndexed { i, r ->
-            if (i > 0) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(C.Border.copy(alpha = 0.7f)))
-            ReadingRow(state, r, time(r))
-        }
+fun ReadingsCard(state: AppState, readings: List<Reading>, time: (Reading) -> String) {
+    Column(Modifier.fillMaxWidth()) {
+        readings.forEach { r -> ReadingRow(state, r, time(r)) }
     }
 }
 
-/** One reading: the moment and details on the left, the number on a badge of its range colour. */
+/**
+ * One reading as a ledger row (the same as Today's): the time in mono, the moment and details,
+ * and the number in its range colour over a small scale.
+ */
 @Composable
 fun ReadingRow(state: AppState, r: Reading, time: String) {
     val status = state.status(r)
     // "2 h after breakfast": which meal this reading belongs to.
     val link = remember(r, state.meals, state.readings) { state.linkText(r) }
     val c = C.status(status)
+    val sub = listOf(link.orEmpty(), r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · ")
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .ruleTop()
             .tap { state.editing = r }
             .semantics(mergeDescendants = true) {
                 contentDescription = listOfNotNull(r.tag.label, time, link, Glucose.format(r.mmol, state.unit), status.label).joinToString(", ")
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Text(time, style = mono(13.sp, color = C.TextSecondary), modifier = Modifier.width(56.dp))
         Column(Modifier.weight(1f)) {
             Text(r.tag.label, style = inter(15.sp, FontWeight.SemiBold, C.Text))
-            Text(
-                listOf(time, link.orEmpty(), r.detailsText(), r.note).filter { it.isNotBlank() }.joinToString(" · "),
-                style = inter(13.sp, color = C.TextMuted),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (sub.isNotEmpty()) {
+                Text(sub, style = inter(13.sp, color = C.TextMuted), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
         Spacer(Modifier.width(12.dp))
-        Text(
-            Glucose.format(r.mmol, state.unit),
-            style = numeral(20.sp, C.onStatus(c)),
-            modifier = Modifier.clip(RoundedCornerShape(Corner.S)).background(c).padding(horizontal = 12.dp, vertical = 4.dp),
-        )
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(Glucose.format(r.mmol, state.unit), style = numeral(22.sp, c))
+            MicroScale(r.mmol)
+        }
     }
 }
 
@@ -336,21 +324,14 @@ fun CrashCard(state: AppState) {
         Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
-            .clip(RoundedCornerShape(Corner.M))
-            .background(C.Card)
-            .border(1.dp, C.Low.copy(alpha = 0.4f), RoundedCornerShape(Corner.M))
+            .card()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(tr("Dropi crashed last time"), style = inter(15.sp, FontWeight.Bold, C.Low))
+        Text(tr("Dropi crashed last time"), style = inter(15.sp, FontWeight.Bold))
         Text(
             text.lines().filter { it.isNotBlank() }.take(8).joinToString("\n"),
-            style = androidx.compose.ui.text.TextStyle(
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = C.TextSecondary,
-                lineHeight = 13.sp,
-            ),
+            style = mono(12.sp, color = C.TextSecondary).copy(lineHeight = 16.sp),
             maxLines = 8,
             overflow = TextOverflow.Ellipsis,
         )

@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -50,8 +52,8 @@ import app.dropi.work.Scan
 import kotlinx.coroutines.launch
 
 /**
- * The + panel: a reading, a photo of the meal, the meal in words, or a packet's label, as four
- * big tiles; a photo already taken below them; and meals logged lately, one tap to log again.
+ * The + panel: a reading, a photo of the meal, the meal in words, a packet's label or barcode, or
+ * a photo already taken, as one ruled list; and meals logged lately, one tap to log again.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -67,77 +69,45 @@ fun AddPanel(state: AppState) {
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SheetTitle(tr("Add"), close)
+            Spacer(Modifier.height(12.dp))
             fun go(action: String) {
                 state.addOpen = false
                 Launch.mealAction.value = action
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Tile(tr("Reading"), tr("Type or scan your meter"), R.drawable.lc_droplet, Modifier.weight(1f)) {
+            // One calm, ruled list: the reading first, then the ways to log a meal.
+            Column(Modifier.fillMaxWidth().addListRuleBottom()) {
+                AddActionRow(tr("Reading"), tr("Type or scan your meter"), R.drawable.lc_droplet, lead = true) {
                     state.addOpen = false
                     state.startNew()
                 }
-                Tile(tr("Snap a meal"), tr("Photo of your plate"), R.drawable.lc_camera, Modifier.weight(1f)) { go("camera") }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Tile(tr("Say what you ate"), tr("Speak or type it"), R.drawable.lc_mic, Modifier.weight(1f)) { go("words") }
-                Tile(tr("Scan a label"), tr("Exact carbs from a packet"), R.drawable.lc_scan_text, Modifier.weight(1f)) { go("label") }
-            }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(Corner.M))
-                    .border(1.dp, C.Border, RoundedCornerShape(Corner.M))
-                    .semantics { role = Role.Button }
-                    .tap { go("barcode") }
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Ic(R.drawable.lc_scan_barcode, C.AccentText, 20.dp)
-                Spacer(Modifier.width(12.dp))
-                Text(tr("Scan a packet's barcode"), style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
-                Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
-            }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(Corner.M))
-                    .border(1.dp, C.Border, RoundedCornerShape(Corner.M))
-                    .semantics { role = Role.Button }
-                    .tap { go("pick") }
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Ic(R.drawable.lc_image, C.AccentText, 20.dp)
-                Spacer(Modifier.width(12.dp))
-                Text(tr("Pick a photo you already took"), style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
-                Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
+                AddActionRow(tr("Snap a meal"), tr("Photo of your plate"), R.drawable.lc_camera) { go("camera") }
+                AddActionRow(tr("Say what you ate"), tr("Speak or type it"), R.drawable.lc_mic) { go("words") }
+                AddActionRow(tr("Scan a label"), tr("Exact carbs from a packet"), R.drawable.lc_scan_text) { go("label") }
+                AddActionRow(tr("Scan a packet's barcode"), null, R.drawable.lc_scan_barcode) { go("barcode") }
+                AddActionRow(tr("Pick a photo you already took"), null, R.drawable.lc_image) { go("pick") }
             }
             val again = state.recentMeals
             if (again.isNotEmpty()) {
-                Text(tr("Again"), style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                RuleHeader(tr("Again"), modifier = Modifier.padding(top = 8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     again.forEach { m ->
                         val label = m.items.take(2).joinToString(" & ") { Foods.display(it.name) } +
                             (if (m.items.size > 2) " +${m.items.size - 2}" else "") + " · ${app.dropi.data.Grams.text(m.carbs)} g"
                         Text(
                             label,
-                            style = inter(15.sp, FontWeight.SemiBold, C.TextSecondary),
+                            style = inter(15.sp, FontWeight.SemiBold, C.Text),
                             modifier = Modifier
-                                .heightIn(min = 44.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(C.SurfaceLight)
-                                .border(1.dp, C.GlassBorder, RoundedCornerShape(50))
+                                .heightIn(min = 48.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .border(1.dp, C.Border, RoundedCornerShape(6.dp))
                                 .semantics { role = Role.Button; contentDescription = tr("Log again: {0} carbs", label) }
                                 .tap {
                                     state.addOpen = false
                                     MealWork.again(m)
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                         )
                     }
                 }
@@ -146,28 +116,37 @@ fun AddPanel(state: AppState) {
     }
 }
 
+/** A hairline along the bottom, closing a ruled list. */
+private fun Modifier.addListRuleBottom(): Modifier = this.then(
+    Modifier.drawBehind {
+        val w = 1.dp.toPx()
+        drawLine(C.Border.copy(alpha = 0.55f), Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), strokeWidth = w)
+    }
+)
+
+/** One way to add something: a plain icon, the name and what it does, an arrow; ruled above. */
 @Composable
-private fun Tile(title: String, sub: String, icon: Int, modifier: Modifier, onClick: () -> Unit) {
+private fun AddActionRow(title: String, sub: String?, icon: Int, lead: Boolean = false, onClick: () -> Unit) {
     val press = rememberPress()
-    Column(
-        modifier
-            .heightIn(min = 124.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = if (sub != null) 64.dp else 56.dp)
+            .ruleTop()
             .pressed(press)
-            .clip(RoundedCornerShape(Corner.L))
-            .background(C.Card)
-            .border(1.dp, C.GlassBorder, RoundedCornerShape(Corner.L))
             .semantics(mergeDescendants = true) { role = Role.Button }
             .tap(press, onClick = onClick)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
-            contentAlignment = Alignment.Center,
-        ) { Ic(icon, C.OnAccent, 20.dp) }
-        Spacer(Modifier.height(12.dp))
-        Text(title, style = inter(17.sp, FontWeight.Bold))
-        Text(sub, style = inter(13.sp, color = C.TextMuted))
+        Ic(icon, if (lead) C.AccentText else C.TextSecondary, 20.dp)
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = inter(15.sp, FontWeight.SemiBold))
+            if (sub != null) Text(sub, style = inter(13.sp, color = C.TextMuted))
+        }
+        Spacer(Modifier.width(12.dp))
+        Ic(R.drawable.lc_arrow_right, C.TextMuted, 16.dp)
     }
 }
 
