@@ -69,6 +69,8 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: error("no stream")
                 }
+                // For "Backup · 3 days ago" on More, and its nudge after two weeks.
+                app.dropi.Prefs(context).lastBackup = System.currentTimeMillis()
                 Haptics.confirm(view)
                 pass = ""
                 pass2 = ""

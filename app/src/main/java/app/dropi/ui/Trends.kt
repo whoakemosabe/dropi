@@ -2,61 +2,66 @@ package app.dropi.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.withStyle
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.collapse
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.expand
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.L
-import app.dropi.R
 import app.dropi.tr
 import app.dropi.trn
 import app.dropi.data.Analytics
@@ -67,13 +72,22 @@ import app.dropi.data.InsightKind
 import app.dropi.data.Reading
 import app.dropi.data.Report
 import app.dropi.data.Status
+import java.time.Instant
 import java.time.LocalDate
-import kotlinx.coroutines.launch
+import java.time.ZoneId
 import java.util.Locale
-import kotlin.math.abs
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Trends: averages, time in range, variability, estimated A1C, a daily chart and insights. */
+/** The sparklines' value scale starts here (mmol/L), like the big chart's. */
+private const val SPARK_MIN = 2.0
+
+/**
+ * Trends: the period as four numbers, time in range as one bar, then the period day by day (or
+ * week by week) as small sparklines; tap one for the full chart. Insights, Ask, lab A1C, and the
+ * details fold away under "More detail".
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrendsPage(state: AppState) {
     val context = LocalContext.current
@@ -82,265 +96,505 @@ fun TrendsPage(state: AppState) {
     val periods = listOf(7, 14, 30, 90)
     val period = periods.indexOf(state.trendsDays).coerceAtLeast(0)
     val today = LocalDate.now(state.zone)
+    val zone = state.zone
     val report = remember(state.readings, period, today) { Analytics.report(state.readings, periods[period], today, state.zone) }
     val unit = state.unit
     fun v(m: Double) = Glucose.format(m, unit)
     val insights = remember(report, unit) { Analytics.insights(report, state.targets, state.meals) { v(it) } }
+    val strips = remember(report, zone) { buildStrips(report, zone) }
+    // One scale for every sparkline, so the rows compare: 06–24 unless something was logged earlier.
+    val fromHour = remember(report, zone) {
+        if (report.readings.any { Instant.ofEpochMilli(it.at).atZone(zone).hour < 6 }) 0 else 6
+    }
+    val sparkMax = remember(report) {
+        maxOf(13.0, (report.readings.maxOfOrNull { it.mmol } ?: 0.0) + 0.5).coerceAtMost(Glucose.MAX_MMOL)
+    }
+    // The row whose full chart is open (its first day), if any.
+    var focus by remember(state.trendsDays) { mutableStateOf<LocalDate?>(null) }
     val bars = WindowInsets.systemBars.asPaddingValues()
 
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "period") {
-            SlidingSegments(periods.map { trn(it, "{0} day", "{0} days") }, period, Modifier.fillMaxWidth()) { state.trendsDays = periods[it] }
+            PeriodTabs(periods, period) { state.trendsDays = periods[it] }
         }
         if (report.count < 3) {
             item(key = "empty") {
-                Column(Modifier.fillMaxWidth().card().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Ic(R.drawable.lc_droplet, C.AccentText, 32.dp)
-                    Spacer(Modifier.height(12.dp))
-                    Text(tr("Not enough readings yet"), style = inter(17.sp, FontWeight.Bold))
-                    Text(
-                        tr("Trends appear after a few readings in this period. Keep logging and check back."),
-                        style = inter(13.sp, color = C.TextSecondary),
-                    )
-                }
+                Text(
+                    tr("Trends appear after a few readings in this period. Keep logging and check back."),
+                    style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 21.sp),
+                    modifier = Modifier.padding(top = 24.dp),
+                )
             }
             return@LazyColumn
         }
-        // The chart leads; then the numbers, time in range and a typical day.
-        item(key = "chart") { TimeChart(state, fmt, now) }
-        item(key = "headline") { Column { Headline(report, unit) } }
-        report.bands?.let { b -> item(key = "tir") { RangeCard(b, unit) } }
-        item(key = "agp") { TypicalDay(state, report) }
+        item(key = "box") { BoxScore(report, unit, Modifier.padding(top = 18.dp)) }
+        report.bands?.let { b -> item(key = "tir") { RangeBar(report, b) } }
+
+        item(key = "days-head") {
+            RuleHeader(tr("Day by day"), String.format(Locale.ROOT, "%02d → 24", fromHour), Modifier.padding(top = 8.dp))
+        }
+        strips.forEach { s ->
+            val open = focus == s.first
+            item(key = "strip-${s.first}") {
+                StripRow(
+                    s, fromHour, sparkMax,
+                    isToday = !today.isBefore(s.first) && !today.isAfter(s.last),
+                    now = now, state = state, open = open,
+                ) { focus = if (open) null else s.first }
+            }
+            if (open) item(key = "chart-${s.first}") {
+                // The full chart for exactly that day (or week), right under its row.
+                Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                    TimeChart(
+                        state, fmt, now,
+                        windowStart = s.first.atStartOfDay(zone).toInstant().toEpochMilli(),
+                        windowEnd = s.last.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli(),
+                    )
+                    Text(
+                        caps(tr("Hide chart")) + " ↑",
+                        style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.06f),
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .heightIn(min = 48.dp)
+                            .tap { focus = null }
+                            .padding(vertical = 15.dp),
+                    )
+                }
+            }
+        }
+
         if (insights.isNotEmpty()) {
-            item(key = "insights") {
-                // One card, read top to bottom: a coloured mark says good, worth a look, or just so.
-                Column(Modifier.fillMaxWidth().card().padding(horizontal = 16.dp, vertical = 16.dp)) {
-                    Text(tr("What stands out"), style = SectionLabel)
-                    insights.forEachIndexed { i, ins ->
-                        val tint = when (ins.kind) {
-                            InsightKind.GOOD -> C.InRange
-                            InsightKind.ATTENTION -> C.High
-                            InsightKind.INFO -> C.TextMuted
-                        }
-                        if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(C.Border.copy(alpha = 0.6f)))
-                        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
-                            Box(Modifier.padding(top = 4.dp).width(3.dp).height(14.dp).clip(RoundedCornerShape(2.dp)).background(tint))
-                            Spacer(Modifier.width(12.dp))
-                            Text(ins.text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
-                        }
+            item(key = "insights-head") { RuleHeader(tr("What stands out"), modifier = Modifier.ruleTop()) }
+            insights.forEachIndexed { i, ins ->
+                item(key = "insight-$i") {
+                    // A small square says good, worth a look, or just so.
+                    val tint = when (ins.kind) {
+                        InsightKind.GOOD -> C.InRange
+                        InsightKind.ATTENTION -> C.High
+                        InsightKind.INFO -> C.TextMuted
+                    }
+                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.Top) {
+                        RangeSquare(tint, Modifier.padding(top = 6.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(ins.text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
                     }
                 }
             }
         }
         item(key = "ask") { AskEntry(state) }
         item(key = "lab") { LabA1cCard(state, report) }
-        // By moment, the day-by-day table and the PDF fold away under one row.
-        item(key = "more") {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .card()
-                    .semantics(mergeDescendants = true) { role = Role.Button; stateDescription = if (state.trendsMore) tr("Shown") else tr("Hidden") }
-                    .tap { state.trendsMore = !state.trendsMore }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(tr("More detail"), style = inter(15.sp, FontWeight.SemiBold))
-                    Text(tr("By moment, day by day, PDF for your care team"), style = inter(13.sp, color = C.TextMuted))
+        item(key = "links") {
+            // More detail opens the fold below; the PDF is the doctor's report for exactly these days.
+            val scope = rememberCoroutineScope()
+            var busy by remember { mutableStateOf(false) }
+            FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                val more = state.trendsMore
+                MonoLink(
+                    tr("More detail"),
+                    Modifier.padding(end = 16.dp).semantics {
+                        stateDescription = if (more) tr("Shown") else tr("Hidden")
+                        if (more) collapse { state.trendsMore = false; true } else expand { state.trendsMore = true; true }
+                    },
+                ) { state.trendsMore = !state.trendsMore }
+                MonoLink(
+                    tr("PDF for your care team"),
+                    Modifier.semantics { contentDescription = tr("Share a PDF of these {0} days", report.days) },
+                ) {
+                    if (!busy) {
+                        busy = true
+                        scope.launch {
+                            try {
+                                val f = app.dropi.work.Export.writePdf(context, state.readings, report.days, today, state.zone, state.unit, state.targets)
+                                app.dropi.work.Export.share(context, f, "application/pdf", tr("Blood glucose report"))
+                            } catch (e: Exception) { }
+                            busy = false
+                        }
+                    }
                 }
-                Ic(if (state.trendsMore) R.drawable.lc_chevron_up else R.drawable.lc_chevron_down, C.TextMuted, 18.dp)
             }
         }
-        if (state.trendsMore && report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
-        if (state.trendsMore) item(key = "table") { DailyTable(report, unit) }
-        if (state.trendsMore) item(key = "pdf") {
-            // The doctor's report for exactly the days on screen.
-            val scope = androidx.compose.runtime.rememberCoroutineScope()
-            var busy by remember { mutableStateOf(false) }
-            PrimaryButton(
-                tr("Share a PDF of these {0} days", report.days),
-                Modifier.fillMaxWidth(),
-                icon = R.drawable.lc_share,
-                enabled = !busy,
-            ) {
-                busy = true
-                scope.launch {
-                    try {
-                        val f = app.dropi.work.Export.writePdf(context, state.readings, report.days, today, state.zone, state.unit, state.targets)
-                        app.dropi.work.Export.share(context, f, "application/pdf", tr("Blood glucose report"))
-                    } catch (e: Exception) { }
-                    busy = false
-                }
-            }
+        if (state.trendsMore) {
+            item(key = "numbers") { MoreNumbers(report, unit) }
+            item(key = "agp") { TypicalDay(state, report) }
+            if (report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
+            item(key = "table") { DailyTable(report, unit) }
         }
         item(key = "note") {
             Text(
                 tr("Based on your logged readings, not a sensor: time in range here is the share of readings. Estimated A1C (GMI) can differ from a lab A1C."),
-                style = inter(13.sp, color = C.TextMuted),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 18.sp),
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
             )
         }
     }
 }
 
+/** 7 · 14 · 30 · 90 as underline tabs across the width; the chosen one says "7 DAYS". */
 @Composable
-private fun Headline(r: Report, unit: GlucoseUnit) {
-    // The average big under the aurora, the estimated A1C beside it, then the period in a sentence.
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.Bottom) {
-        Column(Modifier.weight(1f)) {
-            Text(tr("Average"), style = inter(15.sp, FontWeight.Medium, C.TextSecondary))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(r.mean?.let { Glucose.format(it, unit) } ?: "—", style = numeral(84.sp).copy(lineHeight = 88.sp))
-                Spacer(Modifier.width(8.dp))
-                Text(unit.label, style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.padding(bottom = 16.dp))
+private fun PeriodTabs(periods: List<Int>, selected: Int, onSelect: (Int) -> Unit) {
+    val view = LocalView.current
+    val rule = C.Border
+    val accent = C.Accent
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                val y = size.height - 0.5.dp.toPx()
+                drawLine(rule, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+            }
+            .selectableGroup(),
+    ) {
+        periods.forEachIndexed { i, days ->
+            val on = i == selected
+            val name = trn(days, "{0} day", "{0} days")
+            Box(
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .selectable(selected = on, role = Role.Tab) {
+                        if (!on) Haptics.segment(view)
+                        onSelect(i)
+                    }
+                    .drawBehind {
+                        if (on) drawRect(accent, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx()))
+                    }
+                    .semantics { contentDescription = name },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (on) caps(name) else "$days",
+                    style = mono(13.sp, if (on) FontWeight.SemiBold else FontWeight.Medium, if (on) C.Text else C.TextMuted, 0.04f),
+                    maxLines = 1,
+                )
             }
         }
-        Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 12.dp)) {
-            Text(tr("Estimated A1C"), style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
-            val g = r.gmiPercent
-            Text(g?.let { String.format(Locale.ROOT, "%.1f%%", it).replace('.', L.decimal) } ?: "—", style = numeral(36.sp, if (g != null) C.Text else C.TextMuted))
-            Text(
-                if (g != null) "${r.gmiMmolMol?.roundToInt()} mmol/mol" else tr("after a week"),
-                style = inter(13.sp, FontWeight.Medium, C.TextMuted),
+    }
+}
+
+/** "92%" with a smaller per-cent sign, so a 100% still fits its column. */
+private fun percentText(n: String): AnnotatedString = buildAnnotatedString {
+    append(n)
+    withStyle(SpanStyle(fontSize = 17.sp)) { append("%") }
+}
+
+/** "6.3" ("6,3" in Icelandic). */
+private fun oneDecimal(v: Double) = String.format(Locale.ROOT, "%.1f", v).replace('.', L.decimal)
+
+/** The period in four numbers, divided by hairlines: average, in range, lows, estimated A1C. */
+@Composable
+private fun BoxScore(r: Report, unit: GlucoseUnit, modifier: Modifier) {
+    val gmi = r.gmiPercent
+    val inRange = r.bands?.inRange?.roundToInt()
+    val mean = r.mean
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        BoxCell(
+            tr("Average"),
+            AnnotatedString(mean?.let { Glucose.format(it, unit) } ?: "—"),
+            C.Text,
+            if (mean != null) tr("Average") + " " + Glucose.format(mean, unit) + " " + unit.label else tr("Average") + " —",
+            first = true,
+        )
+        BoxCell(
+            tr("In range"),
+            inRange?.let { percentText("$it") } ?: AnnotatedString("—"),
+            C.InRange,
+            tr("In range") + " " + (inRange?.let { "$it%" } ?: "—"),
+        )
+        BoxCell(tr("Lows"), AnnotatedString("${r.lows}"), C.Text, trn(r.lows, "{0} low.", "{0} lows."))
+        BoxCell(
+            tr("A1C est."),
+            gmi?.let { percentText(oneDecimal(it)) } ?: AnnotatedString("—"),
+            if (gmi != null) C.Text else C.TextMuted,
+            tr("Estimated A1C") + " " + (gmi?.let { oneDecimal(it) + "%" } ?: tr("after a week")),
+        )
+    }
+}
+
+@Composable
+private fun RowScope.BoxCell(label: String, value: AnnotatedString, color: Color, description: String, first: Boolean = false) {
+    val rule = C.Border
+    Column(
+        Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .then(
+                if (first) Modifier
+                else Modifier.drawBehind { drawLine(rule, Offset(0f, 0f), Offset(0f, size.height), strokeWidth = 1.dp.toPx()) }
             )
-        }
-    }
-    val mint = androidx.compose.ui.text.SpanStyle(color = C.Text, fontWeight = FontWeight.ExtraBold)
-    val week = r.days == 7
-    val sentence = androidx.compose.ui.text.buildAnnotatedString {
-        val tir = r.bands?.inRange?.roundToInt()
-        if (tir != null) {
-            // One whole sentence per case; {0} is the share, drawn bold wherever the language puts it.
-            val p = r.previousInRange?.roundToInt()
-            val text = when {
-                p == null && week -> tr("{0} in range this week.", "\u0000")
-                p == null -> tr("{0} in range in {1} days.", "\u0000", r.days)
-                tir > p && week -> tr("{0} in range this week, up from {1}%.", "\u0000", p)
-                tir > p -> tr("{0} in range in {1} days, up from {2}%.", "\u0000", r.days, p)
-                tir < p && week -> tr("{0} in range this week, down from {1}%.", "\u0000", p)
-                tir < p -> tr("{0} in range in {1} days, down from {2}%.", "\u0000", r.days, p)
-                week -> tr("{0} in range this week, the same as before.", "\u0000")
-                else -> tr("{0} in range in {1} days, the same as before.", "\u0000", r.days)
-            }
-            val cut = text.indexOf('\u0000')
-            if (cut >= 0) {
-                append(text.substring(0, cut))
-                withStyle(mint) { append("$tir%") }
-                append(text.substring(cut + 1))
-            } else append(text)
-            append(" ")
-        }
-        if (r.lows == 0) append(tr("No lows."))
-        else withStyle(androidx.compose.ui.text.SpanStyle(color = C.Low)) { append(trn(r.lows, "{0} low.", "{0} lows.")) }
-    }
-    Text(sentence, style = heading(19.sp, C.TextSecondary).copy(lineHeight = 26.sp), modifier = Modifier.padding(horizontal = 4.dp))
-    Spacer(Modifier.height(16.dp))
-    Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(horizontal = 4.dp)) {
-        SmallStat(tr("Variability"), r.cv?.let { "${it.roundToInt()}%" } ?: "—", tr("goal 36% or less"), Modifier.weight(1f))
-        Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
-        SmallStat(tr("Lowest"), r.readings.minOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 16.dp))
-        Box(Modifier.fillMaxHeight().width(1.dp).background(C.Border))
-        SmallStat(tr("Highest"), r.readings.maxOfOrNull { it.mmol }?.let { Glucose.format(it, unit) } ?: "—", unit.label, Modifier.weight(1f).padding(start = 16.dp))
+            .padding(start = if (first) 0.dp else 10.dp, end = 4.dp)
+            .clearAndSetSemantics { contentDescription = description },
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(caps(label), style = mono(12.sp, FontWeight.Medium, C.TextMuted, 0.06f).copy(lineHeight = 15.sp), maxLines = 2)
+        Text(value, style = numeral(28.sp, color), maxLines = 1, softWrap = false, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
+/**
+ * Time in range as one 8 dp bar, low on the left to very high on the right (only the bands that
+ * happened), the shares in words under it, and the comparison with the period before.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SmallStat(label: String, value: String, sub: String, modifier: Modifier) {
-    Column(modifier) {
-        Text(value, style = numeral(28.sp, C.Text), maxLines = 1)
-        Text(label, style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary), maxLines = 1)
-        Text(sub, style = inter(13.sp, color = C.TextMuted), maxLines = 1)
-    }
-}
-
-/** The consensus bands as one stacked bar (2 dp gaps, rounded ends) with a labelled legend. */
-@Composable
-private fun RangeCard(b: Bands, unit: GlucoseUnit) {
-    fun v(m: Double) = Glucose.format(m, unit)
-    data class Seg(val label: String, val range: String, val pct: Double, val color: Color, val goal: String)
+private fun RangeBar(r: Report, b: Bands) {
+    class Seg(val pct: Double, val color: Color, val text: String)
+    fun p(x: Double): String = if (x > 0 && x < 0.5) "<1" else "${x.roundToInt()}"
     val segs = listOf(
-        Seg(tr("Very high"), tr("over {0}", v(Glucose.VERY_HIGH)), b.veryHigh, C.VeryHigh, tr("under {0}%", 5)),
-        Seg(tr("High"), "${v(Glucose.TIR_HIGH)}–${v(Glucose.VERY_HIGH)}", b.high, C.High, tr("under {0}%", 25)),
-        Seg(tr("In range"), "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", b.inRange, C.InRange, tr("over {0}%", 70)),
-        Seg(tr("Low"), "${v(Glucose.URGENT_LOW)}–${v(Glucose.LOW)}", b.low, C.Low, tr("under {0}%", 4)),
-        Seg(tr("Very low"), tr("under {0}", v(Glucose.URGENT_LOW)), b.veryLow, C.UrgentLow, tr("under {0}%", 1)),
-    )
-    val gapColor = C.Card
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(tr("In range"), style = SectionLabel)
-                Spacer(Modifier.height(4.dp))
-                Text("${b.inRange.roundToInt()}%", style = numeral(34.sp, C.Text))
-            }
-            Text(tr("Goal: over 70%"), style = inter(13.sp, FontWeight.Medium, C.TextMuted), modifier = Modifier.padding(bottom = 8.dp))
-        }
-        // Low on the left, high on the right, like reading a scale.
-        Canvas(Modifier.fillMaxWidth().height(16.dp)) {
-            val ordered = segs.reversed().filter { it.pct > 0 }
+        Seg(b.veryLow, C.UrgentLow, tr("{0}% very low", p(b.veryLow))),
+        Seg(b.low, C.Low, tr("{0}% low", p(b.low))),
+        Seg(b.inRange, C.InRange, tr("{0}% in range", p(b.inRange))),
+        Seg(b.high, C.High, tr("{0}% high", p(b.high))),
+        Seg(b.veryHigh, C.VeryHigh, tr("{0}% very high", p(b.veryHigh))),
+    ).filter { it.pct > 0 }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+            .clearAndSetSemantics { contentDescription = tr("Time in range: {0}.", segs.joinToString(", ") { it.text }) },
+    ) {
+        Canvas(Modifier.fillMaxWidth().height(8.dp)) {
             val gap = 2.dp.toPx()
-            val usable = size.width - gap * (ordered.size - 1).coerceAtLeast(0)
+            val usable = size.width - gap * (segs.size - 1).coerceAtLeast(0)
             var x = 0f
-            ordered.forEachIndexed { i, s ->
+            segs.forEachIndexed { i, s ->
                 val w = (usable * (s.pct / 100.0)).toFloat().coerceAtLeast(2f)
-                drawRoundRect(s.color, Offset(x, 0f), Size(w, size.height), CornerRadius(4.dp.toPx()))
-                x += w
-                if (i < ordered.size - 1) {
-                    drawRect(gapColor, Offset(x, 0f), Size(gap, size.height))
-                    x += gap
-                }
+                drawRect(s.color, Offset(x, 0f), Size(w.coerceAtMost(size.width - x), size.height))
+                x += w + if (i < segs.size - 1) gap else 0f
             }
         }
-        segs.forEach { s ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(s.color))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(s.label, style = inter(15.sp, FontWeight.SemiBold, C.Text))
-                    Text(tr("{0} · goal {1}", s.range, s.goal), style = inter(13.sp, color = C.TextMuted))
-                }
-                Text("${s.pct.roundToInt()}%", style = inter(15.sp, FontWeight.Bold, C.Text))
+        FlowRow(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            segs.forEachIndexed { i, s ->
+                Text(
+                    s.text,
+                    style = mono(12.sp, color = C.TextMuted),
+                    maxLines = 1,
+                    modifier = if (i < segs.size - 1) Modifier.padding(end = 10.dp) else Modifier,
+                )
             }
         }
     }
+    val tir = b.inRange.roundToInt()
+    val prev = r.previousInRange?.roundToInt()
+    if (prev != null) {
+        Text(
+            when {
+                tir > prev -> tr("In range: up from {0}% in the {1} days before.", prev, r.days)
+                tir < prev -> tr("In range: down from {0}% in the {1} days before.", prev, r.days)
+                else -> tr("In range: the same as the {0} days before.", r.days)
+            },
+            style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 16.sp),
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
 }
 
-/** Average for each moment of the day, as short bars on a shared scale with the value at the tip. */
+/** One row of the small multiples: a day, or (for 30 and 90 days) up to seven days laid over one. */
+private class Strip(val first: LocalDate, val last: LocalDate, val week: Boolean, val readings: List<Reading>) {
+    val average: Double? = if (readings.isEmpty()) null else readings.map { it.mmol }.average()
+    val lows = readings.count { it.mmol < Glucose.LOW }
+    val highs = readings.count { it.mmol > Glucose.TIR_HIGH }
+}
+
+/** The period's rows, newest first: days for 7 and 14 days, seven-day blocks back from today otherwise. */
+private fun buildStrips(r: Report, zone: ZoneId): List<Strip> {
+    val byDay = r.readings.groupBy { it.date(zone) }
+    val weekly = r.days > 14
+    val out = ArrayList<Strip>()
+    var last = r.to
+    while (!last.isBefore(r.from)) {
+        val back = if (weekly) last.minusDays(6) else last
+        val first = if (back.isBefore(r.from)) r.from else back
+        val rs = ArrayList<Reading>()
+        var d = first
+        while (!d.isAfter(last)) {
+            byDay[d]?.let { rs.addAll(it) }
+            d = d.plusDays(1)
+        }
+        out += Strip(first, last, weekly, rs.sortedBy { it.at })
+        last = first.minusDays(1)
+    }
+    return out
+}
+
+/** "SUN 25" for a day; "13–19 OCT" (or "28 SEP–\n4 OCT") for a week. */
+private fun stripLabel(s: Strip): String {
+    if (!s.week) return caps(dayPattern("EEE d").format(s.first))
+    if (s.first == s.last) return caps(dayPattern("d MMM").format(s.first))
+    val sameMonth = s.first.month == s.last.month
+    val a = if (sameMonth) dayPattern("d").format(s.first) else dayPattern("d MMM").format(s.first) + "–\n"
+    return caps(if (sameMonth) a + "–" + dayPattern("d MMM").format(s.last) else a + dayPattern("d MMM").format(s.last))
+}
+
+/** What TalkBack says for a row: the day, its average, and its lows and highs. */
+private fun stripDescription(s: Strip, unit: GlucoseUnit): String {
+    val name = if (s.first == s.last) dayPattern("EEEE d MMMM").format(s.first).cap()
+    else dayPattern("d MMMM").format(s.first) + " – " + dayPattern("d MMMM").format(s.last)
+    val avg = s.average ?: return tr("{0}, no readings.", name)
+    val parts = mutableListOf(tr("{0}, average {1}.", name, Glucose.format(avg, unit)))
+    if (s.lows > 0) parts += trn(s.lows, "{0} low.", "{0} lows.")
+    if (s.highs > 0) parts += trn(s.highs, "{0} high.", "{0} highs.")
+    return parts.joinToString(" ")
+}
+
+/**
+ * A day's readings by time of day across the shared scale: the in-range band faint behind, the
+ * readings joined in grey, each a dot in its range colour (bigger when out of range). A week's
+ * row lays its days over each other, one faint line each.
+ */
+@Composable
+private fun StripRow(
+    s: Strip,
+    fromHour: Int,
+    maxV: Double,
+    isToday: Boolean,
+    now: Long,
+    state: AppState,
+    open: Boolean,
+    onTap: () -> Unit,
+) {
+    val zone = state.zone
+    val unit = state.unit
+    val targets = state.targets
+    val band = C.InRange.copy(alpha = 0.12f)
+    val line = C.TextSecondary
+    val nowLine = C.Accent
+    val colors = Status.entries.associateWith { C.status(it) }
+    val avg = s.average
+    val desc = stripDescription(s, unit)
+    val canOpen = s.readings.isNotEmpty()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .ruleTop()
+            .then(if (canOpen) Modifier.tap(onClick = onTap) else Modifier)
+            .semantics(mergeDescendants = true) {
+                contentDescription = desc
+                if (canOpen) {
+                    if (open) collapse { onTap(); true } else expand { onTap(); true }
+                }
+            }
+            .heightIn(min = 48.dp)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stripLabel(s),
+            style = mono(
+                12.sp,
+                if (isToday || open) FontWeight.SemiBold else FontWeight.Normal,
+                if (isToday || open) C.Text else C.TextSecondary,
+            ).copy(lineHeight = 15.sp),
+            modifier = Modifier.width(if (s.week) 76.dp else 64.dp).clearAndSetSemantics {},
+        )
+        Spacer(Modifier.width(10.dp))
+        Canvas(Modifier.weight(1f).height(30.dp)) {
+            val pad = 4.dp.toPx()
+            val w = size.width - 2 * pad
+            val h = size.height - 2 * pad
+            val spanSec = (24 - fromHour) * 3600f
+            fun frac(at: Long): Float {
+                val sec = Instant.ofEpochMilli(at).atZone(zone).toLocalTime().toSecondOfDay() - fromHour * 3600
+                return sec / spanSec
+            }
+            fun xOf(at: Long): Float = pad + w * frac(at).coerceIn(0f, 1f)
+            fun yOf(m: Double): Float = pad + h * (1f - ((m - SPARK_MIN) / (maxV - SPARK_MIN)).toFloat().coerceIn(0f, 1f))
+            drawRect(band, Offset(0f, yOf(Glucose.TIR_HIGH)), Size(size.width, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
+            val runs = if (s.week) s.readings.groupBy { it.date(zone) }.values.toList() else listOf(s.readings)
+            runs.forEach { rs ->
+                if (rs.size >= 2) {
+                    val path = Path()
+                    rs.forEachIndexed { i, r ->
+                        if (i == 0) path.moveTo(xOf(r.at), yOf(r.mmol)) else path.lineTo(xOf(r.at), yOf(r.mmol))
+                    }
+                    drawPath(
+                        path,
+                        if (s.week) line.copy(alpha = 0.4f) else line,
+                        style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                    )
+                }
+            }
+            // Today's row: a thin ink line at the time it is now.
+            if (isToday && !s.week) {
+                val f = frac(now)
+                if (f in 0f..1f) {
+                    val x = pad + w * f
+                    drawLine(nowLine, Offset(x, 1.dp.toPx()), Offset(x, size.height - 1.dp.toPx()), strokeWidth = 1.dp.toPx())
+                }
+            }
+            s.readings
+                .map { it to Glucose.status(it.mmol, it.tag, targets) }
+                .sortedBy { if (it.second == Status.IN_RANGE) 0 else 1 }
+                .forEach { (r, st) ->
+                    val rad = if (st == Status.IN_RANGE) 2.5.dp.toPx() else 3.5.dp.toPx()
+                    drawCircle(colors.getValue(st), rad, Offset(xOf(r.at), yOf(r.mmol)))
+                }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            avg?.let { Glucose.format(it, unit) } ?: "—",
+            style = numeral(17.sp, if (avg != null) C.Text else C.TextMuted),
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.width(44.dp).clearAndSetSemantics {},
+        )
+    }
+}
+
+/** More detail: the spread, variability and estimated A1C in a couple of quiet lines. */
+@Composable
+private fun MoreNumbers(r: Report, unit: GlucoseUnit) {
+    val style = mono(12.sp, color = C.TextSecondary).copy(lineHeight = 18.sp)
+    Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        val parts = listOfNotNull(
+            r.readings.minOfOrNull { it.mmol }?.let { tr("Lowest {0}", Glucose.format(it, unit)) },
+            r.readings.maxOfOrNull { it.mmol }?.let { tr("Highest {0}", Glucose.format(it, unit)) },
+            r.cv?.let { tr("Variability {0}% (goal 36% or less)", it.roundToInt()) },
+        )
+        if (parts.isNotEmpty()) Text(parts.joinToString(" · "), style = style)
+        val g = r.gmiPercent
+        val mm = r.gmiMmolMol
+        Text(
+            if (g != null && mm != null) tr("Estimated A1C {0}% ({1} mmol/mol).", oneDecimal(g), mm.roundToInt())
+            else tr("Estimated A1C needs a week of readings."),
+            style = style,
+        )
+    }
+}
+
+/** Average for each moment of the day, as short bars on a shared scale with the value at the end. */
 @Composable
 private fun ByMoment(state: AppState, r: Report) {
     val unit = state.unit
     val maxV = maxOf(12.0, r.byTag.maxOf { it.average } + 1.0)
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(tr("By time of day"), style = SectionLabel)
+    Column(Modifier.fillMaxWidth()) {
+        RuleHeader(tr("By time of day"))
         r.byTag.forEach { t ->
             val s = Glucose.status(t.average, t.tag, state.targets)
-            Column {
+            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Ic(t.tag.icon(), C.TextMuted, 13.dp)
                     Spacer(Modifier.width(8.dp))
                     Text(t.tag.label, style = inter(13.sp, FontWeight.SemiBold, C.Text), modifier = Modifier.weight(1f))
-                    Text(trn(t.count, "{0} reading", "{0} readings"), style = inter(13.sp, color = C.TextMuted))
+                    Text(trn(t.count, "{0} reading", "{0} readings"), style = mono(12.sp, color = C.TextMuted))
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f).height(12.dp)) {
+                    Box(Modifier.weight(1f).height(8.dp)) {
                         Box(
                             Modifier
                                 .fillMaxWidth((t.average / maxV).toFloat().coerceIn(0.04f, 1f))
-                                .height(12.dp)
-                                .clip(RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                                .height(8.dp)
                                 .background(C.status(s))
                         )
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text(Glucose.format(t.average, unit), style = inter(15.sp, FontWeight.Bold, C.Text))
+                    Text(Glucose.format(t.average, unit), style = numeral(17.sp, C.Text))
                 }
-                Text(s.label, style = inter(13.sp, color = C.TextMuted))
+                Text(s.label, style = mono(12.sp, color = C.TextMuted))
             }
         }
     }
@@ -351,24 +605,31 @@ private fun ByMoment(state: AppState, r: Report) {
 private fun DailyTable(r: Report, unit: GlucoseUnit) {
     var open by remember { mutableStateOf(false) }
     val df = dayPattern("EEE d MMM")
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(Corner.S)).tap { open = !open }, verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("Daily averages"), style = SectionLabel, modifier = Modifier.weight(1f))
-            Text(if (open) tr("Hide") else tr("Show table"), style = inter(13.sp, FontWeight.SemiBold, C.AccentText))
+    val head = mono(12.sp, FontWeight.Medium, C.TextMuted)
+    val cell = mono(12.sp, color = C.TextSecondary)
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RuleHeader(tr("Daily averages"), modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            Text(
+                caps(if (open) tr("Hide") else tr("Show table")),
+                style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.06f),
+                modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp).tap { open = !open }.padding(vertical = 15.dp),
+            )
         }
         if (open) {
-            Row {
-                Text(tr("Day"), style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1.4f))
-                Text(tr("Readings"), style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1f))
-                Text(tr("Average"), style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1f))
-                Text(tr("Range"), style = inter(13.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.weight(1.2f))
+            Row(Modifier.padding(vertical = 6.dp)) {
+                Text(tr("Day"), style = head, modifier = Modifier.weight(1.4f))
+                Text(tr("Readings"), style = head, modifier = Modifier.weight(1f))
+                Text(tr("Average"), style = head, modifier = Modifier.weight(1f))
+                Text(tr("Range"), style = head, modifier = Modifier.weight(1.2f))
             }
             r.byDay.reversed().forEach { d ->
-                Row {
-                    Text(df.format(d.day).cap(), style = inter(13.sp, color = C.Text), modifier = Modifier.weight(1.4f))
-                    Text("${d.count}", style = inter(13.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
-                    Text(Glucose.format(d.average, unit), style = inter(13.sp, FontWeight.SemiBold, C.Text), modifier = Modifier.weight(1f))
-                    Text("${Glucose.format(d.min, unit)}–${Glucose.format(d.max, unit)}", style = inter(13.sp, color = C.TextSecondary), modifier = Modifier.weight(1.2f))
+                Row(Modifier.fillMaxWidth().ruleTop().padding(vertical = 8.dp)) {
+                    Text(caps(df.format(d.day)), style = cell.copy(color = C.Text), modifier = Modifier.weight(1.4f))
+                    Text("${d.count}", style = cell, modifier = Modifier.weight(1f))
+                    Text(Glucose.format(d.average, unit), style = cell.copy(color = C.Text, fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    Text("${Glucose.format(d.min, unit)}–${Glucose.format(d.max, unit)}", style = cell, modifier = Modifier.weight(1.2f))
                 }
             }
         }

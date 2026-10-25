@@ -62,10 +62,12 @@ fun LabA1cCard(state: AppState, report: Report) {
     var adding by remember { mutableStateOf(false) }
     val df = dayPattern("d MMM yyyy")
     val list = state.labA1c
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("LAB A1C"), style = SectionLabel, modifier = Modifier.weight(1f))
-            Chip(tr("Add result"), icon = R.drawable.lc_plus) { adding = true }
+            RuleHeader(tr("Lab A1C"), modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            // The top padding lines the link up with the header's rule.
+            MonoLink(tr("Add result"), Modifier.padding(top = 8.dp)) { adding = true }
         }
         val last = list.lastOrNull()
         if (last == null) {
@@ -77,12 +79,12 @@ fun LabA1cCard(state: AppState, report: Report) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
                     Text(pct(last.percent), style = numeral(28.sp, C.Text))
-                    Text("${last.mmolMol.roundToInt()} mmol/mol · ${df.format(last.date)}", style = inter(13.sp, color = C.TextSecondary))
+                    Text("${last.mmolMol.roundToInt()} mmol/mol · ${df.format(last.date)}", style = mono(12.sp, color = C.TextSecondary))
                 }
                 report.gmiPercent?.let { g ->
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(tr("Estimate now"), style = inter(13.sp, color = C.TextMuted))
-                        Text(pct(g), style = inter(17.sp, FontWeight.Bold, C.Text).copy(fontFeatureSettings = ""))
+                        Text(caps(tr("Estimate now")), style = mono(12.sp, FontWeight.Medium, C.TextMuted, 0.06f))
+                        Text(pct(g), style = numeral(17.sp, C.Text))
                     }
                 }
             }
@@ -95,21 +97,22 @@ fun LabA1cCard(state: AppState, report: Report) {
                         d > 0 -> tr("Your estimate is {0} points above your last lab result.", points(d))
                         else -> tr("Your estimate is {0} points below your last lab result.", points(-d))
                     },
-                    style = inter(13.sp, color = C.TextMuted),
+                    style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 18.sp),
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
             }
-            // Earlier results, newest first; long-press-free removal with a small ×.
+            // Earlier results, newest first, one ruled line each; a small × removes one.
             list.reversed().drop(1).take(5).forEach { r ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(df.format(r.date), style = inter(13.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
-                    Text("${pct(r.percent)} · ${r.mmolMol.roundToInt()}", style = inter(13.sp, FontWeight.SemiBold, C.Text))
+                Row(Modifier.fillMaxWidth().ruleTop(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(df.format(r.date), style = mono(12.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
+                    Text("${pct(r.percent)} · ${r.mmolMol.roundToInt()}", style = mono(13.sp, FontWeight.SemiBold, C.Text))
                     Box(
-                        Modifier.size(40.dp).clip(CircleShape).tap { state.removeLabA1c(r) },
+                        Modifier.size(48.dp).clip(CircleShape).tap { state.removeLabA1c(r) },
                         contentAlignment = Alignment.Center,
                     ) { Ic(R.drawable.lc_x, C.TextMuted, 14.dp, contentDescription = tr("Remove")) }
                 }
             }
-            GhostButton(tr("Remove the latest result"), Modifier.fillMaxWidth()) { state.removeLabA1c(last) }
+            MonoLink(tr("Remove the latest result")) { state.removeLabA1c(last) }
         }
     }
     if (adding) {

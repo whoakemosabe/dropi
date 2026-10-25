@@ -208,6 +208,13 @@ class Prefs(context: Context) {
         get() = p.getStringSet("dismissed_moves", emptySet()) ?: emptySet()
         set(v) = p.edit { putStringSet("dismissed_moves", v.toList().takeLast(50).toSet()) }
 
+    // ---- Backup ----
+
+    /** When a backup file was last written (epoch ms); 0 = never. */
+    var lastBackup: Long
+        get() = p.getLong("last_backup", 0L)
+        set(v) = p.edit { putLong("last_backup", v) }
+
     // ---- Developer (hidden; 7 taps on the version in Settings) ----
 
     var devUnlocked: Boolean

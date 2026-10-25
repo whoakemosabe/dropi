@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -46,20 +47,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Trends › the way into Ask Dropi: one quiet line, like a note waiting to be written. */
+/** Trends › the way into Ask Dropi: a ruled section with one quiet line, like a note waiting to be written. */
 @Composable
 fun AskEntry(state: AppState) {
-    Row(
-        Modifier.fillMaxWidth().card().tap { state.askOpen = true }.padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Ic(R.drawable.lc_message_circle, C.TextSecondary, 20.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(tr("Ask about your numbers"), style = inter(15.sp, FontWeight.SemiBold))
-            Text(tr("“How was my week?” “Any lows lately?”"), style = inter(13.sp, color = C.TextMuted))
+    Column(Modifier.fillMaxWidth()) {
+        RuleHeader(tr("Ask Dropi"))
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).tap { state.askOpen = true }.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tr("Ask about your numbers"), style = inter(15.sp, FontWeight.SemiBold))
+                Text(tr("“How was my week?” “Any lows lately?”"), style = inter(13.sp, color = C.TextMuted))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text("→", style = mono(15.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.clearAndSetSemantics {})
         }
-        Ic(R.drawable.lc_arrow_right, C.TextMuted, 18.dp)
     }
 }
 

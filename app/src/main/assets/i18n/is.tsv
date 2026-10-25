@@ -1037,3 +1037,36 @@ now	núna
 check {0}	mæling kl. {0}
 next {0}	næst kl. {0}
 {0} g carbs today	{0} g kolvetni í dag
+Your log	Skráningin þín
+ready	tilbúið
+not set up	ekki uppsett
+{0} a day · reminders on	{0} á dag · kveikt á áminningum
+{0} a day · reminders off	{0} á dag · slökkt á áminningum
+never	aldrei
+{0} day ago	fyrir {0} degi
+{0} days ago	fyrir {0} dögum
+on	kveikt
+off	slökkt
+Setup	Uppsetning
+Lows	Lág gildi
+A1C est.	HbA1c áætl.
+Day by day	Dag fyrir dag
+Hide chart	Fela graf
+PDF for your care team	PDF fyrir heilbrigðisteymið
+{0}% very low	{0}% mjög lágt
+{0}% low	{0}% lágt
+{0}% in range	{0}% innan marka
+{0}% high	{0}% hátt
+{0}% very high	{0}% mjög hátt
+Time in range: {0}.	Tími innan marka: {0}.
+In range: up from {0}% in the {1} days before.	Innan marka: meira en {1} dagana á undan ({0}%).
+In range: down from {0}% in the {1} days before.	Innan marka: minna en {1} dagana á undan ({0}%).
+In range: the same as the {0} days before.	Innan marka: sama og {0} dagana á undan.
+{0}, no readings.	{0}, engar mælingar.
+{0}, average {1}.	{0}, meðaltal {1}.
+{0} high.	{0} há mæling.
+{0} highs.	{0} háar mælingar.
+Variability {0}% (goal 36% or less)	Breytileiki {0}% (markmið 36% eða minna)
+Estimated A1C {0}% ({1} mmol/mol).	Áætlað HbA1c {0}% ({1} mmol/mol).
+Estimated A1C needs a week of readings.	Áætlað HbA1c birtist eftir viku af mælingum.
+Lab A1C	HbA1c úr blóðprufu

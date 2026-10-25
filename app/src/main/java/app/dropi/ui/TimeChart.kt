@@ -75,19 +75,31 @@ private const val DAY = 24 * HOUR
  * any span by pinching, and back in time by dragging sideways. Close in, each reading is a dot
  * (tap it for the details); far out, each day becomes a bar from its lowest to its highest with
  * its average. Overlays: personal targets, meals with their rise, and the sensor trace.
+ *
+ * [windowStart] and [windowEnd] open it on that stretch (a day or a week from Trends); the zoom,
+ * the presets and dragging work from there as usual. Without them it opens on the last day.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
+fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, windowEnd: Long? = null) {
     val zone = state.zone
     val unit = state.unit
     val readings = state.readings
     val sensor = state.sensor
     val presets = listOf(DAY, 3 * DAY, 7 * DAY, 30 * DAY)
     val earliest = (readings.firstOrNull()?.at ?: now - DAY).coerceAtMost(now - DAY)
-    // The view: its right edge and how much time it shows.
-    var end by remember { mutableLongStateOf(now + HOUR) }
-    var span by remember { mutableLongStateOf(DAY) }
+    // The view: its right edge and how much time it shows, kept inside the data like clamp() does.
+    val initial = remember(windowStart, windowEnd) {
+        if (windowStart == null || windowEnd == null || windowEnd <= windowStart) (now + HOUR) to DAY
+        else {
+            val latest = now + HOUR
+            val sp = (windowEnd - windowStart).coerceIn(6 * HOUR, maxOf(6 * HOUR, latest - earliest))
+            val lo = earliest + sp
+            (if (lo >= latest) latest else windowEnd.coerceIn(lo, latest)) to sp
+        }
+    }
+    var end by remember(initial) { mutableLongStateOf(initial.first) }
+    var span by remember(initial) { mutableLongStateOf(initial.second) }
     // The tapped reading, by id, looked up fresh so an edit or delete shows straight away.
     var selectedId by remember { mutableStateOf<Long?>(null) }
     val selected = selectedId?.let { id -> readings.firstOrNull { it.id == id } }
@@ -115,7 +127,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val band = C.InRange.copy(alpha = 0.10f)
     val grid = C.Border
     val muted = C.TextMuted
-    val ring = C.Card
+    val ring = C.Bg
     val textCol = C.TextSecondary
     val meal = C.AccentText
     val beforeBand = C.AccentText.copy(alpha = 0.08f)
@@ -128,10 +140,10 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
     val dayMonth = remember { dayPattern("d MMM") }
     val meals = remember(state.meals, state.measuredById) { state.meals.associateWith { state.outcome(it) } }
 
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("Every reading"), style = SectionLabel, modifier = Modifier.weight(1f))
-            Text(rangeText(start, end, zone, fmt), style = inter(13.sp, FontWeight.Medium, C.TextMuted))
+            Text(caps(tr("Every reading")), style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.08f), modifier = Modifier.weight(1f))
+            Text(rangeText(start, end, zone, fmt), style = mono(12.sp, color = C.TextMuted))
         }
         val chosen = presets.withIndex().minByOrNull { (_, p) -> abs(kotlin.math.ln(p.toDouble() / span)) }?.index ?: 0
         SlidingSegments(listOf(tr("Day"), tr("3 days"), tr("Week"), tr("Month")), chosen, Modifier.fillMaxWidth()) {
@@ -383,9 +395,8 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(Corner.S))
-                .background(C.SurfaceLight.copy(alpha = 0.5f))
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .ruleTop()
+                .padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             KeyRow(KeyMark.BAND, C.InRange, tr("Shaded: in range, {0}", "${Glucose.format(Glucose.LOW, unit)}–${Glucose.format(Glucose.TIR_HIGH, unit)}"))
@@ -451,8 +462,8 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
     val from = report.from.atStartOfDay(zone).toInstant().toEpochMilli()
     val hours = remember(report, state.sensor) { Agp.profile(report.readings, state.sensor.filter { it.at >= from }, zone) }
     val have = hours.filterNotNull()
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(tr("Typical day"), style = SectionLabel)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        RuleHeader(tr("Typical day"))
         if (have.size < 6) {
             Text(
                 tr("Every day of the period laid over one day shows your patterns. It needs readings at more times of day, so keep logging."),
@@ -551,7 +562,7 @@ private enum class KeyMark { BAND, DOT, BAR, SQUARE, LINE, FLAT_DASH, SLOPE_DASH
 /** One line of the chart's key: a small drawn sample, then what it means. */
 @Composable
 private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, text: String) {
-    val ring = C.Card
+    val ring = C.Bg
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.semantics(mergeDescendants = true) {}) {
         Canvas(Modifier.width(26.dp).height(16.dp)) {
             val w = size.width; val h = size.height

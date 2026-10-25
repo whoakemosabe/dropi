@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dropi.R
@@ -50,54 +52,49 @@ private fun riseTone(mmol: Double): Pair<RiseStep, Color> = when {
 
 /**
  * Meals › Your plate: foods ranked by how much they lift the person's own numbers. A short
- * ladder (gentlest at the top, biggest at the bottom) with the rise as a bar and a number.
+ * ruled ladder (gentlest at the top, biggest at the bottom) with the rise as a bar and a number.
  */
 @Composable
 fun FoodsCard(state: AppState) {
     val scores = state.foodScores
     val ranked = scores.filter { it.ranked }
-    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("Your plate"), style = SectionLabel, modifier = Modifier.weight(1f))
-            if (scores.isNotEmpty()) {
-                Text(
-                    tr("All foods"),
-                    style = inter(13.sp, FontWeight.SemiBold, C.AccentText),
-                    modifier = Modifier.clip(RoundedCornerShape(50)).tap {
-                        state.foodOpen = null
-                        state.foodsOpen = true
-                    }.padding(horizontal = 12.dp, vertical = 8.dp),
-                )
-            }
-        }
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        RuleHeader(tr("Your plate"))
         if (ranked.isEmpty()) {
             Text(
                 if (scores.isEmpty()) tr("Log a meal with the + button, with a reading before you eat and one after. After two meals with a food, you'll see how it moves your numbers.")
                 else tr("Almost there: each food needs two meals with an after-eating reading before it's ranked."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
             )
-            return@Column
-        }
-        val shown = if (ranked.size <= 6) ranked else ranked.take(3) + ranked.takeLast(3)
-        val top = shown.maxOf { it.rise }.coerceAtLeast(1.0)
-        shown.forEachIndexed { i, s ->
-            if (ranked.size > 6 && i == 3) {
-                Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(C.Border.copy(alpha = 0.6f)))
+        } else {
+            val shown = if (ranked.size <= 6) ranked else ranked.take(3) + ranked.takeLast(3)
+            val top = shown.maxOf { it.rise }.coerceAtLeast(1.0)
+            shown.forEachIndexed { i, s ->
+                // The gentlest three, a gap, then the biggest three.
+                if (ranked.size > 6 && i == 3) Spacer(Modifier.height(12.dp))
+                RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true) {
+                    state.foodOpen = s.food
+                    state.foodsOpen = true
+                }
             }
-            RiseRow(Foods.display(s.food), s.rise, top, state.unit) {
-                state.foodOpen = s.food
+            Text(
+                tr("Typical peak 45 min–3 h after eating, compared with before. Gentlest first."),
+                style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+                modifier = Modifier.ruleTop().padding(top = 8.dp),
+            )
+        }
+        if (scores.isNotEmpty()) {
+            MonoLink(tr("All foods")) {
+                state.foodOpen = null
                 state.foodsOpen = true
             }
         }
-        Text(
-            tr("Typical peak 45 min–3 h after eating, compared with before. Gentlest first."),
-            style = inter(13.sp, color = C.TextMuted),
-        )
     }
 }
 
+/** A food's rise as a bar and a number. [ruled]: a row of the ruled list on the Meals page. */
 @Composable
-private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, onClick: () -> Unit) {
+private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, onClick: () -> Unit) {
     val (step, tone) = riseTone(rise)
     val delta = Foods.delta(rise, unit)
     val spoken = when (step) {
@@ -108,7 +105,7 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Corner.S))
+            .then(if (ruled) Modifier.heightIn(min = 48.dp).ruleTop() else Modifier.clip(RoundedCornerShape(Corner.S)))
             .tap(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = spoken }
             .padding(vertical = 8.dp),
@@ -116,13 +113,19 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
     ) {
         Text(name, style = inter(15.sp, FontWeight.Medium), modifier = Modifier.width(0.dp).weight(0.42f), maxLines = 2)
         Spacer(Modifier.width(12.dp))
-        BoxWithConstraints(Modifier.weight(0.4f).height(10.dp)) {
+        BoxWithConstraints(Modifier.weight(0.4f).height(if (ruled) 8.dp else 10.dp)) {
+            val h = if (ruled) 8.dp else 10.dp
             val frac = (rise.coerceAtLeast(0.0) / top).toFloat().coerceIn(0.04f, 1f)
-            Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(Corner.S)).background(C.SurfaceLight))
-            Box(Modifier.width(maxWidth * frac).height(10.dp).clip(RoundedCornerShape(Corner.S)).background(tone))
+            Box(Modifier.fillMaxWidth().height(h).clip(RoundedCornerShape(if (ruled) 1.dp else Corner.S)).background(C.SurfaceLight))
+            Box(Modifier.width(maxWidth * frac).height(h).clip(RoundedCornerShape(if (ruled) 1.dp else Corner.S)).background(tone))
         }
         Spacer(Modifier.width(12.dp))
-        Text(delta, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.width(52.dp), maxLines = 1)
+        Text(
+            delta,
+            style = if (ruled) mono(14.sp, FontWeight.SemiBold, C.Text).copy(textAlign = TextAlign.End) else inter(15.sp, FontWeight.SemiBold),
+            modifier = Modifier.width(52.dp),
+            maxLines = 1,
+        )
     }
 }
 
