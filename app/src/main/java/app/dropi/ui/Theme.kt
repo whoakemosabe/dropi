@@ -44,16 +44,16 @@ object C {
     val GlassBorder get() = pick(0x14FFFFFF, 0x14101A40, 0x2EFF2D55)
 
     /**
-     * Brand fill (buttons, selected tiles, the +); [OnAccent] sits on it. Since 1.1 it's ink:
-     * off-white by night, deep navy by day, so the only real colour on screen is the range
-     * colours. Dracula keeps its blood red.
+     * Brand fill (buttons, selected tiles, the +); [OnAccent] sits on it. By night it's a dark,
+     * warm smoke with champagne on it (a watch dial, not a white slab); by day deep navy;
+     * Dracula keeps its blood red. Buttons also get a hairline of [AccentText].
      */
-    val Accent get() = pick(0xFFF2F3F5, 0xFF0E1638, 0xFFA3001B)
-    val AccentGlow get() = pick(0xFFD9DCE3, 0xFF2A3566, 0xFF6A1B9A)
-    val OnAccent get() = pick(0xFF0B0C10, 0xFFFFFFFF, 0xFFFFFFFF)
+    val Accent get() = pick(0xFF2A251B, 0xFF0E1638, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFF4A4130, 0xFF2A3566, 0xFF6A1B9A)
+    val OnAccent get() = pick(0xFFEBD8AC, 0xFFFFFFFF, 0xFFFFFFFF)
 
-    /** Brand colour as text or a thin icon: ink (Dracula: its pink-red). */
-    val AccentText get() = pick(0xFFF2F3F5, 0xFF0E1638, 0xFFFF5C7A)
+    /** The signature colour for text, lines and thin icons: champagne by night, navy by day, Dracula's pink-red. */
+    val AccentText get() = pick(0xFFE2CB97, 0xFF0E1638, 0xFFFF5C7A)
 
     /** The aurora itself, for the glow, the + button, the logo and the live trace. */
     val Aurora: List<Color> get() = when {
@@ -140,7 +140,7 @@ val SectionLabel: TextStyle get() = TextStyle(
 fun DropiTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = (if (C.dark) darkColorScheme() else lightColorScheme()).copy(
-            primary = C.Accent,
+            primary = C.AccentText,
             onPrimary = C.OnAccent,
             background = C.Bg,
             surface = C.Card,

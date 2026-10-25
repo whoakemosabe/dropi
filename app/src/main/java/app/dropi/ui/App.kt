@@ -378,7 +378,7 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
             Modifier
                 .align(Alignment.Center)
                 .size(96.dp)
-                .border(1.dp, C.Text.copy(alpha = 0.22f), CircleShape)
+                .border(1.dp, C.AccentText.copy(alpha = 0.22f), CircleShape)
         )
         val plus = rememberPress()
         Box(
@@ -389,6 +389,7 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 .shadow(10.dp, CircleShape)
                 .clip(CircleShape)
                 .background(C.Accent)
+                .border(1.5.dp, C.AccentText.copy(alpha = 0.55f), CircleShape)
                 .tap(plus) { state.addOpen = true },
             contentAlignment = Alignment.Center,
         ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = tr("Add a reading or meal")) }

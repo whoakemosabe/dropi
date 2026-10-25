@@ -108,7 +108,7 @@ fun Chip(
             .pressed(press)
             .clip(RoundedCornerShape(50))
             .background(if (selected) C.Accent else C.SurfaceLight)
-            .border(1.dp, if (selected) C.Accent else C.GlassBorder, RoundedCornerShape(50))
+            .border(1.dp, if (selected) C.AccentText.copy(alpha = 0.45f) else C.GlassBorder, RoundedCornerShape(50))
             .tap(press, onClick = onClick)
             // Screen readers hear whether it's on, not just the colour.
             .semantics { this.selected = selected }
@@ -140,6 +140,7 @@ fun PrimaryButton(
                 if (enabled) androidx.compose.ui.graphics.SolidColor(C.Accent)
                 else Brush.horizontalGradient(listOf(C.SurfaceLight, C.SurfaceLight))
             )
+            .border(1.dp, if (enabled) C.AccentText.copy(alpha = 0.4f) else Color.Transparent, RoundedCornerShape(Corner.M))
             .tap(press, enabled = enabled, onClick = onClick)
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.Center,

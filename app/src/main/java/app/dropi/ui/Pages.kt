@@ -165,7 +165,7 @@ private fun CaptureButton(title: String, icon: Int, modifier: Modifier, filled: 
             .fillMaxHeight()
             .heightIn(min = 60.dp)
             .clip(shape)
-            .then(if (filled) Modifier.background(C.Accent) else Modifier.border(1.dp, C.Border, shape))
+            .then(if (filled) Modifier.background(C.Accent).border(1.dp, C.AccentText.copy(alpha = 0.45f), shape) else Modifier.border(1.dp, C.Border, shape))
             .semantics(mergeDescendants = true) { role = Role.Button }
             .tap(press, onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 8.dp),

@@ -237,7 +237,7 @@ fun TrendsPage(state: AppState) {
 private fun PeriodTabs(periods: List<Int>, selected: Int, onSelect: (Int) -> Unit) {
     val view = LocalView.current
     val rule = C.Border
-    val accent = C.Accent
+    val accent = C.AccentText
     Row(
         Modifier
             .fillMaxWidth()
@@ -460,7 +460,7 @@ private fun StripRow(
     val targets = state.targets
     val band = C.InRange.copy(alpha = 0.12f)
     val line = C.TextSecondary
-    val nowLine = C.Accent
+    val nowLine = C.AccentText
     val colors = Status.entries.associateWith { C.status(it) }
     val avg = s.average
     val desc = stripDescription(s, unit)

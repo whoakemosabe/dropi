@@ -108,7 +108,7 @@ fun Readout(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak: Int)
                 }
             }
         }
-        RangeTape(latest.mmol, state.unit, Modifier.width(64.dp).height(150.dp))
+        RangeTape(latest.mmol, state.unit, Modifier.width(80.dp).height(150.dp))
     }
 }
 
@@ -130,8 +130,10 @@ fun RangeTape(mmol: Double, unit: GlucoseUnit, modifier: Modifier = Modifier) {
     val tick = C.Border
     BoxWithConstraints(modifier.semantics { contentDescription = tr("On the range bar: {0} {1}", Glucose.format(mmol, unit), unit.label) }) {
         val h = maxHeight
+        // Needle on the left, the tape, then the labels to its right: nothing sits on the tape.
+        val tapeX = 30.dp
         Canvas(Modifier.fillMaxSize()) {
-            val x = size.width - 24.dp.toPx()
+            val x = tapeX.toPx()
             val bar = 3.dp.toPx()
             fun y(v: Double) = frac(v) * size.height
             listOf(hi to Glucose.VERY_HIGH to veryHigh, Glucose.VERY_HIGH to Glucose.TIR_HIGH to high,
@@ -139,15 +141,15 @@ fun RangeTape(mmol: Double, unit: GlucoseUnit, modifier: Modifier = Modifier) {
                 drawLine(c, Offset(x, y(r.first)), Offset(x, y(r.second)), strokeWidth = bar)
             }
             listOf(Glucose.VERY_HIGH, Glucose.TIR_HIGH, Glucose.LOW).forEach { v ->
-                drawLine(tick, Offset(x, y(v)), Offset(x + 9.dp.toPx(), y(v)), strokeWidth = 1.dp.toPx())
+                drawLine(tick, Offset(x + 3.dp.toPx(), y(v)), Offset(x + 8.dp.toPx(), y(v)), strokeWidth = 1.dp.toPx())
             }
-            // The needle: a hairline from the left to a small arrowhead touching the tape.
+            // The needle: a hairline from the left edge to a small arrowhead touching the tape.
             val ny = pos * size.height
             drawLine(ink, Offset(0f, ny), Offset(x - 10.dp.toPx(), ny), strokeWidth = 1.dp.toPx())
             val p = Path().apply {
-                moveTo(x - 2.dp.toPx(), ny)
-                lineTo(x - 11.dp.toPx(), ny - 6.dp.toPx())
-                lineTo(x - 11.dp.toPx(), ny + 6.dp.toPx())
+                moveTo(x - 3.dp.toPx(), ny)
+                lineTo(x - 12.dp.toPx(), ny - 6.dp.toPx())
+                lineTo(x - 12.dp.toPx(), ny + 6.dp.toPx())
                 close()
             }
             drawPath(p, ink)
@@ -155,8 +157,8 @@ fun RangeTape(mmol: Double, unit: GlucoseUnit, modifier: Modifier = Modifier) {
         val labelStyle = mono(12.sp, color = C.TextMuted)
         listOf(Glucose.VERY_HIGH, Glucose.TIR_HIGH, Glucose.LOW).forEach { v ->
             Text(
-                Glucose.format(v, unit), style = labelStyle,
-                modifier = Modifier.align(Alignment.TopEnd).offset(y = h * frac(v) - 8.dp),
+                Glucose.format(v, unit), style = labelStyle, maxLines = 1, softWrap = false,
+                modifier = Modifier.offset(x = tapeX + 11.dp, y = h * frac(v) - 8.dp),
             )
         }
     }
@@ -178,7 +180,7 @@ fun DayStrip(state: AppState, checks: List<Check>, readings: List<Reading>, meal
     val from = if (earliest < 6f) kotlin.math.floor(earliest / 3f) * 3f else 6f
     val to = 24f
     val line = C.Border
-    val accent = C.Accent
+    val accent = C.AccentText
     val markColor = C.TextSecondary
     BoxWithConstraints(Modifier.fillMaxWidth().height(64.dp)) {
         val w = maxWidth
@@ -216,7 +218,7 @@ fun DayStrip(state: AppState, checks: List<Check>, readings: List<Reading>, meal
             hh += 6f
         }
         val nowX = xOf(hourOf(now))
-        Text(tr("now"), style = mono(12.sp, color = C.Accent), modifier = Modifier.offset(x = (nowX + 4.dp).coerceAtMost(w - 28.dp), y = 0.dp))
+        Text(tr("now"), style = mono(12.sp, color = C.AccentText), modifier = Modifier.offset(x = (nowX + 4.dp).coerceAtMost(w - 28.dp), y = 0.dp))
         // Planned checks not done yet: hollow rings (the due one in ink), tap to log it.
         checks.filter { it.reading == null }.forEach { c ->
             val x = xOf(hourOf(c.at))
@@ -236,7 +238,7 @@ fun DayStrip(state: AppState, checks: List<Check>, readings: List<Reading>, meal
             ) {
                 when (c.state) {
                     CheckState.MISSED -> Box(Modifier.size(7.dp).clip(CircleShape).background(C.TextMuted.copy(alpha = 0.6f)))
-                    CheckState.DUE -> Box(Modifier.size(12.dp).clip(CircleShape).background(C.Bg).border(2.dp, C.Accent, CircleShape))
+                    CheckState.DUE -> Box(Modifier.size(12.dp).clip(CircleShape).background(C.Bg).border(2.dp, C.AccentText, CircleShape))
                     else -> Box(Modifier.size(11.dp).clip(CircleShape).background(C.Bg).border(2.dp, C.TextMuted, CircleShape))
                 }
             }
@@ -423,7 +425,7 @@ private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt) {
                 )
             }
         },
-        end = { PlannedRing(if (due) C.Accent else C.TextMuted) },
+        end = { PlannedRing(if (due) C.AccentText else C.TextMuted) },
     )
 }
 
@@ -433,9 +435,9 @@ private fun NowRow(time: String) {
         Modifier.fillMaxWidth().ruleTop().padding(vertical = 8.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(time, style = mono(13.sp, FontWeight.SemiBold, C.Accent), modifier = Modifier.width(56.dp))
-        Box(Modifier.weight(1f).height(1.dp).background(C.Accent))
+        Text(time, style = mono(13.sp, FontWeight.SemiBold, C.AccentText), modifier = Modifier.width(56.dp))
+        Box(Modifier.weight(1f).height(1.dp).background(C.AccentText))
         Spacer(Modifier.width(10.dp))
-        Text(caps(tr("now")), style = mono(12.sp, FontWeight.Medium, C.Accent, 0.08f))
+        Text(caps(tr("now")), style = mono(12.sp, FontWeight.Medium, C.AccentText, 0.08f))
     }
 }

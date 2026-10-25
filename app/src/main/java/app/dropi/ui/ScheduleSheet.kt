@@ -262,10 +262,10 @@ private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit
                     state = st,
                     colors = TimePickerDefaults.colors(
                         clockDialColor = C.SurfaceLight,
-                        selectorColor = C.Accent,
-                        timeSelectorSelectedContainerColor = C.Accent.copy(alpha = 0.22f),
+                        selectorColor = C.AccentText,
+                        timeSelectorSelectedContainerColor = C.AccentText.copy(alpha = 0.22f),
                         timeSelectorUnselectedContainerColor = C.SurfaceLight,
-                        periodSelectorSelectedContainerColor = C.Accent.copy(alpha = 0.22f),
+                        periodSelectorSelectedContainerColor = C.AccentText.copy(alpha = 0.22f),
                         clockDialSelectedContentColor = C.OnAccent,
                     ),
                 )

@@ -72,7 +72,7 @@ private fun ColumnScope.ChangelogContent(close: () -> Unit) {
                     // The rail: a dot per release, joined down the page.
                     Column(Modifier.width(18.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(Modifier.height(8.dp))
-                        Box(Modifier.size(if (current) 12.dp else 8.dp).clip(CircleShape).background(if (current) C.Accent else C.TextMuted))
+                        Box(Modifier.size(if (current) 12.dp else 8.dp).clip(CircleShape).background(if (current) C.AccentText else C.TextMuted))
                         if (i < list.lastIndex) {
                             Box(Modifier.padding(top = 4.dp).width(1.5.dp).weight(1f).background(C.Border))
                         }
