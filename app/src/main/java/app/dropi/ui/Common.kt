@@ -137,7 +137,7 @@ fun PrimaryButton(
             .pressed(press)
             .clip(RoundedCornerShape(Corner.M))
             .background(
-                if (enabled) Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow))
+                if (enabled) androidx.compose.ui.graphics.SolidColor(C.Accent)
                 else Brush.horizontalGradient(listOf(C.SurfaceLight, C.SurfaceLight))
             )
             .tap(press, enabled = enabled, onClick = onClick)
@@ -184,7 +184,7 @@ fun ProgressLine(progress: Float) {
                 .fillMaxWidth(shown.coerceIn(0f, 1f))
                 .height(4.dp)
                 .clip(CircleShape)
-                .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
+                .background(androidx.compose.ui.graphics.SolidColor(C.Accent))
         )
     }
 }
@@ -218,7 +218,7 @@ fun SlidingSegments(
                 .width(segW)
                 .height(height - 6.dp)
                 .clip(RoundedCornerShape(Corner.S))
-                .background(Brush.horizontalGradient(listOf(C.Accent, C.AccentGlow)))
+                .background(androidx.compose.ui.graphics.SolidColor(C.Accent))
         )
         Row(Modifier.fillMaxWidth().height(height - 6.dp)) {
             options.forEachIndexed { i, label ->
@@ -296,7 +296,7 @@ private fun ChoiceTile(c: Choice, selected: Boolean, compact: Boolean, modifier:
             .pressed(press)
             .clip(shape)
             .background(
-                if (selected) Brush.linearGradient(listOf(C.Accent, C.AccentGlow))
+                if (selected) androidx.compose.ui.graphics.SolidColor(C.Accent)
                 else Brush.linearGradient(listOf(C.SurfaceLight, C.SurfaceLight))
             )
             .border(1.dp, if (selected) Color.Transparent else C.GlassBorder, shape)

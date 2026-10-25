@@ -31,9 +31,10 @@ import app.dropi.tr
  * into the night. Fixed to the screen, so the content scrolls over it and the header blurs it.
  */
 @Composable
-fun AuroraGlow(modifier: Modifier) {
-    val (a, b, c) = C.Aurora
-    val strength = if (C.dracula) 1f else if (C.dark) 0.55f else 0.45f
+fun AuroraGlow(modifier: Modifier, tint: Color? = null) {
+    // Tinted: one colour (the latest reading's range), softer, so it reads as light, not decoration.
+    val (a, b, c) = if (tint != null) listOf(tint, tint, tint) else C.Aurora
+    val strength = if (tint != null) (if (C.dark) 0.3f else 0.26f) else if (C.dracula) 1f else if (C.dark) 0.55f else 0.45f
     Canvas(modifier) {
         val w = size.width
         fun light(color: Color, cx: Float, cy: Float, r: Float, alpha: Float) {

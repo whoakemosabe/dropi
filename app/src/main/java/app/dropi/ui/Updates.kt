@@ -97,7 +97,7 @@ fun UpdateBanner() {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
                     contentAlignment = Alignment.Center,
                 ) { Ic(R.drawable.lc_download, C.OnAccent, 16.dp) }
                 Spacer(Modifier.width(12.dp))
@@ -188,7 +188,7 @@ fun WhatsNewDialog(version: String, notes: List<String>, behind: Int, onClose: (
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(28.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
+                        Modifier.size(28.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
                         contentAlignment = Alignment.Center,
                     ) { Ic(R.drawable.lc_zap, C.OnAccent, 16.dp) }
                     Spacer(Modifier.width(12.dp))
@@ -281,7 +281,7 @@ private fun Highlight(text: String, index: Int) {
         },
         verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.padding(top = 4.dp).size(8.dp).clip(RoundedCornerShape(50)).background(Brush.linearGradient(C.Aurora)))
+        Box(Modifier.padding(top = 4.dp).size(8.dp).clip(RoundedCornerShape(50)).background(C.Accent))
         Spacer(Modifier.width(12.dp))
         Text(text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
     }

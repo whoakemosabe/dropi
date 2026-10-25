@@ -1,6 +1,6 @@
 name: Android APK
 
-# Pushes to main publish a signed release (v1.0.N) with dropi.apk attached; other branches are
+# Pushes to main publish a signed release (v1.1.N) with dropi.apk attached; other branches are
 # build checks. Docs-only changes don't build. Same pipeline as F1 Pro.
 on:
   push:
@@ -103,7 +103,7 @@ jobs:
             echo "Tap **dropi.apk** below on your phone to install or update."
             echo
             # What's new: commit titles since the previous release tag.
-            prev=$(git describe --tags --abbrev=0 --match 'v1.0.*' HEAD^ 2>/dev/null || true)
+            prev=$(git describe --tags --abbrev=0 --match 'v1.*' HEAD^ 2>/dev/null || true)
             # Highlights: the hand-written, people-facing list in whatsnew.md, when it was
             # updated for this release. The app's "What's new" window shows these.
             if [ -f whatsnew.md ] && { [ -z "$prev" ] || ! git diff --quiet "$prev" HEAD -- whatsnew.md; }; then
@@ -123,8 +123,8 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Dropi 1.0.${{ github.run_number }}
+          tag_name: v1.1.${{ github.run_number }}
+          name: Dropi 1.1.${{ github.run_number }}
           body_path: notes.md
           files: dropi.apk
           make_latest: true

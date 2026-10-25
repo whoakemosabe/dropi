@@ -414,9 +414,9 @@ private fun Title(text: String) {
 private fun Badge(icon: Int, big: Boolean = false) {
     val size = if (big) 72.dp else 56.dp
     Box(
-        Modifier.size(size).clip(RoundedCornerShape(if (big) 22.dp else 18.dp)).background(Brush.linearGradient(C.Aurora)),
+        Modifier.size(size).clip(RoundedCornerShape(if (big) 22.dp else 18.dp)).background(C.Accent),
         contentAlignment = Alignment.Center,
-    ) { Ic(icon, androidx.compose.ui.graphics.Color.White, if (big) 34.dp else 26.dp) }
+    ) { Ic(icon, C.OnAccent, if (big) 34.dp else 26.dp) }
 }
 
 @Composable

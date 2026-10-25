@@ -183,7 +183,7 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
                 Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(C.Aurora))
+                    .background(C.Accent)
                     .semantics { role = Role.Button; contentDescription = tr("Say it") }
                     .tap { voice() },
                 contentAlignment = Alignment.Center,

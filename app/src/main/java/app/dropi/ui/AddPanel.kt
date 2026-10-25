@@ -162,7 +162,7 @@ private fun Tile(title: String, sub: String, icon: Int, modifier: Modifier, onCl
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
+            Modifier.size(40.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
             contentAlignment = Alignment.Center,
         ) { Ic(icon, C.OnAccent, 20.dp) }
         Spacer(Modifier.height(12.dp))

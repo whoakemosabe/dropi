@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -90,7 +91,9 @@ fun DropiRoot(state: AppState) {
         val headerDp = with(density) { headerPx.toDp() }
         Box(Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
             Box(Modifier.fillMaxSize().background(C.Bg))
-            AuroraGlow(Modifier.fillMaxWidth().height(560.dp))
+            // The glow takes the colour of the latest reading's range (Dracula keeps its own).
+            val latest = state.readings.lastOrNull()
+            AuroraGlow(Modifier.fillMaxWidth().height(560.dp), tint = if (!C.dracula && latest != null) C.status(state.status(latest)) else null)
             CompositionLocalProvider(LocalHeaderHeight provides headerDp) {
                 // The four pages, cross-fading; back on any of them returns to Today.
                 Crossfade(state.tab, animationSpec = tween(220), label = "tab") { t ->
@@ -282,50 +285,56 @@ enum class Tab { TODAY, TRENDS, MEALS, MORE }
 /** How far the header's frost fades out below it; pages start below that, so at rest nothing is blurred. */
 val HEADER_FADE = 20.dp
 
-/** The sticky header: the drop logo, the page title and date, and Settings. */
+/**
+ * The sticky header, one line: the page's name (on Today, the date) and one fact on the right
+ * (the next check, today's carbs, the dates shown, the version). No logo, no gear: Settings is in
+ * More.
+ */
 @Composable
 private fun TopBar(state: AppState) {
     val context = LocalContext.current
     val fmt = remember(state.zone) { Fmt(context, state.zone) }
     val now = rememberNow(60_000)
     val today = java.time.Instant.ofEpochMilli(now).atZone(state.zone).toLocalDate()
-    val (title, sub) = when (state.tab) {
-        Tab.TODAY -> "Dropi" to fmt.longDate(today)
+    var ring = false
+    val (title, meta) = when (state.tab) {
+        Tab.TODAY -> {
+            val next = app.dropi.data.Schedule.next(state.slots, state.readings, now, state.zone, state.afterMealMinutes, state.meals)
+            ring = next != null
+            dayPattern("EEE d MMM").format(today).cap() to when {
+                next == null -> null
+                next.state == app.dropi.data.CheckState.DUE -> tr("due now")
+                else -> tr("next {0}", fmt.time(next.at))
+            }
+        }
         Tab.TRENDS -> {
             val df = dayPattern("d MMM")
             tr("Trends") to "${df.format(today.minusDays((state.trendsDays - 1).toLong()))} – ${df.format(today)}"
         }
-        Tab.MEALS -> tr("Meals") to tr("What you ate, and what it did")
-        Tab.MORE -> tr("More") to tr("Everything else, one tap away")
+        Tab.MEALS -> {
+            val carbs = state.meals.filter { java.time.Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() == today }.sumOf { it.carbs }
+            tr("Meals") to (if (carbs > 0) tr("{0} g carbs today", app.dropi.data.Grams.text(carbs)) else null)
+        }
+        Tab.MORE -> tr("More") to "v" + app.dropi.work.Updater.installedVersion(context)
     }
     Row(
         Modifier
             .statusBarsPadding()
             // Under Dracula the dripping edge needs a little room above the title.
-            .padding(start = 16.dp, end = 16.dp, top = if (C.dracula) 30.dp else 8.dp, bottom = 10.dp)
+            .padding(start = 20.dp, end = 20.dp, top = if (C.dracula) 30.dp else 12.dp, bottom = 12.dp)
             .widthIn(max = 640.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(36.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
-            contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_droplet, C.OnAccent, 18.dp) }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = heading(26.sp))
-            Text(sub, style = inter(13.sp, FontWeight.Medium, C.TextSecondary))
+        Text(title, style = heading(26.sp), modifier = Modifier.weight(1f).semantics { heading() }, maxLines = 1)
+        if (meta != null) {
+            if (ring) {
+                Box(Modifier.size(8.dp).border(1.5.dp, C.TextSecondary, CircleShape))
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(meta, style = mono(13.sp, color = C.TextSecondary), maxLines = 1)
         }
-        val press = rememberPress()
-        Box(
-            Modifier
-                .pressed(press)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(C.SurfaceLight.copy(alpha = 0.8f))
-                .tap(press) { state.settingsOpen = true },
-            contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_settings, C.TextSecondary, 20.dp, contentDescription = tr("Settings")) }
     }
 }
 
@@ -364,12 +373,12 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 TabItem(tr("More"), R.drawable.lc_layout_grid, state.tab == Tab.MORE, Modifier.weight(1f)) { go(Tab.MORE) }
             }
         }
-        // The halo, then the + itself.
+        // The halo, then the + itself: solid ink, no gradient.
         Box(
             Modifier
                 .align(Alignment.Center)
                 .size(96.dp)
-                .border(1.5.dp, C.AccentText.copy(alpha = 0.45f), CircleShape)
+                .border(1.dp, C.Text.copy(alpha = 0.22f), CircleShape)
         )
         val plus = rememberPress()
         Box(
@@ -377,9 +386,9 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
                 .align(Alignment.Center)
                 .pressed(plus)
                 .size(80.dp)
-                .shadow(18.dp, CircleShape, ambientColor = C.Aurora[1], spotColor = C.Aurora[2])
+                .shadow(10.dp, CircleShape)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(C.Aurora))
+                .background(C.Accent)
                 .tap(plus) { state.addOpen = true },
             contentAlignment = Alignment.Center,
         ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = tr("Add a reading or meal")) }
@@ -448,18 +457,14 @@ private fun Wing(
 /** One page in a wing: its icon over a short name, on a lit capsule when it's the page showing. */
 @Composable
 private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val tint = if (selected) C.AccentText else C.TextSecondary
+    val tint = if (selected) C.Text else C.TextMuted
     val press = rememberPress()
     Column(
         modifier
             .fillMaxHeight()
             .pressed(press)
             .clip(RoundedCornerShape(50))
-            .background(
-                if (selected) Brush.horizontalGradient(listOf(C.Aurora[0].copy(alpha = 0.24f), C.Aurora[2].copy(alpha = 0.24f)))
-                else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)),
-            )
-            .then(if (selected) Modifier.border(1.dp, C.AccentText.copy(alpha = 0.6f), RoundedCornerShape(50)) else Modifier)
+            .background(if (selected) C.Text.copy(alpha = 0.09f) else Color.Transparent)
             .semantics(mergeDescendants = true) { this.selected = selected; role = Role.Tab }
             .tap(press, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,

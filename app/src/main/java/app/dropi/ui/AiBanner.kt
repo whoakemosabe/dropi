@@ -128,7 +128,7 @@ fun AiBanner(state: AppState) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(Brush.linearGradient(C.Aurora)),
+                    Modifier.size(32.dp).clip(RoundedCornerShape(Corner.S)).background(C.Accent),
                     contentAlignment = Alignment.Center,
                 ) {
                     Ic(

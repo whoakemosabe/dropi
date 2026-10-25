@@ -43,13 +43,17 @@ object C {
     val Border get() = pick(0xFF383C47, 0xFFCDD6EE, 0xFF3D1621)
     val GlassBorder get() = pick(0x14FFFFFF, 0x14101A40, 0x2EFF2D55)
 
-    /** Brand fill (buttons, selected tiles); [OnAccent] sits on it. */
-    val Accent get() = pick(0xFF6347F0, 0xFF5B47F0, 0xFFA3001B)
-    val AccentGlow get() = pick(0xFF7A5CF5, 0xFF2E6BFF, 0xFF6A1B9A)
-    val OnAccent get() = pick(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
+    /**
+     * Brand fill (buttons, selected tiles, the +); [OnAccent] sits on it. Since 1.1 it's ink:
+     * off-white by night, deep navy by day, so the only real colour on screen is the range
+     * colours. Dracula keeps its blood red.
+     */
+    val Accent get() = pick(0xFFF2F3F5, 0xFF0E1638, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFFD9DCE3, 0xFF2A3566, 0xFF6A1B9A)
+    val OnAccent get() = pick(0xFF0B0C10, 0xFFFFFFFF, 0xFFFFFFFF)
 
-    /** Brand colour as text or a thin icon: soft violet (deeper violet by day). */
-    val AccentText get() = pick(0xFFB3A5FF, 0xFF4B3BD6, 0xFFFF5C7A)
+    /** Brand colour as text or a thin icon: ink (Dracula: its pink-red). */
+    val AccentText get() = pick(0xFFF2F3F5, 0xFF0E1638, 0xFFFF5C7A)
 
     /** The aurora itself, for the glow, the + button, the logo and the live trace. */
     val Aurora: List<Color> get() = when {

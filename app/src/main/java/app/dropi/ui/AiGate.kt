@@ -64,9 +64,9 @@ fun AiNeededDialog(what: String, readyAction: String, onDismiss: () -> Unit, rea
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                Modifier.size(52.dp).clip(RoundedCornerShape(Corner.M)).background(Brush.linearGradient(C.Aurora)),
+                Modifier.size(52.dp).clip(RoundedCornerShape(Corner.M)).background(C.Accent),
                 contentAlignment = Alignment.Center,
-            ) { Ic(R.drawable.lc_message_circle, Color.White, 24.dp) }
+            ) { Ic(R.drawable.lc_message_circle, C.OnAccent, 24.dp) }
 
             when {
                 Ai.usable -> {
