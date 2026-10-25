@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -94,7 +95,7 @@ fun FoodsCard(state: AppState) {
 
 /** A food's rise as a bar and a number. [ruled]: a row of the ruled list on the Meals page. */
 @Composable
-private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, onClick: () -> Unit) {
+private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, expanded: Boolean? = null, onClick: () -> Unit) {
     val (step, tone) = riseTone(rise)
     val delta = Foods.delta(rise, unit)
     val spoken = when (step) {
@@ -107,7 +108,10 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
             .fillMaxWidth()
             .then(if (ruled) Modifier.heightIn(min = 48.dp).ruleTop() else Modifier.clip(RoundedCornerShape(Corner.S)))
             .tap(onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = spoken }
+            .semantics(mergeDescendants = true) {
+                contentDescription = spoken
+                if (expanded != null) stateDescription = if (expanded) tr("Expanded") else tr("Collapsed")
+            }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -148,42 +152,48 @@ private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
             return@StickySheetBody
         }
         val top = scores.maxOf { it.rise }.coerceAtLeast(1.0)
-        for (s in scores) {
-            val open = state.foodOpen == s.food
-            Column(
-                Modifier.fillMaxWidth().card().animateContentSize().padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                RiseRow(Foods.display(s.food), s.rise, top, state.unit) { state.foodOpen = if (open) null else s.food }
-                if (open) {
-                    val peak = s.curve.drop(1).maxByOrNull { it.second }
-                    val (step, _) = riseTone(s.rise)
-                    val amount = "${Foods.delta(s.rise, state.unit)} ${state.unit.label}"
-                    val riseText = when {
-                        peak == null -> when (step) {
-                            RiseStep.GENTLE -> tr("A gentle rise of {0}.", amount)
-                            RiseStep.MODERATE -> tr("A moderate rise of {0}.", amount)
-                            RiseStep.BIG -> tr("A big rise of {0}.", amount)
+        // One ruled list, like the ladder on the Meals page; a tapped food opens under its row.
+        Column(Modifier.fillMaxWidth()) {
+            RuleHeader(tr("All foods"), trn(scores.size, "{0} food", "{0} foods"))
+            for (s in scores) {
+                val open = state.foodOpen == s.food
+                Column(
+                    Modifier.fillMaxWidth().animateContentSize(),
+                ) {
+                    RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, expanded = open) { state.foodOpen = if (open) null else s.food }
+                    if (open) {
+                        val peak = s.curve.drop(1).maxByOrNull { it.second }
+                        val (step, _) = riseTone(s.rise)
+                        val amount = "${Foods.delta(s.rise, state.unit)} ${state.unit.label}"
+                        val riseText = when {
+                            peak == null -> when (step) {
+                                RiseStep.GENTLE -> tr("A gentle rise of {0}.", amount)
+                                RiseStep.MODERATE -> tr("A moderate rise of {0}.", amount)
+                                RiseStep.BIG -> tr("A big rise of {0}.", amount)
+                            }
+                            else -> when (step) {
+                                RiseStep.GENTLE -> tr("A gentle rise of {0}, highest around {1} after eating.", amount, minutesWords(peak.first))
+                                RiseStep.MODERATE -> tr("A moderate rise of {0}, highest around {1} after eating.", amount, minutesWords(peak.first))
+                                RiseStep.BIG -> tr("A big rise of {0}, highest around {1} after eating.", amount, minutesWords(peak.first))
+                            }
                         }
-                        else -> when (step) {
-                            RiseStep.GENTLE -> tr("A gentle rise of {0}, highest around {1} after eating.", amount, minutesWords(peak.first))
-                            RiseStep.MODERATE -> tr("A moderate rise of {0}, highest around {1} after eating.", amount, minutesWords(peak.first))
-                            RiseStep.BIG -> tr("A big rise of {0}, highest around {1} after eating.", amount, minutesWords(peak.first))
+                        val fromText =
+                            if (s.ranked) trn(s.meals, "From {0} meal.", "From {0} meals.")
+                            else trn(s.meals, "From {0} meal, so it isn't ranked yet.", "From {0} meals, so it isn't ranked yet.")
+                        Text(
+                            "$riseText $fromText",
+                            style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                        )
+                        Curve(s.curve, s.points, Modifier.fillMaxWidth().height(140.dp))
+                        Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            listOf(tr("Eating"), tr("{0} h", 2), tr("{0} h", 4)).forEach { Text(caps(it), style = mono(12.sp, color = C.TextMuted, tracking = 0.04f)) }
                         }
-                    }
-                    val fromText =
-                        if (s.ranked) trn(s.meals, "From {0} meal.", "From {0} meals.")
-                        else trn(s.meals, "From {0} meal, so it isn't ranked yet.", "From {0} meals, so it isn't ranked yet.")
-                    Text(
-                        "$riseText $fromText",
-                        style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
-                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                    )
-                    Curve(s.curve, s.points, Modifier.fillMaxWidth().height(140.dp))
-                    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        listOf(tr("Eating"), tr("{0} h", 2), tr("{0} h", 4)).forEach { Text(it, style = inter(13.sp, color = C.TextMuted)) }
                     }
                 }
             }
+            // Closes the list with a hairline under the last food.
+            Box(Modifier.fillMaxWidth().height(1.dp).background(C.Border.copy(alpha = 0.55f)))
         }
         SheetHint(tr("Foods eaten together share a meal's rise. Portions, activity and medicine all play a part too."))
     }
@@ -201,7 +211,7 @@ private fun Curve(curve: List<Pair<Int, Double>>, points: List<Pair<Int, Double>
     val line = C.Text
     val dot = C.TextMuted
     val zero = C.Border
-    val hiC = C.High
+    val hiC = C.AccentText
     val lo = minOf(-1.0, (points.minOfOrNull { it.second } ?: 0.0) - 0.3)
     val hi = maxOf(3.0, (points.maxOfOrNull { it.second } ?: 0.0) + 0.5)
     Canvas(modifier.semantics { contentDescription = tr("Typical change in the four hours after eating") }) {
