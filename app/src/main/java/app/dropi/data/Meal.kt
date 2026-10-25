@@ -50,6 +50,9 @@ data class MealItem(
         return "${Meal.qtyText(qty, plain)} × $portion"
     }
 
+    /** [portionText] for showing: "1 bolli", "3 sneiðar" in Icelandic (see [Portions]). */
+    fun portionShown(): String = Portions.shown(portion, qty) { portionText() }
+
     private companion object {
         val sizeWords = setOf("medium", "small", "large", "portion", "normal", "big")
     }
@@ -291,7 +294,12 @@ object MealAi {
     val PHOTO = "This is a photo of a meal. Identify each food and estimate how much of it is on the plate. $SHAPE"
 
     fun words(text: String) = "Someone describes what they ate: \"${text.take(300)}\". Work out each food and the amount they said " +
-        "(assume a normal portion when they didn't say). $SHAPE"
+        "(assume a normal portion when they didn't say). $SHAPE" + ICELANDIC
+
+    /** In Icelandic: food names in the person's own words, portions still in English (shown translated). */
+    private val ICELANDIC: String get() = if (app.dropi.L.icelandic) {
+        " They may write in Icelandic. Name each food in their own Icelandic words, but write the portion in English household words."
+    } else ""
 
     fun change(current: Meal, change: String): String {
         val list = current.items.joinToString("; ") { "${it.name}, ${it.portionText(plain = true)}, ${Grams.plain(it.carbs)} g carbs" } +
@@ -301,9 +309,13 @@ object MealAi {
 
     /** One food: a short prompt asking only for its numbers (much quicker than the whole-meal one). */
     fun food(name: String, portion: String?) =
-        "Nutrition for ${if (portion.isNullOrBlank()) "one normal portion of" else "$portion of"} ${name.take(60)}. " +
+        "Nutrition for ${if (portion.isNullOrBlank()) "one normal portion of" else "$portion of"} ${named(name.take(60))}. " +
             "Reply with only JSON: {\"portion\":\"1 egg\",\"carbs\":0.6,\"sugars\":0.6,\"fibre\":0,\"protein\":6.3,\"fat\":5.3,\"gi\":0}. " +
             "Grams for that portion; carbs not counting fibre; gi is the glycaemic index, 0 if almost no carbs."
+
+    /** An Icelandic name with the English one alongside, which the model knows far better: "hrísgrjón (rice)". */
+    private fun named(name: String): String =
+        FoodNames.english(name)?.takeIf { !name.lowercase().contains(it) }?.let { "$name ($it)" } ?: name
 
     const val FOOD_SCHEMA = """{"type":"object","properties":{"portion":{"type":"string"},"carbs":{"type":"number"},"sugars":{"type":"number"},"fibre":{"type":"number"},"protein":{"type":"number"},"fat":{"type":"number"},"gi":{"type":"integer"}},"required":["portion","carbs","protein","fat"]}"""
 

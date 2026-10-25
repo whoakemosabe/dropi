@@ -711,9 +711,9 @@ private fun FoodRow(item: MealItem, score: Foods.Score?, nutrition: Boolean, onC
     val looking = item.key in MealWork.filling
     val g = { v: Double -> app.dropi.data.Grams.text(v) }
     val details = when {
-        looking -> listOf(item.portionText(), tr("looking up its numbers…"))
+        looking -> listOf(item.portionShown(), tr("looking up its numbers…"))
         else -> listOfNotNull(
-            item.portionText(),
+            item.portionShown(),
             if (item.sugaryDrink) tr("sugary drink") else item.giValue?.takeIf { item.carbs > 0 }?.let { app.dropi.data.Gi.speed(it).word.lowercase() },
             item.protein?.takeIf { it > 0 && nutrition }?.let { tr("{0} g protein", g(it)) },
             item.fat?.takeIf { it > 0 && nutrition }?.let { tr("{0} g fat", g(it)) },
@@ -1034,7 +1034,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
             portion == null && u != null -> {
                 base = MealItem(key, u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein, fat = u.fat, usual = true); from = tr("Your usual amount")
             }
-            portion == null && basic != null -> { base = basic.copy(name = key); from = tr("Found: {0}, from Dropi's food list", basic.name) }
+            portion == null && basic != null -> { base = basic.copy(name = key); from = tr("Found: {0}, from Dropi's food list", app.dropi.data.FoodNames.shown(basic.name)) }
             app.dropi.work.Ai.usable -> {
                 base = null
                 if (askNow == 0) kotlinx.coroutines.delay(700) // wait for a pause in typing
@@ -1068,7 +1068,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
                     val b = base
                     if (b != null && !other) {
                         listOf(1.0, 2.0, 3.0).forEach { q ->
-                            Chip(b.withQty(q).portionText(), selected = qty == q) { Haptics.tap(view); qty = q; edited = null }
+                            Chip(b.withQty(q).portionShown(), selected = qty == q) { Haptics.tap(view); qty = q; edited = null }
                         }
                     }
                     Chip(tr("Other amount"), selected = other || b == null) { other = !other || b == null; edited = null }
@@ -1097,7 +1097,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
                     else -> Text(tr("Not in Dropi's list. Type the numbers from the packet or your own amounts."), style = inter(13.sp, color = C.TextSecondary))
                 }
                 NumbersPreview(if (looking || !known) null else current)
-                if (known) Text(tr("Grams for {0}.", current.portionText()), style = inter(13.sp, color = C.TextMuted))
+                if (known) Text(tr("Grams for {0}.", current.portionShown()), style = inter(13.sp, color = C.TextMuted))
                 if (looking) Text(tr("You can add it now; the numbers land on the meal when they're ready."), style = inter(13.sp, color = C.TextMuted))
                 if (!numbersOpen) {
                     GhostButton(tr("Change the numbers"), color = C.AccentText) { numbersOpen = true }
@@ -1138,11 +1138,11 @@ private fun FoodEditDialog(
     FoodDialogFrame(onDismiss) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(Foods.display(initial.name), style = heading(24.sp), modifier = Modifier.weight(1f))
-            Text(item.portionText(), style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 4.dp))
+            Text(item.portionShown(), style = inter(15.sp, color = C.TextSecondary), modifier = Modifier.padding(bottom = 4.dp))
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(0.5, 1.0, 1.5, 2.0, 3.0).forEach { q ->
-                Chip(initial.withQty(q).portionText(), selected = item.qty == q) {
+                Chip(initial.withQty(q).portionShown(), selected = item.qty == q) {
                     Haptics.tap(view)
                     item = item.withQty(q)
                 }
@@ -1160,7 +1160,7 @@ private fun FoodEditDialog(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(tr("Remember as my {0}", Foods.display(initial.name).lowercase()), style = inter(15.sp, FontWeight.SemiBold))
-                Text(tr("Next time: {0} g carbs for {1}", app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1)), item.portion), style = inter(13.sp, color = C.TextMuted))
+                Text(tr("Next time: {0} g carbs for {1}", app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1)), app.dropi.data.Portions.shown(item.portion)), style = inter(13.sp, color = C.TextMuted))
             }
             Switch(checked = keep, onCheckedChange = { Haptics.toggle(view, it); keep = it }, colors = dropiSwitchColors(),
                 modifier = Modifier.semantics { contentDescription = tr("Remember this amount") })

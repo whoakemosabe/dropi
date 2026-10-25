@@ -58,11 +58,15 @@ object Gi {
         "orange juice" to 50, "apple juice" to 41, "juice" to 50, "cola" to 63, "coke" to 63, "soda" to 63, "lemonade" to 60,
         "smoothie" to 45, "chocolate milk" to 40, "kókómjólk" to 40, "milkshake" to 41, "beer" to 66, "sports drink" to 78,
         "skyr" to 36, "yoghurt" to 41, "yogurt" to 41, "milk" to 39,
+        "grjónagrautur" to 70, "laufabrauð" to 70, "danish pastry" to 59, "caramelised potatoes" to 80,
     ).sortedByDescending { it.first.length }
 
     fun lookup(name: String): Int? {
         val n = name.lowercase(Locale.ROOT)
-        return table.firstOrNull { (k, _) -> n.contains(k) }?.second
+        table.firstOrNull { (k, _) -> n.contains(k) }?.let { return it.second }
+        // Typed in Icelandic: the food's name in this table ("hrísgrjón" → rice).
+        val en = FoodNames.english(name) ?: return null
+        return table.firstOrNull { (k, _) -> en.contains(k) }?.second
     }
 
     private val drinks = listOf(
@@ -70,9 +74,10 @@ object Gi {
         "latte", "frappe", "frappuccino", "iced tea", "sweet tea", "energy drink", "red bull", "monster", "kókómjólk", "gos",
         "appelsín", "malt", "hot chocolate", "cocoa", "kakó", "sports drink", "gatorade", "powerade", "chocolate milk", "drink",
     )
-    private val sugarFree = listOf("diet", "zero", "sugar free", "sugar-free", "sykurlaus", "light", "max", "water", "vatn")
+    private val sugarFree = listOf("diet", "zero", "sugar free", "sugar-free", "sykurlaus", "light", "max", "water", "vatn", "kristall")
 
-    fun isDrink(name: String): Boolean = name.lowercase(Locale.ROOT).let { n -> drinks.any { n.contains(it) } }
+    fun isDrink(name: String): Boolean = name.lowercase(Locale.ROOT).let { n -> drinks.any { n.contains(it) } } ||
+        FoodNames.english(name)?.let { en -> drinks.any { en.contains(it) } } == true
     fun isSugarFree(name: String): Boolean = name.lowercase(Locale.ROOT).let { n -> sugarFree.any { n.contains(it) } }
 }
 
@@ -525,10 +530,24 @@ object Basics {
         remúlaði|1 spoon|1.5|1|0|0.1|8
         gravy|1 ladle|3|0.5|0|1|2
         sósa|1 ladle|3|0.5|0|1|2
+        grjónagrautur|1 bowl|40|14|0.5|9|6
+        laufabrauð|1 piece|11|0.3|0.5|2|5
+        liver sausage|1 slice|8.5|0.5|0.5|5.5|8
+        blood pudding|1 slice|11|0.5|0.5|4|6.5
+        danish pastry|1 piece|30|12|1|4|15
+        caramelised potatoes|1 portion|38|14|2|2.5|4
     """
 
-    /** The basic food named in [name] ("hard boiled egg" → egg), at its usual portion, or null. */
+    /**
+     * The basic food named in [name] ("hard boiled egg" → egg, "soðnar kartöflur" → potato), at
+     * its usual portion, or null.
+     */
     fun find(name: String): MealItem? {
+        match(name)?.let { return it }
+        return FoodNames.english(name)?.let { match(it) }
+    }
+
+    private fun match(name: String): MealItem? {
         val n = " " + name.lowercase(Locale.ROOT) + " "
         return table.firstOrNull { b -> Regex("(?<![\\p{L}])${Regex.escape(b.name)}(e?s)?(?![\\p{L}])").containsMatchIn(n) }
     }
