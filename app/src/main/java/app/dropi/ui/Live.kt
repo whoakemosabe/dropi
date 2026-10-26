@@ -229,8 +229,8 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
     val line = C.Text
     val grid = C.Border
     val cardC = C.Card
-    // One solid line, the sensor colour used on the Trends chart.
-    val trace = C.Aurora[1]
+    // The live trace is this card's main line: ink, as in the shared chart style (colour is for range).
+    val trace = Chart.ink
     val from = now - 3 * 60 * MIN
     val to = now + 25 * MIN
     val lo = minOf(2.8, (points.minOfOrNull { it.mmol } ?: 4.0) - 0.6, ahead?.minus(0.4) ?: 99.0)
@@ -239,13 +239,14 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
         fun x(t: Long) = ((t - from).toFloat() / (to - from)) * size.width
         fun y(v: Double) = (1f - ((v - lo) / (hi - lo)).toFloat()) * size.height
         // Time in range as a soft band, the low line dashed.
-        drawRect(band.copy(alpha = 0.08f), Offset(0f, y(Glucose.TIR_HIGH)), androidx.compose.ui.geometry.Size(size.width, y(Glucose.LOW) - y(Glucose.TIR_HIGH)))
+        drawRect(Chart.band, Offset(0f, y(Glucose.TIR_HIGH)), androidx.compose.ui.geometry.Size(size.width, y(Glucose.LOW) - y(Glucose.TIR_HIGH)))
+        drawLine(Chart.rule, Offset(0f, y(Glucose.TIR_HIGH)), Offset(size.width, y(Glucose.TIR_HIGH)), strokeWidth = 1.dp.toPx())
         drawLine(
             lowC.copy(alpha = 0.55f), Offset(0f, y(Glucose.LOW)), Offset(size.width, y(Glucose.LOW)),
             strokeWidth = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())),
         )
         // "Now".
-        drawLine(grid, Offset(x(now), 0f), Offset(x(now), size.height), strokeWidth = 1.dp.toPx())
+        drawLine(Chart.now.copy(alpha = 0.6f), Offset(x(now), 0f), Offset(x(now), size.height), strokeWidth = 1.dp.toPx())
         if (points.isEmpty()) return@Canvas
         val path = Path()
         var prev: SensorPoint? = null
@@ -254,7 +255,7 @@ private fun Trace(points: List<SensorPoint>, ahead: Double?, now: Long, modifier
             if (prev == null || p.at - prev.at > 15 * MIN) path.moveTo(x(p.at), y(p.mmol)) else path.lineTo(x(p.at), y(p.mmol))
             prev = p
         }
-        drawPath(path, trace, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path, trace, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         val last = prev!!
         if (ahead != null) {
             drawLine(

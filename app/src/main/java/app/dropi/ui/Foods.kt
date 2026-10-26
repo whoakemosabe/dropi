@@ -209,7 +209,8 @@ private fun minutesWords(m: Int) = when {
 /** The typical curve over every reading that went into it (dots), starting from zero at eating. */
 @Composable
 private fun Curve(curve: List<Pair<Int, Double>>, points: List<Pair<Int, Double>>, modifier: Modifier) {
-    val line = C.Text
+    // The shared chart style: ink line, muted points.
+    val line = Chart.ink
     val dot = C.TextMuted
     val zero = C.Border
     val hiC = C.AccentText
@@ -225,9 +226,9 @@ private fun Curve(curve: List<Pair<Int, Double>>, points: List<Pair<Int, Double>
         if (curve.size >= 2) {
             val path = Path()
             curve.forEachIndexed { i, (m, v) -> if (i == 0) path.moveTo(x(m), y(v)) else path.lineTo(x(m), y(v)) }
-            drawPath(path, line, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(path, line, style = with(Chart) { line() })
         }
-        for ((m, v) in curve.drop(1)) drawCircle(line, 3.5.dp.toPx(), Offset(x(m), y(v)))
+        for ((m, v) in curve.drop(1)) drawCircle(line, 3.dp.toPx(), Offset(x(m), y(v)))
         drawLine(
             zero, Offset(x(240), 0f), Offset(x(240), size.height), strokeWidth = 1.dp.toPx(),
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())),

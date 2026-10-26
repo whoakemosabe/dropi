@@ -542,10 +542,11 @@ private fun StripRow(
     val zone = state.zone
     val unit = state.unit
     val targets = state.targets
-    val band = C.InRange.copy(alpha = 0.12f)
-    val line = C.TextSecondary
-    val ghostLine = C.TextMuted.copy(alpha = 0.45f)
-    val nowLine = C.AccentText
+    // The shared chart style (ChartStyle.kt): the same band, line and dots as the big charts.
+    val line = Chart.ink
+    val ghostLine = Chart.faint
+    val nowLine = Chart.now
+    val ring = C.Bg
     val colors = Status.entries.associateWith { C.status(it) }
     val avg = s.average
     val desc = stripDescription(s, unit)
@@ -589,23 +590,14 @@ private fun StripRow(
             // out rather than pinned to an edge, where they used to draw a spike.
             fun inRow(at: Long): Boolean = frac(at) in 0f..1f
             fun yOf(m: Double): Float = pad + h * (1f - ((m - SPARK_MIN) / (maxV - SPARK_MIN)).toFloat().coerceIn(0f, 1f))
-            drawRect(band, Offset(0f, yOf(Glucose.TIR_HIGH)), Size(size.width, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
+            with(Chart) { rangeGround(0f, size.width, yOf(Glucose.TIR_HIGH), yOf(Glucose.LOW)) }
             // The same weekday last week, faint and dashed behind the day's own line (no dots).
             if (!s.week && s.ghost.size >= 2) {
                 val gp = Path()
                 s.ghost.filter { inRow(it.at) }.forEachIndexed { i, r ->
                     if (i == 0) gp.moveTo(xOf(r.at), yOf(r.mmol)) else gp.lineTo(xOf(r.at), yOf(r.mmol))
                 }
-                drawPath(
-                    gp,
-                    ghostLine,
-                    style = Stroke(
-                        1.dp.toPx(),
-                        cap = StrokeCap.Butt,
-                        join = StrokeJoin.Round,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx())),
-                    ),
-                )
+                drawPath(gp, ghostLine, style = with(Chart) { faintLine() })
             }
             val shown = s.readings.filter { inRow(it.at) }
             val runs = if (s.week) shown.groupBy { it.date(zone) }.values.toList() else listOf(shown)
@@ -615,11 +607,9 @@ private fun StripRow(
                     rs.forEachIndexed { i, r ->
                         if (i == 0) path.moveTo(xOf(r.at), yOf(r.mmol)) else path.lineTo(xOf(r.at), yOf(r.mmol))
                     }
-                    drawPath(
-                        path,
-                        if (s.week) line.copy(alpha = 0.4f) else line,
-                        style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-                    )
+                    // A week row lays seven days over one: each a faint line, so the dots read.
+                    if (s.week) drawPath(path, Chart.faint, style = Stroke(Chart.faintW.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    else drawPath(path, line, style = with(Chart) { line() })
                 }
             }
             // Today's row: a thin ink line at the time it is now.
@@ -634,8 +624,7 @@ private fun StripRow(
                 .map { it to Glucose.status(it.mmol, it.tag, targets) }
                 .sortedBy { if (it.second == Status.IN_RANGE) 0 else 1 }
                 .forEach { (r, st) ->
-                    val rad = if (st == Status.IN_RANGE) 2.5.dp.toPx() else 3.5.dp.toPx()
-                    drawCircle(colors.getValue(st), rad, Offset(xOf(r.at), yOf(r.mmol)))
+                    with(Chart) { readingDot(colors.getValue(st), Offset(xOf(r.at), yOf(r.mmol)), ring, small = true) }
                 }
         }
         Spacer(Modifier.width(10.dp))

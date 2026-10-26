@@ -145,18 +145,18 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
     val maxV = maxOf(14.0, (visible.maxOfOrNull { it.mmol } ?: 0.0) + 1.0).coerceAtMost(Glucose.MAX_MMOL)
     val minV = 2.0
 
-    val band = C.InRange.copy(alpha = 0.10f)
+    // Everything from the shared chart style (ChartStyle.kt).
     val grid = C.Border
-    val muted = C.TextMuted
     val ring = C.Bg
     val textCol = C.TextSecondary
-    val meal = C.AccentText
+    val meal = Chart.meal
     val beforeBand = C.AccentText.copy(alpha = 0.08f)
-    val trace = C.Aurora[1]
-    val joinLine = C.TextSecondary.copy(alpha = 0.45f)
+    val trace = Chart.sensor
+    val joinLine = Chart.ink
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 10.sp, color = muted, fontWeight = FontWeight.Medium)
-    val clock = remember { DateTimeFormatter.ofPattern(if (fmt.is24) "HH:mm" else "ha", Locale.ENGLISH) }
+    val labelStyle = Chart.label
+    val labelStrong = Chart.labelStrong
+    val clock = remember { DateTimeFormatter.ofPattern(if (fmt.is24) "HH" else "ha", Locale.ENGLISH) }
     val weekday = remember { dayPattern("EEE d") }
     val dayMonth = remember { dayPattern("d MMM") }
     val meals = remember(state.meals, state.measuredById) { state.meals.associateWith { state.outcome(it) } }
@@ -274,10 +274,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                 var barsToDraw: Map<java.time.LocalDate, List<Reading>> = emptyMap()
 
                 // Target band (3.9–10.0) and its edges; personal before-meal band and after-meal limit.
-                drawRect(band, Offset(left, yOf(Glucose.TIR_HIGH)), Size(plotW, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
-                listOf(Glucose.LOW, Glucose.TIR_HIGH).forEach { g ->
-                    drawLine(grid, Offset(left, yOf(g)), Offset(size.width, yOf(g)), strokeWidth = 1.dp.toPx())
-                }
+                with(Chart) { rangeGround(left, size.width, yOf(Glucose.TIR_HIGH), yOf(Glucose.LOW)) }
                 if (targetsA > 0f) {
                     val t = state.targets
                     drawRect(beforeBand.copy(alpha = beforeBand.alpha * targetsA), Offset(left, yOf(t.beforeHigh)), Size(plotW, yOf(t.beforeLow) - yOf(t.beforeHigh)))
@@ -307,13 +304,13 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         val x = xOf(tick)
                         val local = Instant.ofEpochMilli(tick).atZone(zone)
                         val midnight = local.hour == 0
-                        drawLine(grid.copy(alpha = if (midnight) 0.9f else 0.4f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
+                        drawLine(grid.copy(alpha = if (midnight) 0.9f else 0.5f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
                         val label = when {
                             step < DAY && !midnight -> clock.format(local)
-                            step <= DAY -> weekday.format(local).cap()
-                            else -> dayMonth.format(local)
+                            step <= DAY -> caps(weekday.format(local))
+                            else -> caps(dayMonth.format(local))
                         }
-                        val tl = measurer.measure(label, labelStyle.copy(color = if (midnight) textCol else muted))
+                        val tl = measurer.measure(label, if (midnight) labelStrong else labelStyle)
                         val lx = (x - tl.size.width / 2f).coerceIn(left, size.width - tl.size.width)
                         drawText(tl, topLeft = Offset(lx, h + 4.dp.toPx()))
                     }
@@ -348,7 +345,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                             else if (x - lastX >= minStep) { path.lineTo(x, y); lastX = x }
                             prev = p.at
                         }
-                        drawPath(path, trace.copy(alpha = 0.7f * sensorA), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        drawPath(path, trace.copy(alpha = trace.alpha * sensorA), style = with(Chart) { sensorLine() })
                     }
                 }
 
@@ -361,7 +358,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     val avgs = days.entries.sortedBy { it.key }.map { (day, rs) ->
                         Offset(xOf(day.atStartOfDay(zone).toInstant().toEpochMilli() + DAY / 2), yOf(rs.map { it.mmol }.average()))
                     }
-                    drawPath(smoothPath(avgs), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(smoothPath(avgs), joinLine, style = with(Chart) { line() })
                     // (Bars are drawn after the clip, below.)
                     barsToDraw = days
                 } else {
@@ -369,11 +366,11 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         meals.forEach { (r, out) ->
                             if (r.at !in start..end) return@forEach
                             val x = xOf(r.at)
-                            drawRoundRect(meal.copy(alpha = mealsA), Offset(x - 5.dp.toPx(), h - 12.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), cornerRadius = CornerRadius(3.dp.toPx()))
+                            with(Chart) { mealMark(x, h, mealsA) }
                             out?.let { o ->
                                 drawLine(
-                                    meal.copy(alpha = 0.55f * mealsA), Offset(xOf(r.at), yOf(o.start)), Offset(xOf(o.peakAt), yOf(o.peak)),
-                                    strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())),
+                                    Chart.mealRise.copy(alpha = Chart.mealRise.alpha * mealsA), Offset(xOf(r.at), yOf(o.start)), Offset(xOf(o.peakAt), yOf(o.peak)),
+                                    strokeWidth = Chart.mealRiseW.toPx(), pathEffect = Chart.mealDash(this),
                                 )
                             }
                         }
@@ -393,13 +390,13 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         var prev = Long.MIN_VALUE
                         for (rd in pts) {
                             if ((rd.at - prev > 10 * HOUR || (sensorA > 0f && covered(prev, rd.at))) && run.isNotEmpty()) {
-                                drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                                drawPath(smoothPath(run), joinLine, style = with(Chart) { line() })
                                 run = ArrayList()
                             }
                             run += Offset(xOf(rd.at), yOf(rd.mmol))
                             prev = rd.at
                         }
-                        if (run.size >= 2) drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        if (run.size >= 2) drawPath(smoothPath(run), joinLine, style = with(Chart) { line() })
                     }
                 }
                 }
@@ -420,35 +417,29 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         drawCircle(C.status(Glucose.status(avg, MealTag.OTHER, state.targets)), w / 2 + 0.5f, Offset(x, yOf(avg)))
                     }
                 } else {
-                    // Smaller dots as more days share the width, so a week doesn't clump.
-                    val rad = when {
-                        perDayPx > 160.dp.toPx() -> 5.dp.toPx()
-                        perDayPx > 80.dp.toPx() -> 4.dp.toPx()
-                        else -> 3.dp.toPx()
-                    }
+                    // The shared dot; the small one once a week or more shares the width, so it doesn't clump.
+                    val small = perDayPx <= 80.dp.toPx()
                     visible.forEach { rd ->
-                        val c = Offset(xOf(rd.at), yOf(rd.mmol))
-                        drawCircle(ring, rad + (if (rad < 4.dp.toPx()) 1.5f else 2f).dp.toPx(), c)
-                        drawCircle(C.status(Glucose.status(rd.mmol, rd.tag, state.targets)), rad, c)
+                        with(Chart) { readingDot(C.status(Glucose.status(rd.mmol, rd.tag, state.targets)), Offset(xOf(rd.at), yOf(rd.mmol)), ring, small) }
                     }
                     selected?.takeIf { it.at in start..end }?.let { s ->
-                        drawCircle(textCol, rad + 6.dp.toPx(), Offset(xOf(s.at), yOf(s.mmol)), style = Stroke(2.dp.toPx()))
+                        with(Chart) { tappedRing(Offset(xOf(s.at), yOf(s.mmol))) }
                     }
                 }
 
                 // The evening before (and anything after) the opened day: softly shaded over the
                 // line and dots there, with a firm line at midnight, so the day itself reads at a glance.
                 window?.let { (a, b) ->
-                    val shade = ring.copy(alpha = 0.55f)
+                    val shade = Chart.outside
                     if (a > start) {
                         val x = xOf(a).coerceIn(left, size.width)
                         drawRect(shade, Offset(left, 0f), Size(x - left, h))
-                        drawLine(textCol.copy(alpha = 0.6f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
+                        drawLine(Chart.outsideEdge, Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
                     }
                     if (b < end) {
                         val x = xOf(b).coerceIn(left, size.width)
                         drawRect(shade, Offset(x, 0f), Size(size.width - x, h))
-                        drawLine(textCol.copy(alpha = 0.6f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
+                        drawLine(Chart.outsideEdge, Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
                     }
                 }
 
@@ -482,10 +473,10 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
             KeyRow(KeyMark.BAND, C.InRange, tr("Shaded: in range, {0}", "${Glucose.format(Glucose.LOW, unit)}–${Glucose.format(Glucose.TIR_HIGH, unit)}"))
             if (zoomedOut) {
                 KeyRow(KeyMark.BAR, C.TextSecondary, tr("Bar: one day, lowest to highest; dot is the average"))
-                KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins each day's average"))
+                KeyRow(KeyMark.LINE, Chart.ink, tr("Grey line: joins each day's average"))
             } else {
                 KeyRow(KeyMark.DOT, C.InRange, tr("Dot: a reading, coloured by range (tap one)"))
-                KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins your readings in time order"))
+                KeyRow(KeyMark.LINE, Chart.ink, tr("Grey line: joins your readings in time order"))
             }
             if (showTargets) {
                 val t = state.targets
@@ -496,7 +487,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                 KeyRow(KeyMark.SQUARE, C.AccentText, tr("Square: a meal, when you ate it"))
                 KeyRow(KeyMark.SLOPE_DASH, C.AccentText, tr("Sloped dashes: from the meal up to its peak"))
             }
-            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], tr("Coloured line: sensor values"))
+            if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.THIN, Chart.sensor, tr("Thin line: sensor values"))
             if (window != null && (window.first > start || window.second < end)) {
                 KeyRow(KeyMark.SHADE, C.TextSecondary, tr("Shaded: before or after the day you opened, so you see how you came into it"))
             }
@@ -568,14 +559,13 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
         val lo = have.minBy { it.p50 }
         val maxV = maxOf(14.0, have.maxOf { it.p90 } + 1.0)
         val minV = 2.0
-        val band = C.InRange.copy(alpha = 0.10f)
-        val outer = C.Aurora[2].copy(alpha = 0.16f)
-        val inner = C.Aurora[1].copy(alpha = 0.32f)
-        val line = C.Text
+        // The shared chart style: grey spread, ink middle line, mono labels (ChartStyle.kt).
+        val outer = Chart.spreadMost
+        val inner = Chart.spreadHalf
+        val line = Chart.ink
         val grid = C.Border
-        val muted = C.TextMuted
         val measurer = rememberTextMeasurer()
-        val labelStyle = TextStyle(fontSize = 10.sp, color = muted, fontWeight = FontWeight.Medium)
+        val labelStyle = Chart.label
         Canvas(
             Modifier
                 .fillMaxWidth()
@@ -592,8 +582,7 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
             val plotW = size.width - left
             fun xOf(hour: Double) = left + plotW * (hour / 24.0).toFloat()
             fun yOf(m: Double) = h * (1f - ((m - minV) / (maxV - minV)).toFloat().coerceIn(0f, 1f))
-            drawRect(band, Offset(left, yOf(Glucose.TIR_HIGH)), Size(plotW, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
-            listOf(Glucose.LOW, Glucose.TIR_HIGH).forEach { g -> drawLine(grid, Offset(left, yOf(g)), Offset(size.width, yOf(g)), 1.dp.toPx()) }
+            with(Chart) { rangeGround(left, size.width, yOf(Glucose.TIR_HIGH), yOf(Glucose.LOW)) }
             // Draw each run of hours that have data as its own band and line (no bridging gaps).
             val runs = ArrayList<List<Agp.Hour>>()
             var cur = ArrayList<Agp.Hour>()
@@ -612,7 +601,7 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
                     drawPath(bandPath(run, { it.p75 }, { it.p25 }), inner)
                     val p = Path()
                     run.forEachIndexed { i, hr -> val x = xOf(hr.hour + 0.5); if (i == 0) p.moveTo(x, yOf(hr.p50)) else p.lineTo(x, yOf(hr.p50)) }
-                    drawPath(p, line, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(p, line, style = with(Chart) { line() })
                 } else {
                     val hr = run[0]
                     drawCircle(line, 3.dp.toPx(), Offset(xOf(hr.hour + 0.5), yOf(hr.p50)))
@@ -620,8 +609,8 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
             }
             listOf(0, 6, 12, 18, 24).forEach { hh ->
                 val x = xOf(hh.toDouble())
-                drawLine(grid.copy(alpha = 0.4f), Offset(x, 0f), Offset(x, h), 1.dp.toPx())
-                val tl = measurer.measure(if (hh == 24) "" else "%02d:00".format(hh), labelStyle)
+                drawLine(grid.copy(alpha = 0.5f), Offset(x, 0f), Offset(x, h), 1.dp.toPx())
+                val tl = measurer.measure(if (hh == 24) "" else "%02d".format(hh), labelStyle)
                 drawText(tl, topLeft = Offset((x - tl.size.width / 2f).coerceIn(left, size.width - tl.size.width), h + 4.dp.toPx()))
             }
             listOf(Glucose.LOW, Glucose.TIR_HIGH, maxV).forEach { g ->
@@ -629,10 +618,11 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
                 drawText(tl, topLeft = Offset(0f, (yOf(g) - tl.size.height / 2f).coerceIn(0f, h - tl.size.height)))
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Legend(C.Text, tr("Middle value"), line = true)
-            Legend(C.Aurora[1].copy(alpha = 0.5f), tr("Half your readings"))
-            Legend(C.Aurora[2].copy(alpha = 0.3f), tr("8 in 10"))
+        // The same key as every chart: a small drawn sample, then what it means.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            KeyRow(KeyMark.LINE, Chart.ink, tr("Middle value"))
+            KeyRow(KeyMark.FILL, Chart.spreadHalf, tr("Half your readings"))
+            KeyRow(KeyMark.FILL, Chart.spreadMost, tr("8 in 10"))
         }
         Text(
             tr("Highest around {0} ({1}), lowest around {2} ({3}).", "%02d:00".format(hi.hour), Glucose.format(hi.p50, unit), "%02d:00".format(lo.hour), Glucose.format(lo.p50, unit)),
@@ -641,16 +631,7 @@ fun TypicalDay(state: AppState, report: app.dropi.data.Report) {
     }
 }
 
-@Composable
-private fun Legend(color: androidx.compose.ui.graphics.Color, text: String, line: Boolean = false) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(14.dp).height(if (line) 3.dp else 10.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)).background(color))
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = inter(12.sp, color = C.TextMuted))
-    }
-}
-
-private enum class KeyMark { BAND, DOT, BAR, SQUARE, LINE, FLAT_DASH, SLOPE_DASH, SHADE }
+private enum class KeyMark { BAND, DOT, BAR, SQUARE, LINE, THIN, FILL, FLAT_DASH, SLOPE_DASH, SHADE }
 
 /** One line of the chart's key: a small drawn sample, then what it means. */
 @Composable
@@ -661,14 +642,20 @@ private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, tex
             val w = size.width; val h = size.height
             val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))
             when (mark) {
-                KeyMark.BAND -> drawRoundRect(color.copy(alpha = 0.22f), Offset(0f, h * 0.15f), Size(w, h * 0.7f), CornerRadius(3.dp.toPx()))
-                KeyMark.DOT -> { drawCircle(ring, 6.dp.toPx(), Offset(w / 2, h / 2)); drawCircle(color, 4.dp.toPx(), Offset(w / 2, h / 2)) }
+                KeyMark.BAND -> {
+                    drawRect(color.copy(alpha = 0.22f), Offset(0f, h * 0.15f), Size(w, h * 0.7f))
+                    drawLine(Chart.rule, Offset(0f, h * 0.15f), Offset(w, h * 0.15f), strokeWidth = 1.dp.toPx())
+                    drawLine(Chart.rule, Offset(0f, h * 0.85f), Offset(w, h * 0.85f), strokeWidth = 1.dp.toPx())
+                }
+                KeyMark.DOT -> with(Chart) { readingDot(color, Offset(w / 2, h / 2), ring) }
                 KeyMark.BAR -> {
                     drawRoundRect(color.copy(alpha = 0.35f), Offset(w / 2 - 3.dp.toPx(), 0f), Size(6.dp.toPx(), h), CornerRadius(3.dp.toPx()))
                     drawCircle(C.InRange, 3.5.dp.toPx(), Offset(w / 2, h / 2))
                 }
                 KeyMark.SQUARE -> drawRoundRect(color, Offset(w / 2 - 5.dp.toPx(), h / 2 - 5.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), CornerRadius(3.dp.toPx()))
-                KeyMark.LINE -> drawLine(color, Offset(0f, h * 0.7f), Offset(w, h * 0.3f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+                KeyMark.LINE -> drawLine(color, Offset(0f, h * 0.7f), Offset(w, h * 0.3f), strokeWidth = Chart.lineW.toPx(), cap = StrokeCap.Round)
+                KeyMark.THIN -> drawLine(color, Offset(0f, h * 0.7f), Offset(w, h * 0.3f), strokeWidth = Chart.sensorW.toPx(), cap = StrokeCap.Round)
+                KeyMark.FILL -> drawRect(color, Offset(0f, h * 0.15f), Size(w, h * 0.7f))
                 KeyMark.FLAT_DASH -> drawLine(color, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
                 KeyMark.SLOPE_DASH -> drawLine(color, Offset(0f, h * 0.9f), Offset(w, h * 0.1f), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
                 KeyMark.SHADE -> {

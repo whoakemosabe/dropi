@@ -1308,8 +1308,9 @@ private fun FoodEditDialog(
  */
 @Composable
 private fun ExpectedCurve(curve: app.dropi.data.MealCurve.Curve, start: Double?, actual: List<Pair<Int, Double>>, unit: app.dropi.data.GlucoseUnit) {
-    val line = C.AccentText
-    val fill = C.AccentText.copy(alpha = 0.10f)
+    // The shared chart style: the expected curve is the main (ink) line over a grey spread.
+    val line = Chart.ink
+    val fill = Chart.spreadMost
     val base = C.Border
     val dot = C.Text
     val muted = C.TextMuted
@@ -1351,12 +1352,12 @@ private fun ExpectedCurve(curve: app.dropi.data.MealCurve.Curve, start: Double?,
         drawPath(
             path, line,
             style = androidx.compose.ui.graphics.drawscope.Stroke(
-                2.dp.toPx(), cap = StrokeCap.Round,
+                Chart.lineW.toPx(), cap = StrokeCap.Round,
                 pathEffect = if (actual.isNotEmpty()) androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx())) else null,
             ),
         )
         actual.filter { it.first in 0..endMin }.forEach { (mm, v) ->
-            drawCircle(dot, 3.5.dp.toPx(), androidx.compose.ui.geometry.Offset(x(mm.toDouble()), y(v)))
+            with(Chart) { readingDot(dot, androidx.compose.ui.geometry.Offset(x(mm.toDouble()), y(v)), C.Sheet) }
         }
         // Hour marks along the bottom.
         var hr = 0
