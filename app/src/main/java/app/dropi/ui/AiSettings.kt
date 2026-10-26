@@ -1,6 +1,5 @@
 package app.dropi.ui
 
-import androidx.compose.animation.using
 
 import androidx.compose.animation.togetherWith
 
