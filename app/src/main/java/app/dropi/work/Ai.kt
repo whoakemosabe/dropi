@@ -38,7 +38,11 @@ object Ai {
         pickLoaded = true
         prefs(context).edit { putString("model_pick", if (p == Pick.NANO) "nano" else "gemma") }
         // Gemma takes several GB of memory while loaded: let it go once it's no longer in use.
-        if (p == Pick.NANO) Gemma.unload()
+        if (p == Pick.NANO) {
+            // Only once Nano is really there: until then Gemma keeps answering.
+            if (Nano.state == Nano.State.READY) Gemma.unload()
+            if (Nano.state == Nano.State.NEEDS_DOWNLOAD) Nano.startDownload()
+        }
     }
 
     /** Gemini Nano is on the phone, or can be (some phones, like OPPO's, offer it as "downloadable"). */
@@ -49,12 +53,20 @@ object Ai {
     val canPick: Boolean get() = nanoThere && Gemma.state == Gemma.State.Ready
 
     /**
-     * Use Gemini Nano: when the person picked it, or when it's the only option (Gemma not
-     * downloaded). A downloaded Gemma is used by default: it's held to a strict answer shape for
-     * meals and labels, and runs on the graphics chip on most phones.
+     * Use Gemini Nano: when it's the only option (Gemma not downloaded), or when the person
+     * picked it and it's actually ready. A downloaded Gemma is used by default (it's held to a
+     * strict answer shape for meals and labels), and is never passed over for a Nano that would
+     * first need a download of several minutes.
      */
     val nano: Boolean
-        get() = nanoThere && (pick == Pick.NANO || Gemma.state != Gemma.State.Ready)
+        get() = nanoThere && (Gemma.state != Gemma.State.Ready || (pick == Pick.NANO && Nano.state == Nano.State.READY))
+
+    /** Nano was picked but is still downloading, so Gemma fills in until it's ready. */
+    val nanoPending: Boolean
+        get() = pick == Pick.NANO && Gemma.state == Gemma.State.Ready && nanoThere && Nano.state != Nano.State.READY
+
+    /** Nano's answer couldn't be used, and Gemma is downloaded to try instead. */
+    private val gemmaBackup: Boolean get() = nano && Gemma.state == Gemma.State.Ready
 
     /** Meal photos and typed questions can be used right now. */
     val usable: Boolean get() = nano || Gemma.state == Gemma.State.Ready
@@ -105,6 +117,12 @@ object Ai {
         Diag.log(context, "Meal photo: reply couldn't be read: ${raw?.take(200) ?: "(no reply)"}")
         // A reply that went wrong part way still has the foods it finished: use those rather than start over.
         app.dropi.data.MealAi.partial(raw, "photo")?.let { return it }
+        // Nano's reply couldn't be read: Gemma, when it's downloaded, has a go held to shape.
+        if (gemmaBackup) {
+            Diag.log(context, "Meal photo: Nano's reply unusable, asked Gemma instead")
+            val g = Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, app.dropi.data.MealAi.SCHEMA, partial)
+            return app.dropi.data.MealAi.parse(g, "photo") ?: app.dropi.data.MealAi.partial(g, "photo")
+        }
         // The held-to-shape reply didn't come out usable: ask again without holding it.
         if (!nano && Gemma.state == Gemma.State.Ready) {
             return app.dropi.data.MealAi.parse(Gemma.imageJson(context, uri, app.dropi.data.MealAi.PHOTO, null), "photo")
@@ -121,6 +139,11 @@ object Ai {
         }
         app.dropi.data.MealAi.parse(raw, source)?.let { return it }
         app.dropi.data.MealAi.partial(raw, source)?.let { return it }
+        if (gemmaBackup) {
+            Diag.log(context, "Meal words: Nano's reply unusable, asked Gemma instead")
+            val g = Gemma.textJson(context, prompt, app.dropi.data.MealAi.SCHEMA)
+            return app.dropi.data.MealAi.parse(g, source) ?: app.dropi.data.MealAi.partial(g, source)
+        }
         if (!nano && Gemma.state == Gemma.State.Ready) {
             return app.dropi.data.MealAi.parse(Gemma.textJson(context, prompt, null), source)
         }
@@ -136,6 +159,10 @@ object Ai {
             else -> null
         }
         return app.dropi.data.MealAi.parseFood(raw, name, portion)
+            // Nano's short answer couldn't be read: Gemma's, held to shape.
+            ?: (if (gemmaBackup) app.dropi.data.MealAi.parseFood(
+                Gemma.textJson(context, prompt, app.dropi.data.MealAi.FOOD_SCHEMA, maxOut = 120), name, portion,
+            ) else null)
             // Rarely the short form doesn't come back right: the meal form, as before.
             ?: mealFromWords(context, app.dropi.data.MealAi.words("${portion ?: "1 normal portion"} of $name"), "typed")?.items?.firstOrNull()
     }
@@ -151,6 +178,14 @@ object Ai {
         // A label's numbers come back as JSON: stop as soon as it's complete.
         Gemma.state == Gemma.State.Ready -> Gemma.textJson(context, prompt, null, maxOut = 250)
         else -> null
+    }
+
+    /** A label's text read by the model: Nano first when it's in use, then Gemma if Nano's can't be read. */
+    suspend fun <T> readLabel(context: Context, prompt: String, read: (String?) -> T?): T? {
+        read(text(context, prompt))?.let { return it }
+        if (!gemmaBackup) return null
+        Diag.log(context, "Label: Nano's reply unusable, asked Gemma instead")
+        return read(Gemma.textJson(context, prompt, null, maxOut = 250))
     }
 
     suspend fun ask(context: Context, prompt: String): String? = when {

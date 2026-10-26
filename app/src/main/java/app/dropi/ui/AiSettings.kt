@@ -51,7 +51,8 @@ fun OnDeviceAiSection() {
                 Ai.choose(context, if (it == 1) Ai.Pick.NANO else Ai.Pick.GEMMA)
             }
             Text(
-                if (Ai.pick == Ai.Pick.NANO) tr("Gemini Nano comes with your phone and uses less memory. Its answers aren't held to a fixed shape, so meal and label numbers can come back less reliably.")
+                if (Ai.nanoPending) tr("Gemini Nano is still downloading on your phone. Gemma does the work until it's ready.")
+                else if (Ai.pick == Ai.Pick.NANO) tr("Gemini Nano comes with your phone and uses less memory. Its answers aren't held to a fixed shape, so meal and label numbers can come back less reliably.")
                 else tr("Gemma is Dropi's own download. Its meal and label answers are held to a fixed shape, so they come back more reliably."),
                 style = body,
             )

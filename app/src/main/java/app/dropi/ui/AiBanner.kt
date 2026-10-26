@@ -67,7 +67,7 @@ fun AiBanner(state: AppState) {
 
     val g = Gemma.state
     val kind = when {
-        Ai.nano -> null
+        // Shown on Nano phones too: a Gemma download started from Settings should be visible.
         g is Gemma.State.Downloading -> "progress"
         g == Gemma.State.WaitingForWifi -> "wifi"
         g == Gemma.State.Verifying -> "setup"
