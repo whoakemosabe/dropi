@@ -272,7 +272,6 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                 val perDayPx = (plotW - 2 * inset) * DAY / span
                 val asBars = perDayPx < 40.dp.toPx()
                 var barsToDraw: Map<java.time.LocalDate, List<Reading>> = emptyMap()
-                val sensorHere = showSensor && sensorIn(sensor, start, end).isNotEmpty()
 
                 // Target band (3.9–10.0) and its edges; personal before-meal band and after-meal limit.
                 drawRect(band, Offset(left, yOf(Glucose.TIR_HIGH)), Size(plotW, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
@@ -319,6 +318,14 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         drawText(tl, topLeft = Offset(lx, h + 4.dp.toPx()))
                     }
                     tick += step
+                }
+
+                // A stretch between two readings the sensor trace already draws: at least one value
+                // every 10 minutes or so across it.
+                fun covered(a: Long, b: Long): Boolean {
+                    if (!showSensor || b <= a || a == Long.MIN_VALUE) return false
+                    val n = sensorIn(sensor, a, b).size
+                    return n >= ((b - a) / (10 * 60_000L)).coerceAtLeast(2)
                 }
 
                 // Lines, bars and meal marks stay inside the plot: nothing runs over the value labels
@@ -373,8 +380,10 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     }
                     // The readings joined by a smooth line (not through a long overnight gap): the
                     // ones in view plus the one just before and just after, so the line comes in
-                    // from the edge showing where you were. Left out where the sensor draws the line.
-                    if (!sensorHere) {
+                    // from the edge showing where you were. Only the stretches the sensor trace
+                    // really covers are left to it; a few scattered sensor values no longer hide
+                    // the line and leave the dots unjoined.
+                    run {
                         val firstIn = readings.indexOfFirst { it.at >= start }.let { if (it < 0) readings.size else it }
                         val lastIn = readings.indexOfLast { it.at <= end }
                         val from = (firstIn - 1).coerceAtLeast(0)
@@ -383,7 +392,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         var run = ArrayList<Offset>()
                         var prev = Long.MIN_VALUE
                         for (rd in pts) {
-                            if (rd.at - prev > 10 * HOUR && run.isNotEmpty()) {
+                            if ((rd.at - prev > 10 * HOUR || (sensorA > 0f && covered(prev, rd.at))) && run.isNotEmpty()) {
                                 drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                                 run = ArrayList()
                             }
@@ -476,7 +485,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                 KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins each day's average"))
             } else {
                 KeyRow(KeyMark.DOT, C.InRange, tr("Dot: a reading, coloured by range (tap one)"))
-                if (!(showSensor && inView)) KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins your readings in time order"))
+                KeyRow(KeyMark.LINE, C.TextSecondary.copy(alpha = 0.6f), tr("Grey line: joins your readings in time order"))
             }
             if (showTargets) {
                 val t = state.targets

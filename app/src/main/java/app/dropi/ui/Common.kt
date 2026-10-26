@@ -376,6 +376,8 @@ fun FoldChevron(open: Boolean, tint: androidx.compose.ui.graphics.Color, size: D
  */
 fun androidx.compose.foundation.lazy.LazyListScope.glideItem(key: Any, content: @Composable androidx.compose.foundation.lazy.LazyItemScope.() -> Unit) {
     item(key = key) {
-        Box(Modifier.animateItem(fadeInSpec = Motion.fade(240), placementSpec = Motion.size(), fadeOutSpec = Motion.fade(140))) { content() }
+        // A Column, not a Box: some rows put two things one under the other (the range bar and
+        // its note), and a Box would lay them on top of each other.
+        androidx.compose.foundation.layout.Column(Modifier.animateItem(fadeInSpec = Motion.fade(240), placementSpec = Motion.size(), fadeOutSpec = Motion.fade(140))) { content() }
     }
 }
