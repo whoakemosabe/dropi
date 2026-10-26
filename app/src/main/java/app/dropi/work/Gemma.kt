@@ -333,6 +333,12 @@ object Gemma {
         }
     }
 
+    /** Lets the model go from memory now (after any answer that's running), e.g. when Nano is picked. */
+    fun unload() {
+        idle?.cancel()
+        idle = scope.launch { lock.withLock { closeEngine() } }
+    }
+
     private fun idleAfter() {
         idle?.cancel()
         idle = scope.launch {

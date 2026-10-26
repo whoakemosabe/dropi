@@ -62,6 +62,7 @@ object Diag {
         sb.append("  Gemma: ").append(Gemma.state.toString()).append(if (Gemma.loaded) " (loaded)" else " (not loaded)").append('\n')
         sb.append("  Runs on: ").append(Gemma.backendName ?: Gemma.lastBackend(ctx) ?: "not known yet").append('\n')
         sb.append("  Speculative decoding: ").append(if (ai.getBoolean("spec_off", false)) "off (failed before)" else "on").append('\n')
+        sb.append("  Picked: ").append(Ai.pick).append(if (Ai.canPick) "" else " (no choice on this phone)").append('\n')
         sb.append("  In use for meals: ").append(if (Ai.usable) Ai.name else "none").append('\n')
         sb.append("  Foods remembered: ").append(p.foodCache.size).append(", your usual amounts: ").append(p.usualFoods.size).append("\n\n")
 

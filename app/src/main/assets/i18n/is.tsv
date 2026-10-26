@@ -1086,3 +1086,8 @@ Show that day	Sýna þann dag
 Show that week	Sýna þá viku
 Last {0}: average {1}.	{0} í síðustu viku: meðaltal {1}.
 {0}% in range today	{0}% innan marka í dag
+Model in use	Líkan í notkun
+Gemini Nano comes with your phone and uses less memory. Its answers aren't held to a fixed shape, so meal and label numbers can come back less reliably.	Gemini Nano fylgir símanum og notar minna minni. Svör þess eru ekki bundin föstu sniði, svo tölur fyrir máltíðir og merkimiða geta verið ótraustari.
+Gemma is Dropi's own download. Its meal and label answers are held to a fixed shape, so they come back more reliably.	Gemma er líkanið sem Dropi sækir sjálft. Svör hennar um máltíðir og merkimiða eru bundin föstu sniði, svo þau eru traustari.
+Gemini Nano is on this phone. You can also download Google's Gemma 4 model: 2.6 GB, once, on Wi-Fi. Its meal and label answers come back more reliably, and it runs on this phone too.	Gemini Nano er í þessum síma. Þú getur líka sótt Gemma 4-líkanið frá Google: 2,6 GB, einu sinni, á Wi-Fi. Svör þess um máltíðir og merkimiða eru traustari, og það keyrir líka í þessum síma.
+Gemma is downloaded but not in use. It uses 2.6 GB of storage.	Gemma er sótt en ekki í notkun. Líkanið tekur 2,6 GB af geymsluplássi.

@@ -2,6 +2,10 @@ package app.dropi.work
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.core.content.edit
 import app.dropi.data.PlateGuess
 import app.dropi.tr
 
@@ -11,21 +15,53 @@ import app.dropi.tr
  * Either way the work happens on the phone and nothing is uploaded.
  */
 object Ai {
+    /** Which model the person picked in Settings › On-device AI (only matters when both are there). */
+    enum class Pick { GEMMA, NANO }
+
+    /** Gemma unless the person picked Gemini Nano. Read from prefs on the first refresh. */
+    var pick by mutableStateOf(Pick.GEMMA)
+        private set
+
+    private var pickLoaded = false
+
+    private fun prefs(context: Context) =
+        context.applicationContext.getSharedPreferences("dropi_ai", Context.MODE_PRIVATE)
+
+    private fun loadPick(context: Context) {
+        if (pickLoaded) return
+        pick = if (prefs(context).getString("model_pick", "gemma") == "nano") Pick.NANO else Pick.GEMMA
+        pickLoaded = true
+    }
+
+    fun choose(context: Context, p: Pick) {
+        pick = p
+        pickLoaded = true
+        prefs(context).edit { putString("model_pick", if (p == Pick.NANO) "nano" else "gemma") }
+        // Gemma takes several GB of memory while loaded: let it go once it's no longer in use.
+        if (p == Pick.NANO) Gemma.unload()
+    }
+
+    /** Gemini Nano is on the phone, or can be (some phones, like OPPO's, offer it as "downloadable"). */
+    val nanoThere: Boolean
+        get() = Nano.state == Nano.State.READY || Nano.state == Nano.State.NEEDS_DOWNLOAD || Nano.state == Nano.State.DOWNLOADING
+
+    /** Both models can be used, so the person gets to pick. */
+    val canPick: Boolean get() = nanoThere && Gemma.state == Gemma.State.Ready
+
     /**
-     * Use Gemini Nano: only when it's already on the phone, or when it's the only option (Gemma
-     * not downloaded). A downloaded Gemma is never passed over for a Nano that would first need
-     * a download of several minutes (some phones, like OPPO's, offer Nano as "downloadable").
+     * Use Gemini Nano: when the person picked it, or when it's the only option (Gemma not
+     * downloaded). A downloaded Gemma is used by default: it's held to a strict answer shape for
+     * meals and labels, and runs on the graphics chip on most phones.
      */
     val nano: Boolean
-        get() = Nano.state == Nano.State.READY ||
-            ((Nano.state == Nano.State.NEEDS_DOWNLOAD || Nano.state == Nano.State.DOWNLOADING) && Gemma.state != Gemma.State.Ready)
+        get() = nanoThere && (pick == Pick.NANO || Gemma.state != Gemma.State.Ready)
 
     /** Meal photos and typed questions can be used right now. */
     val usable: Boolean get() = nano || Gemma.state == Gemma.State.Ready
 
     /** Still finding out what this phone has. */
     val checking: Boolean
-        get() = Nano.state == Nano.State.CHECKING || (Nano.state == Nano.State.UNAVAILABLE && Gemma.state == Gemma.State.Checking)
+        get() = Nano.state == Nano.State.CHECKING || Gemma.state == Gemma.State.Checking
 
     /** The model's name as shown in the app. */
     val name: String get() = if (nano) "Gemini Nano" else "Gemma"
@@ -39,11 +75,11 @@ object Ai {
         }
 
     suspend fun refresh(context: Context) {
+        loadPick(context)
         Nano.refresh()
-        if (Nano.state != Nano.State.READY) {
-            val g = Gemma.refresh(context)
-            if (g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying) Gemma.watch(context)
-        }
+        // Always check Gemma too: a downloaded Gemma is used even when the phone also has Nano.
+        val g = Gemma.refresh(context)
+        if (g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying) Gemma.watch(context)
     }
 
     suspend fun plate(context: Context, uri: Uri): PlateGuess? = when {
