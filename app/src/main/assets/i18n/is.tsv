@@ -1080,3 +1080,9 @@ Your checks	Mælingartímarnir þínir
 Lower {0}	Lækka: {0}
 Raise {0}	Hækka: {0}
 Step {0} of {1}	Skref {0} af {1}
+Checked {0}	Mælt kl. {0}
+Pending · {0}	Mæling kl. {0}
+Show that day	Sýna þann dag
+Show that week	Sýna þá viku
+Last {0}: average {1}.	{0} í síðustu viku: meðaltal {1}.
+{0}% in range today	{0}% innan marka í dag

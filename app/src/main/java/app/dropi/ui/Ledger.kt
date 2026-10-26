@@ -1,9 +1,20 @@
 package app.dropi.ui
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -25,18 +36,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -75,19 +95,20 @@ fun Readout(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak: Int)
     }
     val status = state.status(latest)
     val color = C.status(status)
-    val pop = remember { Animatable(1f) }
-    LaunchedEffect(latest.id) {
-        pop.snapTo(0.92f)
-        pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 420f))
+    // Which way the odometer rolls: up for a higher number than the last one shown, down for lower.
+    val roll = remember { Roll(latest.mmol) }
+    if (roll.last != latest.mmol) {
+        roll.up = latest.mmol > roll.last
+        roll.last = latest.mmol
     }
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
             Text(caps("${latest.tag.label} · ${fmt.ago(latest.at, now)}"), style = mono(12.sp, color = C.TextSecondary, tracking = 0.04f), maxLines = 1)
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(
+                Odometer(
                     Glucose.format(latest.mmol, state.unit),
+                    up = roll.up,
                     style = numeral(if (state.unit == GlucoseUnit.MGDL) 92.sp else 104.sp).copy(lineHeight = 100.sp),
-                    modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 1f) },
                 )
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -112,6 +133,39 @@ fun Readout(state: AppState, latest: Reading?, fmt: Fmt, now: Long, streak: Int)
     }
 }
 
+/** The last value the readout showed, and whether the newest one is higher. Not state: read only when a roll starts. */
+private class Roll(var last: Double, var up: Boolean = true)
+
+/**
+ * The big number as an odometer: each character rolls vertically from the old value's character
+ * to the new one, left to right a beat apart. Positions are counted from the right, so the last
+ * digit stays the last digit when the number gets longer (9,8 → 10,2). Only characters that
+ * changed move. Read out as the whole number, not character by character.
+ */
+@Composable
+private fun Odometer(text: String, up: Boolean, style: TextStyle, modifier: Modifier = Modifier) {
+    Row(modifier.clearAndSetSemantics { contentDescription = text }) {
+        val n = text.length
+        text.forEachIndexed { i, ch ->
+            key(n - 1 - i) {
+                AnimatedContent(
+                    targetState = ch,
+                    transitionSpec = {
+                        val delay = i * 45
+                        val dir = if (up) 1 else -1
+                        (slideInVertically(tween(340, delay, FastOutSlowInEasing)) { h -> h * dir } + fadeIn(tween(220, delay))) togetherWith
+                            (slideOutVertically(tween(340, delay, FastOutSlowInEasing)) { h -> -h * dir } + fadeOut(tween(180, delay))) using
+                            SizeTransform(clip = true)
+                    },
+                    label = "digit",
+                ) { c ->
+                    Text(c.toString(), style = style, maxLines = 1, softWrap = false)
+                }
+            }
+        }
+    }
+}
+
 /**
  * The consensus bands as a short vertical tape (very high at the top, low at the bottom), with a
  * needle that glides to each new value. 3.9, 10 and 13.9 are labelled in the person's unit.
@@ -121,7 +175,19 @@ fun RangeTape(mmol: Double, unit: GlucoseUnit, modifier: Modifier = Modifier) {
     val lo = 2.0
     val hi = 16.0
     fun frac(v: Double) = ((hi - v) / (hi - lo)).coerceIn(0.0, 1.0).toFloat()
-    val pos by animateFloatAsState(frac(mmol), spring(dampingRatio = 0.75f, stiffness = 140f), label = "tape")
+    val anim = animateFloatAsState(frac(mmol), spring(dampingRatio = 0.75f, stiffness = 140f), label = "tape")
+    val pos by anim
+    // A light tick each time the gliding needle passes 3.9, 10 or 13.9 (an overshoot that comes
+    // back over a mark ticks again, like a detent). Nothing on first show: there's no glide then.
+    val view = LocalView.current
+    LaunchedEffect(Unit) {
+        val marks = listOf(Glucose.LOW, Glucose.TIR_HIGH, Glucose.VERY_HIGH).map { frac(it) }
+        var prev = anim.value
+        snapshotFlow { anim.value }.collect { p ->
+            if (marks.any { m -> (prev < m) != (p < m) }) Haptics.segment(view)
+            prev = p
+        }
+    }
     val low = C.Low
     val inRange = C.InRange
     val high = C.High
@@ -182,7 +248,45 @@ fun DayStrip(state: AppState, checks: List<Check>, readings: List<Reading>, meal
     val line = C.Border
     val accent = C.AccentText
     val markColor = C.TextSecondary
-    BoxWithConstraints(Modifier.fillMaxWidth().height(64.dp)) {
+    val view = LocalView.current
+    // Press and hold, then drag: a cursor follows the finger and names the nearest reading or meal.
+    // It listens on the way down (Initial pass) so that once the hold is recognised it can take
+    // the gesture away from the dots and rings under it (no tap on release) and from the page's
+    // scroll. A quick tap, or a drag that starts before the hold, goes through untouched.
+    var scrubX by remember { mutableStateOf<Float?>(null) }
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val endedEarly = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        var over = false
+                        while (!over) {
+                            val ev = awaitPointerEvent(PointerEventPass.Initial)
+                            val c = ev.changes.firstOrNull { it.id == down.id }
+                            over = c == null || !c.pressed || c.isConsumed ||
+                                (c.position - down.position).getDistance() > viewConfiguration.touchSlop
+                        }
+                        true
+                    }
+                    if (endedEarly != null) return@awaitEachGesture
+                    try {
+                        scrubX = down.position.x.coerceIn(0f, size.width.toFloat())
+                        while (true) {
+                            val ev = awaitPointerEvent(PointerEventPass.Initial)
+                            ev.changes.forEach { it.consume() }
+                            val c = ev.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!c.pressed) break
+                            scrubX = c.position.x.coerceIn(0f, size.width.toFloat())
+                        }
+                    } finally {
+                        scrubX = null
+                    }
+                }
+            },
+    ) {
         val w = maxWidth
         fun xOf(h: Float): Dp = w * ((h - from) / (to - from)).coerceIn(0f, 1f)
         val lineY = 26.dp
@@ -256,8 +360,59 @@ fun DayStrip(state: AppState, checks: List<Check>, readings: List<Reading>, meal
                 contentAlignment = Alignment.Center,
             ) { Box(Modifier.size(11.dp).clip(CircleShape).background(C.status(state.status(r)))) }
         }
+        // The scrub: the nearest reading or meal to the finger, a cursor, and its label above the strip.
+        val sx = scrubX
+        val wPx = constraints.maxWidth.toFloat()
+        val near = if (sx == null) null else {
+            fun pxOf(at: Long) = ((hourOf(at) - from) / (to - from)).coerceIn(0f, 1f) * wPx
+            val r = readings.minByOrNull { abs(pxOf(it.at) - sx) }
+            val m = meals.minByOrNull { abs(pxOf(it.at) - sx) }
+            val rd = if (r != null) abs(pxOf(r.at) - sx) else Float.MAX_VALUE
+            val md = if (m != null) abs(pxOf(m.at) - sx) else Float.MAX_VALUE
+            when {
+                r != null && rd <= md -> ScrubItem("r${r.id}@${r.at}", "${fmt.time(r.at)} · ${Glucose.format(r.mmol, state.unit)}")
+                m != null -> ScrubItem("m${m.id}@${m.at}", "${mealName(m.name)} · ${tr("{0} g", app.dropi.data.Grams.text(m.carbs))}")
+                else -> null
+            }
+        }
+        LaunchedEffect(near?.key) { if (near != null) Haptics.tick(view) }
+        if (sx != null) {
+            val ink = C.Text
+            Box(
+                Modifier
+                    .offset { IntOffset((sx - 0.5.dp.toPx()).roundToInt(), 0) }
+                    .width(1.dp)
+                    .height(lineY + 12.dp)
+                    .background(ink)
+                    .clearAndSetSemantics {},
+            )
+            if (near != null) {
+                Text(
+                    near.label,
+                    style = mono(12.sp, FontWeight.Medium, C.Text),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier
+                        // Centred on the cursor, kept inside the strip's width, sitting just above it.
+                        .layout { measurable, constraints ->
+                            val p = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                            layout(p.width, p.height) {
+                                val x = (sx - p.width / 2f).roundToInt().coerceIn(0, (wPx.roundToInt() - p.width).coerceAtLeast(0))
+                                p.place(x, -p.height - 4.dp.roundToPx())
+                            }
+                        }
+                        .background(C.Bg)
+                        .border(1.dp, C.Border)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clearAndSetSemantics {},
+                )
+            }
+        }
     }
 }
+
+/** What the day strip's scrub is over: a key to notice a change, and its label. */
+private class ScrubItem(val key: String, val label: String)
 
 private sealed class Entry(val at: Long) {
     class R(val r: Reading) : Entry(r.at)
@@ -266,50 +421,94 @@ private sealed class Entry(val at: Long) {
 }
 
 /**
- * The day's ledger: readings, meals and the checks still planned, oldest first, with a NOW line.
- * A long day folds its older entries into one "N earlier" row.
+ * The day's ledger as list items: readings, meals and the checks still planned, oldest first,
+ * with a NOW line. A long day folds its older entries into one "N earlier" row ([expanded] is
+ * kept by the caller, [onExpand] opens it). Every row has a stable key and animates its
+ * placement, so when a planned check slips into the past the NOW line and the rows glide.
+ * Goes straight under a [RuleHeader] item: its first row has no line above it.
  */
-@Composable
-fun Ledger(state: AppState, readings: List<Reading>, meals: List<MealEntry>, checks: List<Check>, now: Long, fmt: Fmt) {
-    val entries = remember(readings, meals, checks) {
-        (readings.map { Entry.R(it) } + meals.map { Entry.M(it) } + checks.filter { it.reading == null }.map { Entry.P(it) })
-            .sortedBy { it.at }
-    }
+fun LazyListScope.ledgerItems(
+    state: AppState,
+    readings: List<Reading>,
+    meals: List<MealEntry>,
+    checks: List<Check>,
+    now: Long,
+    fmt: Fmt,
+    expanded: Boolean,
+    onExpand: () -> Unit,
+) {
+    val entries = (readings.map { Entry.R(it) } + meals.map { Entry.M(it) } + checks.filter { it.reading == null }.map { Entry.P(it) })
+        .sortedBy { it.at }
     val past = entries.filter { it.at <= now }
     val future = entries.filter { it.at > now }
-    var expanded by rememberSaveable { mutableStateOf(false) }
     val fold = past.size > 8 && !expanded
     val shown = if (fold) past.takeLast(6) else past
-    Column(Modifier.fillMaxWidth()) {
-        if (fold) {
-            val hidden = past.size - shown.size
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .semantics(mergeDescendants = true) { stateDescription = tr("Collapsed") }
-                    .tap { expanded = true }
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(caps(trn(hidden, "{0} earlier", "{0} earlier")), style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.06f), modifier = Modifier.weight(1f))
-                Text("↑", style = mono(13.sp, color = C.TextSecondary))
-            }
+    // Nothing logged yet today: the planned rows show an empty value, a day waiting to be filled.
+    val waiting = readings.isEmpty() && meals.isEmpty()
+    // Keys must be unique in the list: a repeat (two unsaved readings at id 0, say) gets a suffix.
+    val used = HashSet<String>()
+    fun keyOf(e: Entry): String {
+        val base = when (e) {
+            is Entry.R -> "ledger:r:" + (if (e.r.id != 0L) "${e.r.id}" else "t${e.r.at}")
+            is Entry.M -> "ledger:m:" + (if (e.m.id != 0L) "${e.m.id}" else "t${e.m.at}")
+            is Entry.P -> "ledger:p:${e.c.slot.id}"
         }
-        // Lines only between rows: the first one shown (the fold row, else the first entry, else
-        // the NOW line) sits right under the section header with none above it.
-        shown.forEachIndexed { i, e -> LedgerRow(state, e, now, fmt, first = i == 0 && !fold) }
-        if (future.isNotEmpty() || past.isNotEmpty()) NowRow(fmt.time(now), first = shown.isEmpty() && !fold)
-        future.forEach { LedgerRow(state, it, now, fmt) }
+        var k = base
+        var n = 1
+        while (!used.add(k)) k = "$base#${n++}"
+        return k
+    }
+    fun typeOf(e: Entry): String = when (e) {
+        is Entry.R -> "ledger-reading"
+        is Entry.M -> "ledger-meal"
+        is Entry.P -> "ledger-planned"
+    }
+    if (fold) {
+        val hidden = past.size - shown.size
+        item(key = "ledger:fold", contentType = "ledger-fold") { FoldRow(hidden, Modifier.animateItem(), onExpand) }
+    }
+    // Lines only between rows: the first one shown (the fold row, else the first entry, else
+    // the NOW line) sits right under the section header with none above it.
+    shown.forEachIndexed { i, e ->
+        val first = i == 0 && !fold
+        item(key = keyOf(e), contentType = typeOf(e)) {
+            Box(Modifier.animateItem()) { LedgerRow(state, e, now, fmt, first, waiting) }
+        }
+    }
+    if (entries.isNotEmpty()) {
+        val first = shown.isEmpty() && !fold
+        item(key = "ledger:now", contentType = "ledger-now") { NowRow(fmt.time(now), first, Modifier.animateItem()) }
+    }
+    future.forEach { e ->
+        item(key = keyOf(e), contentType = typeOf(e)) {
+            Box(Modifier.animateItem()) { LedgerRow(state, e, now, fmt, false, waiting) }
+        }
+    }
+}
+
+/** "6 EARLIER ↑": the older part of a long day, folded; tap to show it all. */
+@Composable
+private fun FoldRow(hidden: Int, modifier: Modifier, onExpand: () -> Unit) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .semantics(mergeDescendants = true) { stateDescription = tr("Collapsed") }
+            .tap { onExpand() }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(caps(trn(hidden, "{0} earlier", "{0} earlier")), style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.06f), modifier = Modifier.weight(1f))
+        Text("↑", style = mono(13.sp, color = C.TextSecondary))
     }
 }
 
 @Composable
-private fun LedgerRow(state: AppState, e: Entry, now: Long, fmt: Fmt, first: Boolean = false) {
+private fun LedgerRow(state: AppState, e: Entry, now: Long, fmt: Fmt, first: Boolean = false, waiting: Boolean = false) {
     when (e) {
         is Entry.R -> ReadingLine(state, e.r, fmt, first)
         is Entry.M -> MealLine(state, e.m, now, fmt, first)
-        is Entry.P -> PlannedLine(state, e.c, now, fmt, first)
+        is Entry.P -> PlannedLine(state, e.c, now, fmt, first, waiting)
     }
 }
 
@@ -403,7 +602,7 @@ private fun MealLine(state: AppState, m: MealEntry, now: Long, fmt: Fmt, first: 
 }
 
 @Composable
-private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt, first: Boolean) {
+private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt, first: Boolean, waiting: Boolean = false) {
     val time = fmt.time(c.at)
     val mins = (c.at - now) / 60_000
     val sub = when {
@@ -430,14 +629,23 @@ private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt, first: B
             }
         },
         first = first,
-        end = { PlannedRing(if (due) C.AccentText else C.TextMuted) },
+        end = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // An empty day: the value still to come, in the column where readings put theirs.
+                if (waiting) {
+                    Text("—", style = mono(15.sp, FontWeight.SemiBold, C.TextMuted), modifier = Modifier.clearAndSetSemantics {})
+                    Spacer(Modifier.width(10.dp))
+                }
+                PlannedRing(if (due) C.AccentText else C.TextMuted)
+            }
+        },
     )
 }
 
 @Composable
-private fun NowRow(time: String, first: Boolean = false) {
+private fun NowRow(time: String, first: Boolean = false, modifier: Modifier = Modifier) {
     Row(
-        Modifier.fillMaxWidth().ruleTop(!first).padding(vertical = 8.dp).semantics(mergeDescendants = true) {},
+        modifier.fillMaxWidth().ruleTop(!first).padding(vertical = 8.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(time, style = mono(13.sp, FontWeight.SemiBold, C.AccentText), modifier = Modifier.width(56.dp))

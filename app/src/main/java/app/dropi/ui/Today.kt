@@ -53,7 +53,10 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,7 +97,12 @@ fun TodayPage(state: AppState) {
     val streak = Stats.streak(all, today, zone)
     val latest = all.lastOrNull()
 
+    // The ledger's "N earlier" fold, opened for the rest of the session.
+    var ledgerOpen by rememberSaveable { mutableStateOf(false) }
+
     val bars = WindowInsets.systemBars.asPaddingValues()
+    // No spacing from the list itself: the ledger's rows are items and sit flush, so the 4 dp
+    // between the sections is each section's own top padding.
     LazyColumn(
         // A readable column on tablets and unfolded phones, centred.
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
@@ -106,7 +114,6 @@ fun TodayPage(state: AppState) {
             // Room for the floating log button over the navigation bar.
             bottom = bars.calculateBottomPadding() + 124.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         item(key = "banner") {
             Column {
@@ -118,11 +125,11 @@ fun TodayPage(state: AppState) {
             }
         }
         item(key = "hero") {
-            // Live mode with a fresh sensor value: the live number and trace lead the screen.
-            if (state.liveOn && app.dropi.data.Trend.fresh(state.sensor, now)) {
-                LiveHero(state, now, fmt)
-            } else {
-                Column {
+            Column(Modifier.padding(top = 4.dp)) {
+                // Live mode with a fresh sensor value: the live number and trace lead the screen.
+                if (state.liveOn && app.dropi.data.Trend.fresh(state.sensor, now)) {
+                    LiveHero(state, now, fmt)
+                } else {
                     Readout(state, latest, fmt, now, streak)
                     if (state.liveOn) LiveWaiting(state, now, fmt)
                 }
@@ -130,15 +137,15 @@ fun TodayPage(state: AppState) {
         }
         val checks = Schedule.today(state.slots, state.readings, now, state.zone, state.afterMealMinutes, state.meals)
         val meals = state.meals.filter { Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate() == today }
-        item(key = "strip") { DayStrip(state, checks, todays, meals, now, fmt) }
+        item(key = "strip") { Box(Modifier.padding(top = 4.dp)) { DayStrip(state, checks, todays, meals, now, fmt) } }
         // Sundays and Mondays: last week at a glance (the same as the Sunday recap).
         val dow = today.dayOfWeek
         if ((dow == java.time.DayOfWeek.SUNDAY || dow == java.time.DayOfWeek.MONDAY) && all.size >= 3) {
-            item(key = "week") { WeekCard(state, today) }
+            item(key = "week") { Box(Modifier.padding(top = 4.dp)) { WeekCard(state, today) } }
         }
-        item(key = "move") { MoveNote(state, now, fmt) }
+        item(key = "move") { Box(Modifier.padding(top = 4.dp)) { MoveNote(state, now, fmt) } }
         item(key = "ledger") {
-            Column {
+            Column(Modifier.padding(top = 4.dp)) {
                 val counts = listOfNotNull(
                     trn(todays.size, "{0} reading", "{0} readings"),
                     meals.takeIf { it.isNotEmpty() }?.let { trn(it.size, "{0} meal", "{0} meals") },
@@ -151,7 +158,12 @@ fun TodayPage(state: AppState) {
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                Ledger(state, todays, meals, checks, now, fmt)
+            }
+        }
+        ledgerItems(state, todays, meals, checks, now, fmt, expanded = ledgerOpen, onExpand = { ledgerOpen = true })
+        item(key = "ledger-foot") {
+            // Glides with the rows above it when one is added or the fold opens.
+            Column(Modifier.animateItem()) {
                 if (checks.isEmpty()) {
                     Text(
                         tr("No check times yet. Plan a few and Dropi can remind you."),

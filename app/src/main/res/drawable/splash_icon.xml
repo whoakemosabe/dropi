@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The app icon's drop for the launch screen. -->
+<!-- The drop for the launch screen, in the 1.1 colours: champagne on a smoke tile with a hairline. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FF6E5BFF"
+        android:fillColor="#FF2A251B"
+        android:strokeColor="#99E2CB97"
+        android:strokeWidth="1"
         android:pathData="M37,29h34a8,8 0 0 1 8,8v34a8,8 0 0 1 -8,8h-34a8,8 0 0 1 -8,-8v-34a8,8 0 0 1 8,-8z" />
     <path
-        android:fillColor="#FFFFFFFF"
+        android:fillColor="#FFEBD8AC"
         android:pathData="M54,38C54,38 45,48 45,55A9,9 0 0,0 63,55C63,48 54,38 54,38Z" />
 </vector>

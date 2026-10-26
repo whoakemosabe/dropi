@@ -35,11 +35,17 @@ data class Report(
     val lows: Int,
     /** Time in range in the period before, for the comparison. */
     val previousInRange: Double?,
+    /** The time zone the days were counted in. */
+    val zone: ZoneId = ZoneId.systemDefault(),
 )
 
 enum class InsightKind { GOOD, ATTENTION, INFO }
 
-data class Insight(val kind: InsightKind, val text: String)
+/**
+ * One finding. [days] are the days it's about, the most telling first (the one to show when the
+ * finding is tapped); empty when it's about the period as a whole.
+ */
+data class Insight(val kind: InsightKind, val text: String, val days: List<LocalDate> = emptyList())
 
 object Analytics {
     /** GMI needs a fair spread of data; fingersticks are sparser than a sensor, so ask for a week. */
@@ -116,6 +122,7 @@ object Analytics {
                 .sortedBy { it.tag.ordinal },
             lows = values.count { it < Glucose.LOW },
             previousInRange = if (prev.size >= 10) bands(prev)?.inRange else null,
+            zone = zone,
         )
     }
 
@@ -127,6 +134,9 @@ object Analytics {
         val out = ArrayList<Insight>()
         if (r.count < 3) return out
         val week = r.days == 7
+        val zone = r.zone
+        /** The days of [rs], in the order given, each once. */
+        fun daysOf(rs: List<Reading>): List<LocalDate> = rs.map { it.date(zone) }.distinct()
 
         // Lows first: they matter most.
         if (r.lows > 0) {
@@ -139,7 +149,11 @@ object Analytics {
                 mostly -> trn(r.lows, "{0} low reading in the last {1} days, mostly {2}.", "{0} low readings in the last {1} days, mostly {2}.", r.days, common!!.key.label.lowercase(L.locale))
                 else -> trn(r.lows, "{0} low reading in the last {1} days.", "{0} low readings in the last {1} days.", r.days)
             }
-            out += Insight(InsightKind.ATTENTION, text)
+            // The day with the most lows first; on a tie, the most recent.
+            val lowDays = lowReadings.groupBy { it.date(zone) }.entries
+                .sortedWith(compareByDescending<Map.Entry<LocalDate, List<Reading>>> { it.value.size }.thenByDescending { it.key })
+                .map { it.key }
+            out += Insight(InsightKind.ATTENTION, text, lowDays)
         } else if (r.count >= 10) {
             out += Insight(InsightKind.GOOD, if (week) tr("No lows this week.") else tr("No lows in the last {0} days.", r.days))
         }
@@ -147,9 +161,18 @@ object Analytics {
         val fasting = r.byTag.firstOrNull { it.tag == MealTag.FASTING }
         if (fasting != null && fasting.count >= 3) {
             val (lo, hi) = targets.forTag(MealTag.FASTING)
+            val fastingReadings = r.readings.filter { it.tag == MealTag.FASTING }
             out += when {
-                fasting.average > hi -> Insight(InsightKind.ATTENTION, tr("Fasting readings average {0}, above the {1}–{2} target.", v(fasting.average), v(lo), v(hi)))
-                fasting.average < lo -> Insight(InsightKind.INFO, tr("Fasting readings average {0}, a little under the {1}–{2} target.", v(fasting.average), v(lo), v(hi)))
+                fasting.average > hi -> Insight(
+                    InsightKind.ATTENTION,
+                    tr("Fasting readings average {0}, above the {1}–{2} target.", v(fasting.average), v(lo), v(hi)),
+                    daysOf(fastingReadings.filter { it.mmol > hi }.sortedByDescending { it.mmol }),
+                )
+                fasting.average < lo -> Insight(
+                    InsightKind.INFO,
+                    tr("Fasting readings average {0}, a little under the {1}–{2} target.", v(fasting.average), v(lo), v(hi)),
+                    daysOf(fastingReadings.filter { it.mmol < lo }.sortedBy { it.mmol }),
+                )
                 else -> Insight(InsightKind.GOOD, tr("Fasting readings are on target, averaging {0}.", v(fasting.average)))
             }
         }
@@ -157,10 +180,12 @@ object Analytics {
         val after = r.readings.filter { it.tag == MealTag.AFTER_MEAL }
         if (after.size >= 3) {
             val over = after.count { it.mmol > targets.afterHigh }
+            // The days of the over readings, the highest first.
+            val overDays = daysOf(after.filter { it.mmol > targets.afterHigh }.sortedByDescending { it.mmol })
             out += when {
-                over * 2 >= after.size -> Insight(InsightKind.ATTENTION, tr("After-eating readings were over {0} in {1} of {2}.", v(targets.afterHigh), over, after.size))
+                over * 2 >= after.size -> Insight(InsightKind.ATTENTION, tr("After-eating readings were over {0} in {1} of {2}.", v(targets.afterHigh), over, after.size), overDays)
                 over == 0 -> Insight(InsightKind.GOOD, tr("Every after-eating reading stayed under {0}.", v(targets.afterHigh)))
-                else -> Insight(InsightKind.INFO, tr("After-eating readings were over {0} in {1} of {2}.", v(targets.afterHigh), over, after.size))
+                else -> Insight(InsightKind.INFO, tr("After-eating readings were over {0} in {1} of {2}.", v(targets.afterHigh), over, after.size), overDays)
             }
         }
 
@@ -174,14 +199,22 @@ object Analytics {
 
         val cv = r.cv
         if (cv != null && r.count >= 10) {
-            out += if (cv > 36) Insight(InsightKind.ATTENTION, tr("Readings swing quite a bit (variability {0}%). Steadier is 36% or less.", cv.roundToInt()))
+            // The days with the widest swing (highest minus lowest), widest first.
+            val swingDays = r.byDay.filter { it.count >= 2 && it.max > it.min }
+                .sortedWith(compareByDescending<DayStat> { it.max - it.min }.thenByDescending { it.day })
+                .map { it.day }
+            out += if (cv > 36) Insight(InsightKind.ATTENTION, tr("Readings swing quite a bit (variability {0}%). Steadier is 36% or less.", cv.roundToInt()), swingDays)
             else Insight(InsightKind.GOOD, tr("Readings are steady (variability {0}%, goal 36% or less).", cv.roundToInt()))
         }
 
         // The moment of the day that runs highest, when it's over its target.
         val highest = r.byTag.filter { it.count >= 3 }.maxByOrNull { it.average }
         if (highest != null && highest.tag != MealTag.FASTING && highest.average > targets.forTag(highest.tag).second) {
-            out += Insight(InsightKind.INFO, tr("Your highest readings tend to be {0} (average {1}).", highest.tag.label.lowercase(L.locale), v(highest.average)))
+            out += Insight(
+                InsightKind.INFO,
+                tr("Your highest readings tend to be {0} (average {1}).", highest.tag.label.lowercase(L.locale), v(highest.average)),
+                daysOf(r.readings.filter { it.tag == highest.tag }.sortedByDescending { it.mmol }),
+            )
         }
 
         // Carbs and after-meal readings: the carbs logged on a before-meal reading (or on the

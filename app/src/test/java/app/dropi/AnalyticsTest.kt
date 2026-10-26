@@ -82,4 +82,28 @@ class AnalyticsTest {
         assertTrue(texts.any { it.contains("over 10.0 in 2 of 3") })
         assertEquals(InsightKind.ATTENTION, ins.first().kind)
     }
+
+    @Test
+    fun insightsPointAtTheDaysTheyAreAbout() {
+        val d1 = today.minusDays(1)
+        val d3 = today.minusDays(3)
+        val rs = listOf(
+            r(d3, 3, 3.5, MealTag.OVERNIGHT),
+            r(d1, 2, 3.6, MealTag.OVERNIGHT),
+            r(d1, 4, 3.7, MealTag.OVERNIGHT),
+            r(today.minusDays(2), 13, 11.5, MealTag.AFTER_MEAL),
+            r(d3, 13, 12.0, MealTag.AFTER_MEAL),
+            r(today.minusDays(4), 13, 8.0, MealTag.AFTER_MEAL),
+        )
+        val rep = Analytics.report(rs, 7, today, zone)
+        val ins = Analytics.insights(rep, Targets()) { v(it) }
+        val lows = ins.first { it.text.contains("low readings") }
+        // The day with the most lows first.
+        assertEquals(listOf(d1, d3), lows.days)
+        val after = ins.first { it.text.contains("After-eating") }
+        // The highest over reading's day first.
+        assertEquals(listOf(d3, today.minusDays(2)), after.days)
+        // Whole-period findings point at no day.
+        ins.filter { it.text.startsWith("Logged on") }.forEach { assertTrue(it.days.isEmpty()) }
+    }
 }

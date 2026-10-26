@@ -2,6 +2,7 @@ package app.dropi.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,10 +26,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +44,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -101,7 +105,7 @@ fun TrendsPage(state: AppState) {
     val unit = state.unit
     fun v(m: Double) = Glucose.format(m, unit)
     val insights = remember(report, unit) { Analytics.insights(report, state.targets, state.meals) { v(it) } }
-    val strips = remember(report, zone) { buildStrips(report, zone) }
+    val strips = remember(report, zone, state.readings) { buildStrips(report, zone, state.readings) }
     // One scale for every sparkline, so the rows compare: 06–24 unless something was logged earlier.
     val fromHour = remember(report, zone) {
         if (report.readings.any { Instant.ofEpochMilli(it.at).atZone(zone).hour < 6 }) 0 else 6
@@ -112,9 +116,27 @@ fun TrendsPage(state: AppState) {
     // The row whose full chart is open (its first day), if any.
     var focus by remember(state.trendsDays) { mutableStateOf<LocalDate?>(null) }
     val bars = WindowInsets.systemBars.asPaddingValues()
+    val listState = rememberLazyListState()
+    // Where the first day row sits in the list: period tabs, box score, the range bar if any, the header.
+    val stripsStart = 3 + (if (report.bands != null) 1 else 0)
+    // A scroll asked for by an insight; it runs once the list has the newly opened chart in it.
+    var scrollIndex by remember { mutableStateOf(-1) }
+    var scrollTick by remember { mutableStateOf(0) }
+    LaunchedEffect(scrollTick) {
+        if (scrollIndex >= 0) listState.animateScrollToItem(scrollIndex)
+    }
+    /** Opens the row holding [day] (its full chart under it) and scrolls it to the top. */
+    fun showDay(day: LocalDate) {
+        val si = strips.indexOfFirst { !day.isBefore(it.first) && !day.isAfter(it.last) }
+        if (si < 0) return
+        focus = strips[si].first
+        scrollIndex = stripsStart + si
+        scrollTick++
+    }
 
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
+        state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
     ) {
         item(key = "period") {
@@ -176,10 +198,38 @@ fun TrendsPage(state: AppState) {
                         InsightKind.ATTENTION -> C.High
                         InsightKind.INFO -> C.TextMuted
                     }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.Top) {
+                    // The day it's about, when Analytics can say and that day has a row here.
+                    val day = ins.days.firstOrNull()?.takeIf { d -> strips.any { !d.isBefore(it.first) && !d.isAfter(it.last) } }
+                    val weekly = strips.firstOrNull()?.week == true
+                    val view = LocalView.current
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (day == null) Modifier
+                                else Modifier.clickable(
+                                    onClickLabel = if (weekly) tr("Show that week") else tr("Show that day"),
+                                    role = Role.Button,
+                                ) {
+                                    Haptics.tap(view)
+                                    showDay(day)
+                                }
+                            )
+                            .heightIn(min = 48.dp)
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         RangeSquare(tint, Modifier.padding(top = 6.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text(ins.text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp))
+                        Text(ins.text, style = inter(15.sp, color = C.Text).copy(lineHeight = 20.sp), modifier = Modifier.weight(1f))
+                        if (day != null) {
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                "→",
+                                style = mono(15.sp, FontWeight.Medium, C.TextSecondary).copy(lineHeight = 20.sp),
+                                modifier = Modifier.clearAndSetSemantics {},
+                            )
+                        }
                     }
                 }
             }
@@ -188,7 +238,7 @@ fun TrendsPage(state: AppState) {
         item(key = "lab") { LabA1cCard(state, report) }
         item(key = "links") {
             // More detail opens the fold below; the PDF is the doctor's report for exactly these days.
-            val scope = rememberCoroutineScope()
+            val pdfScope = rememberCoroutineScope()
             var busy by remember { mutableStateOf(false) }
             FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 val more = state.trendsMore
@@ -205,7 +255,7 @@ fun TrendsPage(state: AppState) {
                 ) {
                     if (!busy) {
                         busy = true
-                        scope.launch {
+                        pdfScope.launch {
                             try {
                                 val f = app.dropi.work.Export.writePdf(context, state.readings, report.days, today, state.zone, state.unit, state.targets)
                                 app.dropi.work.Export.share(context, f, "application/pdf", tr("Blood glucose report"))
@@ -392,16 +442,31 @@ private fun RangeBar(r: Report, b: Bands) {
 }
 
 /** One row of the small multiples: a day, or (for 30 and 90 days) up to seven days laid over one. */
-private class Strip(val first: LocalDate, val last: LocalDate, val week: Boolean, val readings: List<Reading>) {
+private class Strip(
+    val first: LocalDate,
+    val last: LocalDate,
+    val week: Boolean,
+    val readings: List<Reading>,
+    /** A day row's ghost: the same weekday one week earlier (empty for week rows). */
+    val ghost: List<Reading> = emptyList(),
+) {
     val average: Double? = if (readings.isEmpty()) null else readings.map { it.mmol }.average()
+    val ghostAverage: Double? = if (ghost.isEmpty()) null else ghost.map { it.mmol }.average()
     val lows = readings.count { it.mmol < Glucose.LOW }
     val highs = readings.count { it.mmol > Glucose.TIR_HIGH }
 }
 
-/** The period's rows, newest first: days for 7 and 14 days, seven-day blocks back from today otherwise. */
-private fun buildStrips(r: Report, zone: ZoneId): List<Strip> {
+/**
+ * The period's rows, newest first: days for 7 and 14 days, seven-day blocks back from today
+ * otherwise. Day rows also carry the same weekday a week earlier, from [all] readings.
+ */
+private fun buildStrips(r: Report, zone: ZoneId, all: List<Reading>): List<Strip> {
     val byDay = r.readings.groupBy { it.date(zone) }
     val weekly = r.days > 14
+    val ghostFrom = r.from.minusDays(7)
+    val ghostTo = r.to.minusDays(7)
+    val ghostByDay: Map<LocalDate, List<Reading>> = if (weekly) emptyMap()
+    else all.filter { val d = it.date(zone); !d.isBefore(ghostFrom) && !d.isAfter(ghostTo) }.groupBy { it.date(zone) }
     val out = ArrayList<Strip>()
     var last = r.to
     while (!last.isBefore(r.from)) {
@@ -413,7 +478,8 @@ private fun buildStrips(r: Report, zone: ZoneId): List<Strip> {
             byDay[d]?.let { rs.addAll(it) }
             d = d.plusDays(1)
         }
-        out += Strip(first, last, weekly, rs.sortedBy { it.at })
+        val ghost = if (weekly) emptyList() else ghostByDay[first.minusDays(7)].orEmpty().sortedBy { it.at }
+        out += Strip(first, last, weekly, rs.sortedBy { it.at }, ghost)
         last = first.minusDays(1)
     }
     return out
@@ -432,10 +498,13 @@ private fun stripLabel(s: Strip): String {
 private fun stripDescription(s: Strip, unit: GlucoseUnit): String {
     val name = if (s.first == s.last) dayPattern("EEEE d MMMM").format(s.first).cap()
     else dayPattern("d MMMM").format(s.first) + " – " + dayPattern("d MMMM").format(s.last)
-    val avg = s.average ?: return tr("{0}, no readings.", name)
+    // Day rows: the same weekday a week earlier, briefly, when it had readings.
+    val ghost = s.ghostAverage?.let { tr("Last {0}: average {1}.", dayPattern("EEEE").format(s.first), Glucose.format(it, unit)) }
+    val avg = s.average ?: return listOfNotNull(tr("{0}, no readings.", name), ghost).joinToString(" ")
     val parts = mutableListOf(tr("{0}, average {1}.", name, Glucose.format(avg, unit)))
     if (s.lows > 0) parts += trn(s.lows, "{0} low.", "{0} lows.")
     if (s.highs > 0) parts += trn(s.highs, "{0} high.", "{0} highs.")
+    if (ghost != null) parts += ghost
     return parts.joinToString(" ")
 }
 
@@ -461,6 +530,7 @@ private fun StripRow(
     val targets = state.targets
     val band = C.InRange.copy(alpha = 0.12f)
     val line = C.TextSecondary
+    val ghostLine = C.TextMuted.copy(alpha = 0.45f)
     val nowLine = C.AccentText
     val colors = Status.entries.associateWith { C.status(it) }
     val avg = s.average
@@ -503,6 +573,23 @@ private fun StripRow(
             fun xOf(at: Long): Float = pad + w * frac(at).coerceIn(0f, 1f)
             fun yOf(m: Double): Float = pad + h * (1f - ((m - SPARK_MIN) / (maxV - SPARK_MIN)).toFloat().coerceIn(0f, 1f))
             drawRect(band, Offset(0f, yOf(Glucose.TIR_HIGH)), Size(size.width, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
+            // The same weekday last week, faint and dashed behind the day's own line (no dots).
+            if (!s.week && s.ghost.size >= 2) {
+                val gp = Path()
+                s.ghost.forEachIndexed { i, r ->
+                    if (i == 0) gp.moveTo(xOf(r.at), yOf(r.mmol)) else gp.lineTo(xOf(r.at), yOf(r.mmol))
+                }
+                drawPath(
+                    gp,
+                    ghostLine,
+                    style = Stroke(
+                        1.dp.toPx(),
+                        cap = StrokeCap.Butt,
+                        join = StrokeJoin.Round,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx())),
+                    ),
+                )
+            }
             val runs = if (s.week) s.readings.groupBy { it.date(zone) }.values.toList() else listOf(s.readings)
             runs.forEach { rs ->
                 if (rs.size >= 2) {

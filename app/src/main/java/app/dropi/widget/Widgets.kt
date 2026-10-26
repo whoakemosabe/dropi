@@ -78,25 +78,25 @@ private class Pal(context: Context) {
 
     // 1.1 "Instrument & logbook": the app's own panel and surface colours (Theme.kt C.Card,
     // C.SurfaceLight), the dark-smoke accent fill with champagne on it, champagne for marks.
-    val bg = cp(0xFF1A1C23, 0xFFFFFFFF, 0xFF170A0E)
-    val surface = cp(0xFF262932, 0xFFE3E9FA, 0xFF261018)
-    val text = cp(0xFFF2F3F5, 0xFF0E1638, 0xFFF6E9EC)
-    val text2 = cp(0xFFC4C7CF, 0xFF3C4670, 0xFFCDA6B0)
-    val muted = cp(0xFF9296A1, 0xFF5A6488, 0xFFA57E8A)
-    val accent = cp(0xFFE2CB97, 0xFF0E1638, 0xFFFF5C7A)
-    val brand = cp(0xFF2A251B, 0xFF0E1638, 0xFFA3001B)
-    val onBrand = cp(0xFFEBD8AC, 0xFFFFFFFF, 0xFFFFFFFF)
+    val bg = cp(0xFF1A1C23, 0xFFFFFDF8, 0xFF170A0E)
+    val surface = cp(0xFF262932, 0xFFE9E4D8, 0xFF261018)
+    val text = cp(0xFFF2F3F5, 0xFF1C1A16, 0xFFF6E9EC)
+    val text2 = cp(0xFFC4C7CF, 0xFF4A4539, 0xFFCDA6B0)
+    val muted = cp(0xFF9296A1, 0xFF6B6455, 0xFFA57E8A)
+    val accent = cp(0xFFE2CB97, 0xFF7A5A1E, 0xFFFF5C7A)
+    val brand = cp(0xFF2A251B, 0xFF2A251B, 0xFFA3001B)
+    val onBrand = cp(0xFFEBD8AC, 0xFFEBD8AC, 0xFFFFFFFF)
     /** Hairlines: champagne at 40% round the main button, the app's border colour round the rest. */
-    val edgeAccent = cp(0x66E2CB97, 0x660E1638, 0x66FF5C7A)
-    val edge = cp(0xFF383C47, 0xFFCDD6EE, 0xFF3D1621)
+    val edgeAccent = cp(0x66E2CB97, 0x667A5A1E, 0x66FF5C7A)
+    val edge = cp(0xFF383C47, 0xFFD6CFBF, 0xFF3D1621)
 
     fun status(s: Status): ColorProvider = when (s) {
         Status.URGENT_LOW -> cp(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
-        Status.LOW -> cp(0xFFFF7F9C, 0xFFE5486E, 0xFFFF8FB0)
+        Status.LOW -> cp(0xFFFF7F9C, 0xFFC8325A, 0xFFFF8FB0)
         Status.BELOW_TARGET -> cp(0xFF7EA4F2, 0xFF3D6AC2, 0xFF7FA7D9)
-        Status.IN_RANGE -> cp(0xFF22D18A, 0xFF0E9F63, 0xFF50FA7B)
-        Status.HIGH -> cp(0xFFF2B632, 0xFFA67C00, 0xFFF2C94C)
-        Status.VERY_HIGH -> cp(0xFFF06A2A, 0xFFD9480F, 0xFFE8622C)
+        Status.IN_RANGE -> cp(0xFF22D18A, 0xFF0A7F4E, 0xFF50FA7B)
+        Status.HIGH -> cp(0xFFF2B632, 0xFF876400, 0xFFF2C94C)
+        Status.VERY_HIGH -> cp(0xFFF06A2A, 0xFFB83F0A, 0xFFE8622C)
     }
 }
 

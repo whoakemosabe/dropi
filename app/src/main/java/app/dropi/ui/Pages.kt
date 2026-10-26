@@ -267,9 +267,25 @@ private fun Receipt(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
             .tap { MealWork.edit(m) }
             .padding(top = 14.dp, bottom = 12.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+        // When the after-eating reading came in (the first reading 45 min – 4 h after this meal,
+        // else the sensor peak behind the outcome), or null while there's none.
+        val checkedAt = remember(state.readings, state.meals, m, info.out) {
+            state.readings.filter { r -> MealLink.mealBefore(r, state.meals)?.id == m.id }.minByOrNull { it.at }?.at
+                ?: info.out?.peakAt
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(caps(mealName(m.name)), style = label, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(12.dp))
+            when {
+                checkedAt != null -> {
+                    Stamp(tr("Checked {0}", fmt.time(checkedAt)), C.InRange)
+                    Spacer(Modifier.width(10.dp))
+                }
+                now - m.at < 4 * 3_600_000L -> {
+                    Stamp(tr("Pending · {0}", fmt.time(m.at + Schedule.gapFor(m, state.afterMealMinutes) * 60_000L)), C.TextSecondary)
+                    Spacer(Modifier.width(10.dp))
+                }
+            }
             Text(fmt.time(m.at), style = label, maxLines = 1)
         }
         m.meal.items.forEach { item -> ReceiptItem(item) }
@@ -290,11 +306,42 @@ private fun Receipt(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
                 Text(tr("{0} g", Grams.text(m.carbs)), style = numeral(24.sp), modifier = Modifier.alignByBaseline())
             }
         }
+        NutrientLines(m)
         Text(
             info.line,
             style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
         )
+    }
+}
+
+/** Under the carbs, like a till slip: "SUGARS ····· 17 G" for each of the four the meal has. */
+@Composable
+private fun NutrientLines(m: MealEntry) {
+    val lines = listOfNotNull(
+        m.meal.sugars?.let { tr("Sugars") to it },
+        m.meal.fibre?.let { tr("Fibre") to it },
+        m.meal.protein?.let { tr("Protein") to it },
+        m.meal.fat?.let { tr("Fat") to it },
+    )
+    if (lines.isEmpty()) return
+    val style = mono(12.sp, color = C.TextSecondary)
+    val dots = C.Border
+    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp)) {
+        lines.forEach { (word, grams) ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(caps(word), style = style, maxLines = 1)
+                Canvas(Modifier.weight(1f).height(8.dp).padding(horizontal = 6.dp)) {
+                    val y = size.height - 1.dp.toPx()
+                    if (size.width < 4.dp.toPx()) return@Canvas
+                    drawLine(
+                        dots, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.5.dp.toPx(), cap = StrokeCap.Round,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.01f, 4.dp.toPx())),
+                    )
+                }
+                Text(tr("{0} g", Grams.text(grams)), style = style, maxLines = 1)
+            }
+        }
     }
 }
 

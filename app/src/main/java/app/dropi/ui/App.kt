@@ -301,10 +301,16 @@ private fun TopBar(state: AppState) {
         Tab.TODAY -> {
             val next = app.dropi.data.Schedule.next(state.slots, state.readings, now, state.zone, state.afterMealMinutes, state.meals)
             ring = next != null
+            // The next check while there is one; after the last, how today went.
+            val todays = app.dropi.data.Stats.onDay(state.readings, today, state.zone)
+            val inRange = app.dropi.data.Stats.summary(todays).inRangePct
             dayPattern("EEE d MMM").format(today).cap() to when {
-                next == null -> null
-                next.state == app.dropi.data.CheckState.DUE -> tr("due now")
-                else -> tr("next {0}", fmt.time(next.at))
+                next?.state == app.dropi.data.CheckState.DUE -> tr("due now")
+                next != null && next.at - now < 16 * 3_600_000L && java.time.Instant.ofEpochMilli(next.at).atZone(state.zone).toLocalDate() == today ->
+                    tr("next {0}", fmt.time(next.at))
+                inRange != null -> { ring = false; tr("{0}% in range today", inRange) }
+                next != null -> tr("next {0}", fmt.time(next.at))
+                else -> null
             }
         }
         Tab.TRENDS -> {

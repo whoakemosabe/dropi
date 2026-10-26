@@ -49,6 +49,12 @@ object Haptics {
         if (Build.VERSION.SDK_INT >= 34) HapticFeedbackConstants.SEGMENT_TICK else HapticFeedbackConstants.CLOCK_TICK,
     )
 
+    /** The lightest tick, fine to fire often: a scrub passing from one item to the next. */
+    fun tick(view: View) = fire(
+        view,
+        if (Build.VERSION.SDK_INT >= 34) HapticFeedbackConstants.SEGMENT_FREQUENT_TICK else HapticFeedbackConstants.CLOCK_TICK,
+    )
+
     /** Pull-to-refresh crossed the line; a sheet or banner settled. */
     fun settle(view: View) = fire(
         view,

@@ -36,46 +36,46 @@ object C {
 
     private fun pick(d: Long, l: Long, dr: Long = d) = Color(if (dracula) dr else if (dark) d else l)
 
-    val Bg get() = pick(0xFF0B0C10, 0xFFEEF3FF, 0xFF0A0406)
+    val Bg get() = pick(0xFF0B0C10, 0xFFF3F0E8, 0xFF0A0406)
     /** Slide-up sheets: between the page and its cards, so cards inside a sheet still stand out. */
-    val Sheet get() = pick(0xFF121318, 0xFFF5F7FF, 0xFF110609)
-    val Card get() = pick(0xFF1A1C23, 0xFFFFFFFF, 0xFF170A0E)
-    val SurfaceLight get() = pick(0xFF262932, 0xFFE3E9FA, 0xFF261018)
-    val Border get() = pick(0xFF383C47, 0xFFCDD6EE, 0xFF3D1621)
-    val GlassBorder get() = pick(0x14FFFFFF, 0x14101A40, 0x2EFF2D55)
+    val Sheet get() = pick(0xFF121318, 0xFFF8F6F0, 0xFF110609)
+    val Card get() = pick(0xFF1A1C23, 0xFFFFFDF8, 0xFF170A0E)
+    val SurfaceLight get() = pick(0xFF262932, 0xFFE9E4D8, 0xFF261018)
+    val Border get() = pick(0xFF383C47, 0xFFD6CFBF, 0xFF3D1621)
+    val GlassBorder get() = pick(0x14FFFFFF, 0x142A2418, 0x2EFF2D55)
 
     /**
-     * Brand fill (buttons, selected tiles, the +); [OnAccent] sits on it. By night it's a dark,
-     * warm smoke with champagne on it (a watch dial, not a white slab); by day deep navy;
-     * Dracula keeps its blood red. Buttons also get a hairline of [AccentText].
+     * Brand fill (buttons, selected tiles, the +); [OnAccent] sits on it. Dark warm smoke with
+     * champagne on it in both Dark and Light (a watch dial on paper by day); Dracula keeps its
+     * blood red. Buttons also get a hairline of [AccentText].
      */
-    val Accent get() = pick(0xFF2A251B, 0xFF0E1638, 0xFFA3001B)
-    val AccentGlow get() = pick(0xFF4A4130, 0xFF2A3566, 0xFF6A1B9A)
-    val OnAccent get() = pick(0xFFEBD8AC, 0xFFFFFFFF, 0xFFFFFFFF)
+    val Accent get() = pick(0xFF2A251B, 0xFF2A251B, 0xFFA3001B)
+    val AccentGlow get() = pick(0xFF4A4130, 0xFF4A4130, 0xFF6A1B9A)
+    val OnAccent get() = pick(0xFFEBD8AC, 0xFFEBD8AC, 0xFFFFFFFF)
 
-    /** The signature colour for text, lines and thin icons: champagne by night, navy by day, Dracula's pink-red. */
-    val AccentText get() = pick(0xFFE2CB97, 0xFF0E1638, 0xFFFF5C7A)
+    /** The signature colour for text, lines and thin icons: champagne by night, bronze on paper by day, Dracula's pink-red. */
+    val AccentText get() = pick(0xFFE2CB97, 0xFF7A5A1E, 0xFFFF5C7A)
 
     /** The aurora itself, for the glow, the + button, the logo and the live trace. */
     val Aurora: List<Color> get() = when {
         dracula -> listOf(Color(0xFFA3001B), Color(0xFFD1123F), Color(0xFF6A1B9A))
         dark -> listOf(Color(0xFF45C8FF), Color(0xFF7B61FF), Color(0xFFD45CE0))
-        else -> listOf(Color(0xFF12C982), Color(0xFF27B5F0), Color(0xFF6E5BFF))
+        else -> listOf(Color(0xFF2E9C8A), Color(0xFF7A5A1E), Color(0xFFB5627A))
     }
 
-    val Text get() = pick(0xFFF2F3F5, 0xFF0E1638, 0xFFF6E9EC)
-    val TextSecondary get() = pick(0xFFC4C7CF, 0xFF3C4670, 0xFFCDA6B0)
-    val TextMuted get() = pick(0xFF9296A1, 0xFF5A6488, 0xFFA57E8A)
+    val Text get() = pick(0xFFF2F3F5, 0xFF1C1A16, 0xFFF6E9EC)
+    val TextSecondary get() = pick(0xFFC4C7CF, 0xFF4A4539, 0xFFCDA6B0)
+    val TextMuted get() = pick(0xFF9296A1, 0xFF6B6455, 0xFFA57E8A)
 
-    // Range colours, checked with the dataviz palette validator against each theme's card colour
+    // Range colours, checked against each theme's page and card colour (light: ≥ 4.4:1 on the paper background)
     // (contrast, colour-blind separation); they always come with a label too.
     val UrgentLow get() = pick(0xFFE0306E, 0xFFB0124F, 0xFFD6336C)
-    val Low get() = pick(0xFFFF7F9C, 0xFFE5486E, 0xFFFF8FB0)
+    val Low get() = pick(0xFFFF7F9C, 0xFFC8325A, 0xFFFF8FB0)
     val BelowTarget get() = pick(0xFF7EA4F2, 0xFF3D6AC2, 0xFF7FA7D9)
     // Dracula's own green: in range is never the violet the buttons use.
-    val InRange get() = pick(0xFF22D18A, 0xFF0E9F63, 0xFF50FA7B)
-    val High get() = pick(0xFFF2B632, 0xFFA67C00, 0xFFF2C94C)
-    val VeryHigh get() = pick(0xFFF06A2A, 0xFFD9480F, 0xFFE8622C)
+    val InRange get() = pick(0xFF22D18A, 0xFF0A7F4E, 0xFF50FA7B)
+    val High get() = pick(0xFFF2B632, 0xFF876400, 0xFFF2C94C)
+    val VeryHigh get() = pick(0xFFF06A2A, 0xFFB83F0A, 0xFFE8622C)
 
     /** Text that reads on a solid range colour (the hero slab). */
     fun onStatus(c: Color): Color = if (c.luminance() > 0.33f) Color(0xFF071A2B) else Color.White
