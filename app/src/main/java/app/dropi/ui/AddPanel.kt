@@ -77,7 +77,7 @@ fun AddPanel(state: AppState) {
                 Launch.mealAction.value = action
             }
             // One calm, ruled list: the reading first, then the ways to log a meal.
-            Column(Modifier.fillMaxWidth().addListRuleBottom()) {
+            Column(Modifier.fillMaxWidth()) {
                 AddActionRow(tr("Reading"), tr("Type or scan your meter"), R.drawable.lc_droplet, lead = true) {
                     state.addOpen = false
                     state.startNew()
@@ -116,14 +116,6 @@ fun AddPanel(state: AppState) {
     }
 }
 
-/** A hairline along the bottom, closing a ruled list. */
-private fun Modifier.addListRuleBottom(): Modifier = this.then(
-    Modifier.drawBehind {
-        val w = 1.dp.toPx()
-        drawLine(C.Border.copy(alpha = 0.55f), Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), strokeWidth = w)
-    }
-)
-
 /** One way to add something: a plain icon, the name and what it does, an arrow; ruled above. */
 @Composable
 private fun AddActionRow(title: String, sub: String?, icon: Int, lead: Boolean = false, onClick: () -> Unit) {
@@ -132,7 +124,7 @@ private fun AddActionRow(title: String, sub: String?, icon: Int, lead: Boolean =
         Modifier
             .fillMaxWidth()
             .heightIn(min = if (sub != null) 64.dp else 56.dp)
-            .ruleTop()
+            .ruleTop(!lead)
             .pressed(press)
             .semantics(mergeDescendants = true) { role = Role.Button }
             .tap(press, onClick = onClick)

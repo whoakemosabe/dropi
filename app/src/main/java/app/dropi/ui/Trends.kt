@@ -136,13 +136,13 @@ fun TrendsPage(state: AppState) {
         item(key = "days-head") {
             RuleHeader(tr("Day by day"), String.format(Locale.ROOT, "%02d → 24", fromHour), Modifier.padding(top = 8.dp))
         }
-        strips.forEach { s ->
+        strips.forEachIndexed { si, s ->
             val open = focus == s.first
             item(key = "strip-${s.first}") {
                 StripRow(
                     s, fromHour, sparkMax,
                     isToday = !today.isBefore(s.first) && !today.isAfter(s.last),
-                    now = now, state = state, open = open,
+                    now = now, state = state, open = open, first = si == 0,
                 ) { focus = if (open) null else s.first }
             }
             if (open) item(key = "chart-${s.first}") {
@@ -167,7 +167,7 @@ fun TrendsPage(state: AppState) {
         }
 
         if (insights.isNotEmpty()) {
-            item(key = "insights-head") { RuleHeader(tr("What stands out"), modifier = Modifier.ruleTop()) }
+            item(key = "insights-head") { RuleHeader(tr("What stands out")) }
             insights.forEachIndexed { i, ins ->
                 item(key = "insight-$i") {
                     // A small square says good, worth a look, or just so.
@@ -453,6 +453,7 @@ private fun StripRow(
     now: Long,
     state: AppState,
     open: Boolean,
+    first: Boolean = false,
     onTap: () -> Unit,
 ) {
     val zone = state.zone
@@ -468,7 +469,7 @@ private fun StripRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .ruleTop()
+            .ruleTop(!first)
             .then(if (canOpen) Modifier.tap(onClick = onTap) else Modifier)
             .semantics(mergeDescendants = true) {
                 contentDescription = desc
@@ -548,7 +549,7 @@ private fun StripRow(
 @Composable
 private fun MoreNumbers(r: Report, unit: GlucoseUnit) {
     val style = mono(12.sp, color = C.TextSecondary).copy(lineHeight = 18.sp)
-    Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val parts = listOfNotNull(
             r.readings.minOfOrNull { it.mmol }?.let { tr("Lowest {0}", Glucose.format(it, unit)) },
             r.readings.maxOfOrNull { it.mmol }?.let { tr("Highest {0}", Glucose.format(it, unit)) },

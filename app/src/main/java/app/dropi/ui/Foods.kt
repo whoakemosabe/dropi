@@ -73,7 +73,8 @@ fun FoodsCard(state: AppState) {
             shown.forEachIndexed { i, s ->
                 // The gentlest three, a gap, then the biggest three.
                 if (ranked.size > 6 && i == 3) Spacer(Modifier.height(12.dp))
-                RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true) {
+                // No line above the first row, nor above the first after the gap.
+                RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, first = i == 0 || (ranked.size > 6 && i == 3)) {
                     state.foodOpen = s.food
                     state.foodsOpen = true
                 }
@@ -95,7 +96,7 @@ fun FoodsCard(state: AppState) {
 
 /** A food's rise as a bar and a number. [ruled]: a row of the ruled list on the Meals page. */
 @Composable
-private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, expanded: Boolean? = null, onClick: () -> Unit) {
+private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, expanded: Boolean? = null, first: Boolean = false, onClick: () -> Unit) {
     val (step, tone) = riseTone(rise)
     val delta = Foods.delta(rise, unit)
     val spoken = when (step) {
@@ -106,7 +107,7 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
     Row(
         Modifier
             .fillMaxWidth()
-            .then(if (ruled) Modifier.heightIn(min = 48.dp).ruleTop() else Modifier.clip(RoundedCornerShape(Corner.S)))
+            .then(if (ruled) Modifier.heightIn(min = 48.dp).ruleTop(!first) else Modifier.clip(RoundedCornerShape(Corner.S)))
             .tap(onClick = onClick)
             .semantics(mergeDescendants = true) {
                 contentDescription = spoken
@@ -155,12 +156,12 @@ private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
         // One ruled list, like the ladder on the Meals page; a tapped food opens under its row.
         Column(Modifier.fillMaxWidth()) {
             RuleHeader(tr("All foods"), trn(scores.size, "{0} food", "{0} foods"))
-            for (s in scores) {
+            scores.forEachIndexed { si, s ->
                 val open = state.foodOpen == s.food
                 Column(
                     Modifier.fillMaxWidth().animateContentSize(),
                 ) {
-                    RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, expanded = open) { state.foodOpen = if (open) null else s.food }
+                    RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, expanded = open, first = si == 0) { state.foodOpen = if (open) null else s.food }
                     if (open) {
                         val peak = s.curve.drop(1).maxByOrNull { it.second }
                         val (step, _) = riseTone(s.rise)

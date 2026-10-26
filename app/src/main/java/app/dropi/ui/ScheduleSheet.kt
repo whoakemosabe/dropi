@@ -105,7 +105,7 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
         // Reminders.
         Column(Modifier.fillMaxWidth()) {
             RuleHeader(tr("Reminders"))
-            SettingsToggleRow(tr("Remind me at these times"), tr("A notification with Log and Snooze"), state.remindersOn) { on ->
+            SettingsToggleRow(tr("Remind me at these times"), tr("A notification with Log and Snooze"), state.remindersOn, first = true) { on ->
                 Haptics.toggle(view, on)
                 if (on) turnOnReminders() else state.changeReminders(false)
             }
@@ -150,9 +150,10 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
         // The checks themselves: one ruled row each.
         Column(Modifier.fillMaxWidth()) {
             RuleHeader(tr("Your checks"), trailing = trn(state.slots.count { it.enabled }, "{0} check a day", "{0} checks a day"))
-            state.slots.forEach { s ->
+            state.slots.forEachIndexed { i, s ->
                 SlotRow(
                     s,
+                    first = i == 0,
                     clock.format(LocalTime.of(s.hour, s.min)),
                     onTime = { editingTime = s },
                     onChange = { n -> state.changeSlots(state.slots.map { if (it.id == s.id) n else it }) },
@@ -193,12 +194,12 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
  * what kind of check it is and how long it still counts for underneath.
  */
 @Composable
-private fun SlotRow(s: Slot, time: String, onTime: () -> Unit, onChange: (Slot) -> Unit, onDelete: () -> Unit) {
+private fun SlotRow(s: Slot, first: Boolean, time: String, onTime: () -> Unit, onChange: (Slot) -> Unit, onDelete: () -> Unit) {
     val label = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.08f)
     // Slot.name is built in English ("Before lunch"); the lookup shows the known names in the app's language.
     val name = tr(s.name)
     Column(
-        Modifier.fillMaxWidth().ruleTop().padding(top = 4.dp, bottom = 16.dp),
+        Modifier.fillMaxWidth().ruleTop(!first).padding(top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {

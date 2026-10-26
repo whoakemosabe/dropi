@@ -59,10 +59,15 @@ fun mono(size: TextUnit = 13.sp, weight: FontWeight = FontWeight.Normal, color: 
 /** A small label in capitals ("TODAY"), in the app's language. */
 fun caps(s: String): String = s.uppercase(L.locale)
 
-/** A hairline across the top of a row. */
-fun Modifier.ruleTop(color: Color = C.Border.copy(alpha = 0.55f)): Modifier = drawBehind {
-    drawLine(color, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx())
-}
+/**
+ * A hairline across the top of a row: the line between it and the row above. Pass
+ * `show = false` for the first row of a list (under a [RuleHeader], whose own line is enough, or
+ * at the top of a panel), so lines only ever sit between rows.
+ */
+fun Modifier.ruleTop(show: Boolean = true, color: Color = C.Border.copy(alpha = 0.55f)): Modifier =
+    if (!show) this else drawBehind {
+        drawLine(color, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx())
+    }
 
 /** "TODAY ───────── 3 READINGS": a section's name, a hairline to the edge, and a count. */
 @Composable

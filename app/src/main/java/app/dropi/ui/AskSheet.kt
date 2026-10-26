@@ -129,12 +129,12 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         // Ready-made questions: worked out exactly from the log, on every phone. Ruled rows, like an index.
         Column(Modifier.fillMaxWidth()) {
             RuleHeader(tr("Questions"), Ask.Q.entries.size.toString())
-            Ask.Q.entries.forEach { q ->
+            Ask.Q.entries.forEachIndexed { qi, q ->
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
-                        .ruleTop()
+                        .ruleTop(qi > 0)
                         .tap { turns += Turn(q.text, Ask.answer(q, state.askCtx())) }
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,9 +150,9 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         if (turns.isNotEmpty()) {
             Column(Modifier.fillMaxWidth()) {
                 RuleHeader(tr("Answers"), turns.size.toString())
-                turns.forEach { t ->
+                turns.forEachIndexed { ti, t ->
                     Row(
-                        Modifier.fillMaxWidth().ruleTop().padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
+                        Modifier.fillMaxWidth().ruleTop(ti > 0).padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
                     ) {
                         Text(
                             fmt.time(t.at),

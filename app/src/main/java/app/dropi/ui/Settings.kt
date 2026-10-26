@@ -110,6 +110,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                     trn(state.slots.count { it.enabled }, "{0} check a day", "{0} checks a day"),
                     hint = if (state.remindersOn) tr("Reminders on") else tr("Reminders off"),
                     action = tr("Edit"),
+                    first = true,
                 ) {
                     state.settingsOpen = false
                     state.scheduleOpen = true
@@ -127,6 +128,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                     tr("Dexcom, Libre and other CGMs"),
                     hint = if (state.liveOn) tr("Live mode on") else tr("Live number, trend arrow and a heads-up before lows"),
                     action = if (state.liveOn) tr("Open") else tr("Set up"),
+                    first = true,
                 ) {
                     state.settingsOpen = false
                     state.liveOpen = true
@@ -136,7 +138,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
 
         SheetSection(tr("Share with your care team")) {
             SettingsRows {
-                SettingsActionRow(tr("PDF report or CSV"), hint = tr("Summary, time in range and every reading"), action = tr("Share")) {
+                SettingsActionRow(tr("PDF report or CSV"), hint = tr("Summary, time in range and every reading"), action = tr("Share"), first = true) {
                     state.settingsOpen = false
                     state.exportOpen = true
                 }
@@ -149,7 +151,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
             SettingsRows {
                 TargetStepper(tr("On waking and before eating: from"), v(t.beforeLow),
                     { state.changeTargets(t.copy(beforeLow = t.beforeLow - step)) },
-                    { state.changeTargets(t.copy(beforeLow = t.beforeLow + step)) })
+                    { state.changeTargets(t.copy(beforeLow = t.beforeLow + step)) }, first = true)
                 TargetStepper(tr("On waking and before eating: up to"), v(t.beforeHigh),
                     { state.changeTargets(t.copy(beforeHigh = t.beforeHigh - step)) },
                     { state.changeTargets(t.copy(beforeHigh = t.beforeHigh + step)) })
@@ -166,7 +168,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
 
         SheetSection(tr("Fixed thresholds")) {
             SettingsRows {
-                TargetLine(tr("Time in range"), "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", C.InRange)
+                TargetLine(tr("Time in range"), "${v(Glucose.LOW)}–${v(Glucose.TIR_HIGH)}", C.InRange, first = true)
                 TargetLine(tr("Low"), tr("under {0}", v(Glucose.LOW)), C.Low)
                 TargetLine(tr("Urgent low"), tr("under {0}", v(Glucose.URGENT_LOW)), C.UrgentLow)
                 TargetLine(tr("Very high"), tr("over {0}", v(Glucose.VERY_HIGH)), C.VeryHigh)
@@ -176,7 +178,7 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
 
         SheetSection(tr("Backup")) {
             SettingsRows {
-                SettingsActionRow(tr("Back up or restore"), hint = tr("A password-locked file you keep in Drive or Files"), action = tr("Open")) {
+                SettingsActionRow(tr("Back up or restore"), hint = tr("A password-locked file you keep in Drive or Files"), action = tr("Open"), first = true) {
                     state.settingsOpen = false
                     state.backupOpen = true
                 }
@@ -202,7 +204,6 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp)
-                        .ruleTop()
                         .clickable(
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null,
@@ -246,10 +247,10 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                 )
                 SettingsRows {
                     if (state.demo) {
-                        SettingsActionRow(tr("Leave demo data"), labelColor = C.AccentText) { state.leaveDemo() }
+                        SettingsActionRow(tr("Leave demo data"), labelColor = C.AccentText, first = true) { state.leaveDemo() }
                         SettingsActionRow(tr("Fresh demo month")) { state.loadDemo() }
                     } else {
-                        SettingsActionRow(tr("Load demo data"), labelColor = C.AccentText) { state.loadDemo() }
+                        SettingsActionRow(tr("Load demo data"), labelColor = C.AccentText, first = true) { state.loadDemo() }
                         SettingsActionRow(tr("Hide developer")) { state.unlockDev(false) }
                     }
                 }
@@ -289,7 +290,7 @@ private fun HealthConnectRow(state: AppState) {
         else -> state.healthNote ?: tr("Share readings with apps like a CGM or Google Fit")
     }
     SettingsRows {
-        SettingsToggleRow(tr("Sync blood glucose"), note, state.healthSync, enabled = available) { on ->
+        SettingsToggleRow(tr("Sync blood glucose"), note, state.healthSync, enabled = available, first = true) { on ->
             Haptics.toggle(view, on)
             if (!on) state.changeHealthSync(false)
             else scope.launch {
@@ -345,6 +346,8 @@ fun SettingsActionRow(
     action: String? = null,
     labelColor: Color = C.Text,
     hintColor: Color = C.TextMuted,
+    /** The first row of its list: no line above it (the section header's line is enough). */
+    first: Boolean = false,
     onClick: () -> Unit,
 ) {
     val view = LocalView.current
@@ -352,7 +355,7 @@ fun SettingsActionRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .ruleTop()
+            .ruleTop(!first)
             // Screen readers hear the label, then "double-tap to edit" (or open, share…).
             .clickable(onClickLabel = action, role = Role.Button) {
                 Haptics.tap(view)
@@ -382,13 +385,14 @@ fun SettingsToggleRow(
     hint: String?,
     checked: Boolean,
     enabled: Boolean = true,
+    first: Boolean = false,
     onChange: (Boolean) -> Unit,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .ruleTop()
+            .ruleTop(!first)
             .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -405,9 +409,9 @@ fun SettingsToggleRow(
 
 /** A fixed threshold: its range square, its name, and the value in mono. */
 @Composable
-private fun TargetLine(label: String, value: String, color: Color) {
+private fun TargetLine(label: String, value: String, color: Color, first: Boolean = false) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).ruleTop().padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).ruleTop(!first).padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RangeSquare(color)
@@ -420,9 +424,9 @@ private fun TargetLine(label: String, value: String, color: Color) {
 
 /** A target with − and + (0.1 mmol/L a step, shown in the person's unit). */
 @Composable
-private fun TargetStepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+private fun TargetStepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit, first: Boolean = false) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop().padding(vertical = 6.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop(!first).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f).padding(end = 8.dp))

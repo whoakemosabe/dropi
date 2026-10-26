@@ -59,7 +59,7 @@ fun OnDeviceAiSection() {
                 )
                 if (g is Gemma.State.Failed) Text(g.shown, style = inter(13.sp, color = C.Low))
                 SettingsRows {
-                    SettingsActionRow(if (g is Gemma.State.Failed) tr("Try again") else tr("Download (2.6 GB)"), labelColor = C.AccentText) {
+                    SettingsActionRow(if (g is Gemma.State.Failed) tr("Try again") else tr("Download (2.6 GB)"), labelColor = C.AccentText, first = true) {
                         scope.launch { Gemma.download(context) }
                     }
                 }
@@ -73,7 +73,7 @@ fun OnDeviceAiSection() {
                 )
                 ProgressLine(done.toFloat() / Gemma.SIZE)
                 SettingsRows {
-                    SettingsActionRow(tr("Cancel")) { scope.launch { Gemma.remove(context) } }
+                    SettingsActionRow(tr("Cancel"), first = true) { scope.launch { Gemma.remove(context) } }
                 }
             }
             g is Gemma.State.Verifying -> Text(tr("Almost ready: setting up on-device AI on your phone (about half a minute)…"), style = body)
@@ -92,6 +92,7 @@ fun OnDeviceAiSection() {
                     SettingsActionRow(
                         if (confirmRemove) tr("Tap again to remove") else tr("Remove model"),
                         labelColor = if (confirmRemove) C.AccentText else C.Text,
+                        first = true,
                     ) {
                         if (confirmRemove) scope.launch { Gemma.remove(context); confirmRemove = false }
                         else confirmRemove = true

@@ -68,7 +68,7 @@ private fun ColumnScope.ChangelogContent(close: () -> Unit) {
                 list.forEachIndexed { i, r ->
                     val current = r.version == installed
                     Column(
-                        Modifier.fillMaxWidth().ruleTop().padding(top = 14.dp, bottom = 16.dp),
+                        Modifier.fillMaxWidth().ruleTop(i > 0).padding(top = 14.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

@@ -273,7 +273,7 @@ fun StatusPill(status: Status) {
 @Composable
 fun ReadingsCard(state: AppState, readings: List<Reading>, time: (Reading) -> String) {
     Column(Modifier.fillMaxWidth()) {
-        readings.forEach { r -> ReadingRow(state, r, time(r)) }
+        readings.forEachIndexed { i, r -> ReadingRow(state, r, time(r), first = i == 0) }
     }
 }
 
@@ -282,7 +282,7 @@ fun ReadingsCard(state: AppState, readings: List<Reading>, time: (Reading) -> St
  * and the number in its range colour over a small scale.
  */
 @Composable
-fun ReadingRow(state: AppState, r: Reading, time: String) {
+fun ReadingRow(state: AppState, r: Reading, time: String, first: Boolean = false) {
     val status = state.status(r)
     // "2 h after breakfast": which meal this reading belongs to.
     val link = remember(r, state.meals, state.readings) { state.linkText(r) }
@@ -292,7 +292,7 @@ fun ReadingRow(state: AppState, r: Reading, time: String) {
         Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .ruleTop()
+            .ruleTop(!first)
             .tap { state.editing = r }
             .semantics(mergeDescendants = true) {
                 contentDescription = listOfNotNull(r.tag.label, time, link, Glucose.format(r.mmol, state.unit), status.label).joinToString(", ")

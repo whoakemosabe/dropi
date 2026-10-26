@@ -287,7 +287,6 @@ fun Ledger(state: AppState, readings: List<Reading>, meals: List<MealEntry>, che
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
-                    .ruleTop()
                     .semantics(mergeDescendants = true) { stateDescription = tr("Collapsed") }
                     .tap { expanded = true }
                     .padding(vertical = 12.dp),
@@ -297,18 +296,20 @@ fun Ledger(state: AppState, readings: List<Reading>, meals: List<MealEntry>, che
                 Text("↑", style = mono(13.sp, color = C.TextSecondary))
             }
         }
-        shown.forEach { LedgerRow(state, it, now, fmt) }
-        if (future.isNotEmpty() || past.isNotEmpty()) NowRow(fmt.time(now))
+        // Lines only between rows: the first one shown (the fold row, else the first entry, else
+        // the NOW line) sits right under the section header with none above it.
+        shown.forEachIndexed { i, e -> LedgerRow(state, e, now, fmt, first = i == 0 && !fold) }
+        if (future.isNotEmpty() || past.isNotEmpty()) NowRow(fmt.time(now), first = shown.isEmpty() && !fold)
         future.forEach { LedgerRow(state, it, now, fmt) }
     }
 }
 
 @Composable
-private fun LedgerRow(state: AppState, e: Entry, now: Long, fmt: Fmt) {
+private fun LedgerRow(state: AppState, e: Entry, now: Long, fmt: Fmt, first: Boolean = false) {
     when (e) {
-        is Entry.R -> ReadingLine(state, e.r, fmt)
-        is Entry.M -> MealLine(state, e.m, now, fmt)
-        is Entry.P -> PlannedLine(state, e.c, now, fmt)
+        is Entry.R -> ReadingLine(state, e.r, fmt, first)
+        is Entry.M -> MealLine(state, e.m, now, fmt, first)
+        is Entry.P -> PlannedLine(state, e.c, now, fmt, first)
     }
 }
 
@@ -320,9 +321,10 @@ private fun LedgerCells(
     modifier: Modifier,
     middle: @Composable () -> Unit,
     end: @Composable () -> Unit,
+    first: Boolean = false,
 ) {
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop().padding(vertical = 8.dp),
+        modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop(!first).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(time, style = mono(13.sp, color = if (timeMuted) C.TextMuted else C.TextSecondary), modifier = Modifier.width(56.dp))
@@ -333,7 +335,7 @@ private fun LedgerCells(
 }
 
 @Composable
-private fun ReadingLine(state: AppState, r: Reading, fmt: Fmt) {
+private fun ReadingLine(state: AppState, r: Reading, fmt: Fmt, first: Boolean) {
     val status = state.status(r)
     val c = C.status(status)
     val link = remember(r, state.meals, state.readings) { state.linkText(r) }
@@ -352,6 +354,7 @@ private fun ReadingLine(state: AppState, r: Reading, fmt: Fmt) {
                 if (sub.isNotEmpty()) Text(sub, style = inter(13.sp, color = C.TextMuted), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         },
+        first = first,
         end = {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(Glucose.format(r.mmol, state.unit), style = numeral(22.sp, c))
@@ -362,7 +365,7 @@ private fun ReadingLine(state: AppState, r: Reading, fmt: Fmt) {
 }
 
 @Composable
-private fun MealLine(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
+private fun MealLine(state: AppState, m: MealEntry, now: Long, fmt: Fmt, first: Boolean) {
     val out = state.outcome(m)
     val rise = out?.let { app.dropi.data.Rise.of(it.rise) }
     val name = mealName(m.name)
@@ -389,6 +392,7 @@ private fun MealLine(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
                 if (foods.isNotEmpty()) Text(foods.lowercase(L.locale), style = inter(13.sp, color = C.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },
+        first = first,
         end = {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(tr("{0} g", app.dropi.data.Grams.text(m.carbs)), style = mono(15.sp, FontWeight.SemiBold, C.Text))
@@ -399,7 +403,7 @@ private fun MealLine(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
 }
 
 @Composable
-private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt) {
+private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt, first: Boolean) {
     val time = fmt.time(c.at)
     val mins = (c.at - now) / 60_000
     val sub = when {
@@ -425,14 +429,15 @@ private fun PlannedLine(state: AppState, c: Check, now: Long, fmt: Fmt) {
                 )
             }
         },
+        first = first,
         end = { PlannedRing(if (due) C.AccentText else C.TextMuted) },
     )
 }
 
 @Composable
-private fun NowRow(time: String) {
+private fun NowRow(time: String, first: Boolean = false) {
     Row(
-        Modifier.fillMaxWidth().ruleTop().padding(vertical = 8.dp).semantics(mergeDescendants = true) {},
+        Modifier.fillMaxWidth().ruleTop(!first).padding(vertical = 8.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(time, style = mono(13.sp, FontWeight.SemiBold, C.AccentText), modifier = Modifier.width(56.dp))

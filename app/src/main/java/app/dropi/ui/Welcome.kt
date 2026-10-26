@@ -281,7 +281,7 @@ fun WelcomeFlow(state: AppState) {
                                 Text(tr("Here's what Dropi can do on this phone:"), style = body())
                                 // A ruled list, like a logbook page: label left, status right.
                                 Column(Modifier.fillMaxWidth()) {
-                                    CheckLine(tr("Reminders and alerts"), notifyOk)
+                                    CheckLine(tr("Reminders and alerts"), notifyOk, first = true)
                                     if (hcAvailable || hcInstall) CheckLine(tr("Health Connect sync"), state.healthSync)
                                     CheckLine(tr("One-tap updates"), installOk)
                                     if (!skipped(Step.AI)) {
@@ -292,7 +292,6 @@ fun WelcomeFlow(state: AppState) {
                                                 g is Gemma.State.Downloading || g == Gemma.State.WaitingForWifi || g == Gemma.State.Verifying,
                                         )
                                     }
-                                    Box(Modifier.fillMaxWidth().height(1.dp).ruleTop())
                                 }
                                 Text(
                                     tr("Anything you skipped is in Settings. Using a CGM? Settings › Live sensor connects it."),
@@ -462,9 +461,9 @@ private fun Allowed(text: String) {
 }
 
 @Composable
-private fun CheckLine(label: String, on: Boolean) {
+private fun CheckLine(label: String, on: Boolean, first: Boolean = false) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).ruleTop().padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).ruleTop(!first).padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))

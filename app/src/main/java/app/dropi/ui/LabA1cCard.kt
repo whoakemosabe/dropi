@@ -102,8 +102,8 @@ fun LabA1cCard(state: AppState, report: Report) {
                 )
             }
             // Earlier results, newest first, one ruled line each; a small × removes one.
-            list.reversed().drop(1).take(5).forEach { r ->
-                Row(Modifier.fillMaxWidth().ruleTop(), verticalAlignment = Alignment.CenterVertically) {
+            list.reversed().drop(1).take(5).forEachIndexed { ri, r ->
+                Row(Modifier.fillMaxWidth().ruleTop(ri > 0), verticalAlignment = Alignment.CenterVertically) {
                     Text(df.format(r.date), style = mono(12.sp, color = C.TextSecondary), modifier = Modifier.weight(1f))
                     Text("${pct(r.percent)} · ${r.mmolMol.roundToInt()}", style = mono(13.sp, FontWeight.SemiBold, C.Text))
                     Box(

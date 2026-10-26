@@ -94,7 +94,7 @@ fun GuidanceDialog(r: Reading, status: Status, unit: GlucoseUnit, onRecheck: (()
                 Column {
                     steps.forEachIndexed { i, s ->
                         val urgent = status == Status.URGENT_LOW && i == steps.lastIndex
-                        Row(Modifier.fillMaxWidth().ruleTop().padding(vertical = 10.dp)) {
+                        Row(Modifier.fillMaxWidth().ruleTop(i > 0).padding(vertical = 10.dp)) {
                             Text("${i + 1}", style = mono(13.sp, FontWeight.SemiBold, if (urgent) c else C.TextSecondary), modifier = Modifier.width(24.dp))
                             Text(
                                 s,

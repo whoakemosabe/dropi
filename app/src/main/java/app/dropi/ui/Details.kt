@@ -123,7 +123,7 @@ fun DetailsDialog(
             Spacer(Modifier.height(16.dp))
 
             // Ruled rows: name and value on the left, squared − and + keys on the right.
-            Stepper(tr("Carbs"), d.carbs?.let { tr("{0} g", it) }, R.drawable.lc_utensils,
+            Stepper(tr("Carbs"), d.carbs?.let { tr("{0} g", it) }, R.drawable.lc_utensils, first = true,
                 onMinus = { d = d.copy(carbs = d.carbs?.let { (it - 5).takeIf { v -> v > 0 } }) },
                 onPlus = { d = d.copy(carbs = ((d.carbs ?: 0) + 5).coerceAtMost(400)) },
             )
@@ -198,9 +198,9 @@ fun DetailsDialog(
 
 /** A ruled row: name and value (mono) on the left, − and + on the right; "Not logged" until set. */
 @Composable
-private fun Stepper(label: String, value: String?, icon: Int, onMinus: () -> Unit, onPlus: () -> Unit) {
+private fun Stepper(label: String, value: String?, icon: Int, first: Boolean = false, onMinus: () -> Unit, onPlus: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop().padding(vertical = 8.dp),
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop(!first).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Ic(icon, C.TextSecondary, 18.dp)

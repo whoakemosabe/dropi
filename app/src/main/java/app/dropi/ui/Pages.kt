@@ -141,7 +141,7 @@ fun MealsPage(state: AppState) {
                 val title = if (day == today.minusDays(1)) tr("Yesterday") else dayName.format(day).cap()
                 Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     RuleHeader(title, tr("{0} g", Grams.text(meals.sumOf { it.carbs })))
-                    meals.sortedByDescending { it.at }.forEach { m -> Slip(state, m, now, fmt) }
+                    meals.sortedByDescending { it.at }.forEachIndexed { i, m -> Slip(state, m, now, fmt, first = i == 0) }
                     Text(
                         DayTotals.text(DayTotals.of(day, meals)),
                         style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
@@ -355,14 +355,14 @@ private fun TearLine(modifier: Modifier = Modifier) {
 
 /** An earlier day's meal on one line: time, name and foods, the rise if known, and carbs. */
 @Composable
-private fun Slip(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
+private fun Slip(state: AppState, m: MealEntry, now: Long, fmt: Fmt, first: Boolean = false) {
     val info = mealInfo(state, m, now, fmt)
     val foods = m.meal.items.joinToString(" · ") { Foods.display(it.name) }
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 54.dp)
-            .ruleTop()
+            .ruleTop(!first)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = info.description
@@ -454,7 +454,7 @@ fun MorePage(state: AppState) {
         item(key = "log") {
             Column(Modifier.fillMaxWidth()) {
                 RuleHeader(tr("Your log"))
-                IndexRow(tr("All readings"), state.readings.size.toString()) { state.openHistory() }
+                IndexRow(tr("All readings"), state.readings.size.toString(), first = true) { state.openHistory() }
                 IndexRow(tr("Report for your care team"), "PDF · CSV") { state.exportOpen = true }
                 IndexRow(tr("Ask Dropi"), aiStatus, mark = if (Ai.usable) C.InRange else null) { state.askOpen = true }
             }
@@ -462,7 +462,7 @@ fun MorePage(state: AppState) {
         item(key = "setup") {
             Column(Modifier.fillMaxWidth()) {
                 RuleHeader(tr("Setup"))
-                IndexRow(tr("Check times"), checks) { state.scheduleOpen = true }
+                IndexRow(tr("Check times"), checks, first = true) { state.scheduleOpen = true }
                 IndexRow(tr("Live sensor"), if (state.liveOn) tr("on") else tr("off")) { state.liveOpen = true }
                 IndexRow(tr("Backup"), backupText, mark = if (backupDue) C.High else null) { state.backupOpen = true }
                 IndexRow(tr("Settings"), "${state.unit.label} · $themeName") { state.settingsOpen = true }
@@ -473,7 +473,7 @@ fun MorePage(state: AppState) {
         item(key = "dropi") {
             Column(Modifier.fillMaxWidth()) {
                 RuleHeader("Dropi")
-                IndexRow(tr("What's changed"), null) { state.changelogOpen = true }
+                IndexRow(tr("What's changed"), null, first = true) { state.changelogOpen = true }
                 IndexRow(tr("Report a problem"), null) { state.reportOpen = true }
             }
         }
@@ -489,12 +489,12 @@ fun MorePage(state: AppState) {
 
 /** One line of the index: a big name on the left, where it stands in mono on the right. */
 @Composable
-private fun IndexRow(title: String, status: String?, mark: Color? = null, onClick: () -> Unit) {
+private fun IndexRow(title: String, status: String?, mark: Color? = null, first: Boolean = false, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .ruleTop()
+            .ruleTop(!first)
             .tap(onClick = onClick)
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

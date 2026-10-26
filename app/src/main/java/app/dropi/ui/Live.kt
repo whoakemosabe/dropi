@@ -292,10 +292,10 @@ fun LiveWaiting(state: AppState, now: Long, fmt: Fmt) {
 
 /** A ruled settings row: name and hint on the left, the switch on the right. */
 @Composable
-fun ToggleRow(title: String, sub: String?, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+fun ToggleRow(title: String, sub: String?, checked: Boolean, enabled: Boolean = true, first: Boolean = false, onChange: (Boolean) -> Unit) {
     val view = LocalView.current
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop().padding(top = 12.dp, bottom = 4.dp),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop(!first).padding(top = 12.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
@@ -344,6 +344,7 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
                     else -> tr("Last value {0}, {1}", Glucose.format(last.mmol, state.unit), fmt.ago(last.at, now))
                 },
                 state.liveOn,
+                first = true,
             ) { on ->
                 state.changeLive(on)
                 if (on) needNotify()
@@ -351,7 +352,7 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
         }
 
         SheetSection(tr("Connect your sensor")) {
-            Step("xDrip+", tr("Settings › Inter-app settings › Broadcast locally: on. In Identify receiver, add app.dropi."))
+            Step("xDrip+", tr("Settings › Inter-app settings › Broadcast locally: on. In Identify receiver, add app.dropi."), first = true)
             Step("Juggluco", tr("Settings › xDrip+ broadcast: on, and add app.dropi as a receiver."))
             Step("Health Connect", tr("If your CGM app saves to Health Connect, switch on sync in Settings. Values arrive less often this way."))
             Chip(tr("Copy app.dropi"), icon = R.drawable.lc_share) {
@@ -366,6 +367,7 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
                 tr("Your value and arrow, kept up to date. On Android 16 it shows as a chip in the status bar."),
                 state.liveNotify,
                 enabled = state.liveOn,
+                first = true,
             ) { on ->
                 state.changeLiveNotify(on)
                 if (on) needNotify()
@@ -398,8 +400,8 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
 }
 
 @Composable
-private fun Step(name: String, text: String) {
-    Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+private fun Step(name: String, text: String, first: Boolean = false) {
+    Column(Modifier.fillMaxWidth().ruleTop(!first).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(name, style = inter(15.sp, FontWeight.SemiBold))
         Text(text, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp))
     }

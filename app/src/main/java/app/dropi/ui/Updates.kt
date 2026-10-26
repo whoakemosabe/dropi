@@ -262,7 +262,7 @@ private fun Highlight(text: String, index: Int) {
                 alpha = a.value
                 translationX = (1f - a.value) * 16.dp.toPx()
             }
-            .ruleTop()
+            .ruleTop(index > 0)
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
