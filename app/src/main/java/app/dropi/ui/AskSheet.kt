@@ -1,5 +1,9 @@
 package app.dropi.ui
 
+import androidx.compose.animation.using
+
+import androidx.compose.animation.togetherWith
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -151,6 +155,10 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             Column(Modifier.fillMaxWidth()) {
                 RuleHeader(tr("Answers"), turns.size.toString())
                 turns.forEachIndexed { ti, t ->
+                    // A new question slides in as a logbook entry rather than appearing at once.
+                    androidx.compose.runtime.key(t) {
+                    val shown = remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
+                    androidx.compose.animation.AnimatedVisibility(shown, enter = Motion.foldIn) {
                     Row(
                         Modifier.fillMaxWidth().ruleTop(ti > 0).padding(vertical = 12.dp).semantics(mergeDescendants = true) {},
                     ) {
@@ -163,12 +171,23 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                         Spacer(Modifier.width(8.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(t.q, style = heading(17.sp))
-                            val a = t.a
-                            Text(
-                                a ?: Ai.warmUp ?: tr("Thinking…"),
-                                style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
-                            )
+                            // "Thinking…" gives way to the answer with a fade, and the row grows to fit it.
+                            androidx.compose.animation.AnimatedContent(
+                                targetState = t.a,
+                                transitionSpec = {
+                                    androidx.compose.animation.fadeIn(Motion.fade(260)) togetherWith androidx.compose.animation.fadeOut(Motion.fade(120)) using
+                                        androidx.compose.animation.SizeTransform(clip = false) { _, _ -> Motion.size() }
+                                },
+                                label = "answer",
+                            ) { a ->
+                                Text(
+                                    a ?: Ai.warmUp ?: tr("Thinking…"),
+                                    style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
+                                )
+                            }
                         }
+                    }
+                    }
                     }
                 }
             }

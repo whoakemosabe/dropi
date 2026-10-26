@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -346,3 +347,35 @@ fun dropiSwitchColors() = androidx.compose.material3.SwitchDefaults.colors(
     disabledUncheckedThumbColor = C.TextMuted.copy(alpha = 0.5f),
     disabledUncheckedBorderColor = C.TextMuted.copy(alpha = 0.3f),
 )
+
+/** Shared motion: one feel for every fold, fade and slide in the app. */
+object Motion {
+    /** Opening and closing folds: settles quickly, no bounce on height. */
+    fun <T> size() = spring<T>(dampingRatio = 1f, stiffness = 500f)
+    fun fade(ms: Int = 180) = tween<Float>(ms)
+    val foldIn = androidx.compose.animation.expandVertically(size(), expandFrom = Alignment.Top) + androidx.compose.animation.fadeIn(fade(220))
+    val foldOut = androidx.compose.animation.shrinkVertically(size(), shrinkTowards = Alignment.Top) + androidx.compose.animation.fadeOut(fade(140))
+}
+
+/** A section that opens and closes in place: grows down and fades in, shrinks up and fades out. */
+@Composable
+fun Fold(visible: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    androidx.compose.animation.AnimatedVisibility(visible, modifier, enter = Motion.foldIn, exit = Motion.foldOut) { content() }
+}
+
+/** A chevron that turns to point up while its section is open. */
+@Composable
+fun FoldChevron(open: Boolean, tint: androidx.compose.ui.graphics.Color, size: Dp = 18.dp) {
+    val turn by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.8f, stiffness = 500f), label = "chevron")
+    Ic(app.dropi.R.drawable.lc_chevron_down, tint, size, modifier = Modifier.graphicsLayer { rotationZ = turn })
+}
+
+/**
+ * A list row that glides: when something above it opens, closes, appears or goes, it moves
+ * smoothly to its new place, and rows coming or going fade. (Trends, Meals.)
+ */
+fun androidx.compose.foundation.lazy.LazyListScope.glideItem(key: Any, content: @Composable androidx.compose.foundation.lazy.LazyItemScope.() -> Unit) {
+    item(key = key) {
+        Box(Modifier.animateItem(fadeInSpec = Motion.fade(240), placementSpec = Motion.size(), fadeOutSpec = Motion.fade(140))) { content() }
+    }
+}

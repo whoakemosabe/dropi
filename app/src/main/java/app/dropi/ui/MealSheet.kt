@@ -625,9 +625,9 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             ) {
                 Text(tr("More: veg first, a walk after, rich meal, say a change"), style = inter(15.sp, FontWeight.SemiBold), modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
-                Ic(R.drawable.lc_chevron_down, C.TextSecondary, 18.dp, modifier = Modifier.graphicsLayer { rotationZ = if (more) 180f else 0f })
+                FoldChevron(more, C.TextSecondary)
             }
-            if (more) {
+            Fold(more) {
                 Column(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     FieldLabel(tr("Anything else with it?"))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

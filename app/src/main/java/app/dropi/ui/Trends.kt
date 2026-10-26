@@ -139,11 +139,11 @@ fun TrendsPage(state: AppState) {
         state = listState,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
     ) {
-        item(key = "period") {
+        glideItem(key = "period") {
             PeriodTabs(periods, period) { state.trendsDays = periods[it] }
         }
         if (report.count < 3) {
-            item(key = "empty") {
+            glideItem(key = "empty") {
                 Text(
                     tr("Trends appear after a few readings in this period. Keep logging and check back."),
                     style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 21.sp),
@@ -152,23 +152,24 @@ fun TrendsPage(state: AppState) {
             }
             return@LazyColumn
         }
-        item(key = "box") { BoxScore(report, unit, Modifier.padding(top = 18.dp)) }
-        report.bands?.let { b -> item(key = "tir") { RangeBar(report, b) } }
+        glideItem(key = "box") { BoxScore(report, unit, Modifier.padding(top = 18.dp)) }
+        report.bands?.let { b -> glideItem(key = "tir") { RangeBar(report, b) } }
 
-        item(key = "days-head") {
+        glideItem(key = "days-head") {
             RuleHeader(tr("Day by day"), String.format(Locale.ROOT, "%02d → 24", fromHour), Modifier.padding(top = 8.dp))
         }
         strips.forEachIndexed { si, s ->
             val open = focus == s.first
-            item(key = "strip-${s.first}") {
+            glideItem(key = "strip-${s.first}") {
                 StripRow(
                     s, fromHour, sparkMax,
                     isToday = !today.isBefore(s.first) && !today.isAfter(s.last),
                     now = now, state = state, open = open, first = si == 0,
                 ) { focus = if (open) null else s.first }
             }
-            if (open) item(key = "chart-${s.first}") {
-                // The full chart for exactly that day (or week), right under its row.
+            if (open) glideItem(key = "chart-${s.first}") {
+                // The full chart for that day (or week), right under its row: it fades in as the
+                // rows below glide down, and out as they glide back.
                 Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
                     TimeChart(
                         state, fmt, now,
@@ -189,9 +190,9 @@ fun TrendsPage(state: AppState) {
         }
 
         if (insights.isNotEmpty()) {
-            item(key = "insights-head") { RuleHeader(tr("What stands out")) }
+            glideItem(key = "insights-head") { RuleHeader(tr("What stands out")) }
             insights.forEachIndexed { i, ins ->
-                item(key = "insight-$i") {
+                glideItem(key = "insight-$i") {
                     // A small square says good, worth a look, or just so.
                     val tint = when (ins.kind) {
                         InsightKind.GOOD -> C.InRange
@@ -234,9 +235,9 @@ fun TrendsPage(state: AppState) {
                 }
             }
         }
-        item(key = "ask") { AskEntry(state) }
-        item(key = "lab") { LabA1cCard(state, report) }
-        item(key = "links") {
+        glideItem(key = "ask") { AskEntry(state) }
+        glideItem(key = "lab") { LabA1cCard(state, report) }
+        glideItem(key = "links") {
             // More detail opens the fold below; the PDF is the doctor's report for exactly these days.
             val pdfScope = rememberCoroutineScope()
             var busy by remember { mutableStateOf(false) }
@@ -267,12 +268,12 @@ fun TrendsPage(state: AppState) {
             }
         }
         if (state.trendsMore) {
-            item(key = "numbers") { MoreNumbers(report, unit) }
-            item(key = "agp") { TypicalDay(state, report) }
-            if (report.byTag.isNotEmpty()) item(key = "tags") { ByMoment(state, report) }
-            item(key = "table") { DailyTable(report, unit) }
+            glideItem(key = "numbers") { MoreNumbers(report, unit) }
+            glideItem(key = "agp") { TypicalDay(state, report) }
+            if (report.byTag.isNotEmpty()) glideItem(key = "tags") { ByMoment(state, report) }
+            glideItem(key = "table") { DailyTable(report, unit) }
         }
-        item(key = "note") {
+        glideItem(key = "note") {
             Text(
                 tr("Based on your logged readings, not a sensor: time in range here is the share of readings. Estimated A1C (GMI) can differ from a lab A1C."),
                 style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 18.sp),
@@ -288,12 +289,18 @@ private fun PeriodTabs(periods: List<Int>, selected: Int, onSelect: (Int) -> Uni
     val view = LocalView.current
     val rule = C.Border
     val accent = C.AccentText
+    // The underline glides to the chosen period (same feel as the sliding segments elsewhere).
+    val pos by androidx.compose.animation.core.animateFloatAsState(
+        selected.toFloat(), androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 380f), label = "period",
+    )
     Row(
         Modifier
             .fillMaxWidth()
             .drawBehind {
                 val y = size.height - 0.5.dp.toPx()
                 drawLine(rule, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                val segW = size.width / periods.size
+                drawRect(accent, Offset(segW * pos, size.height - 2.dp.toPx()), Size(segW, 2.dp.toPx()))
             }
             .selectableGroup(),
     ) {
@@ -307,9 +314,6 @@ private fun PeriodTabs(periods: List<Int>, selected: Int, onSelect: (Int) -> Uni
                     .selectable(selected = on, role = Role.Tab) {
                         if (!on) Haptics.segment(view)
                         onSelect(i)
-                    }
-                    .drawBehind {
-                        if (on) drawRect(accent, Offset(0f, size.height - 2.dp.toPx()), Size(size.width, 2.dp.toPx()))
                     }
                     .semantics { contentDescription = name },
                 contentAlignment = Alignment.Center,
@@ -379,7 +383,17 @@ private fun RowScope.BoxCell(label: String, value: AnnotatedString, color: Color
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(caps(label), style = mono(12.sp, FontWeight.Medium, C.TextMuted, 0.06f).copy(lineHeight = 15.sp), maxLines = 2)
-        Text(value, style = numeral(28.sp, color), maxLines = 1, softWrap = false, modifier = Modifier.padding(top = 2.dp))
+        // Numbers roll like the Today readout when the period changes; a "%" stays put, smaller.
+        val text = value.text
+        val pct = text.endsWith("%")
+        val digits = if (pct) text.dropLast(1) else text
+        var last by remember { mutableStateOf(digits) }
+        val up = (digits.replace(',', '.').toDoubleOrNull() ?: 0.0) >= (last.replace(',', '.').toDoubleOrNull() ?: 0.0)
+        androidx.compose.runtime.SideEffect { last = digits }
+        Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.Bottom) {
+            Odometer(digits, up, numeral(28.sp, color))
+            if (pct) Text("%", style = numeral(17.sp, color), modifier = Modifier.padding(bottom = 4.dp))
+        }
     }
 }
 
@@ -571,12 +585,15 @@ private fun StripRow(
                 return sec / spanSec
             }
             fun xOf(at: Long): Float = pad + w * frac(at).coerceIn(0f, 1f)
+            // Readings outside the row's hours (before its start hour, or past midnight) are left
+            // out rather than pinned to an edge, where they used to draw a spike.
+            fun inRow(at: Long): Boolean = frac(at) in 0f..1f
             fun yOf(m: Double): Float = pad + h * (1f - ((m - SPARK_MIN) / (maxV - SPARK_MIN)).toFloat().coerceIn(0f, 1f))
             drawRect(band, Offset(0f, yOf(Glucose.TIR_HIGH)), Size(size.width, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
             // The same weekday last week, faint and dashed behind the day's own line (no dots).
             if (!s.week && s.ghost.size >= 2) {
                 val gp = Path()
-                s.ghost.forEachIndexed { i, r ->
+                s.ghost.filter { inRow(it.at) }.forEachIndexed { i, r ->
                     if (i == 0) gp.moveTo(xOf(r.at), yOf(r.mmol)) else gp.lineTo(xOf(r.at), yOf(r.mmol))
                 }
                 drawPath(
@@ -590,7 +607,8 @@ private fun StripRow(
                     ),
                 )
             }
-            val runs = if (s.week) s.readings.groupBy { it.date(zone) }.values.toList() else listOf(s.readings)
+            val shown = s.readings.filter { inRow(it.at) }
+            val runs = if (s.week) shown.groupBy { it.date(zone) }.values.toList() else listOf(shown)
             runs.forEach { rs ->
                 if (rs.size >= 2) {
                     val path = Path()
@@ -612,7 +630,7 @@ private fun StripRow(
                     drawLine(nowLine, Offset(x, 1.dp.toPx()), Offset(x, size.height - 1.dp.toPx()), strokeWidth = 1.dp.toPx())
                 }
             }
-            s.readings
+            shown
                 .map { it to Glucose.status(it.mmol, it.tag, targets) }
                 .sortedBy { if (it.second == Status.IN_RANGE) 0 else 1 }
                 .forEach { (r, st) ->
@@ -705,7 +723,7 @@ private fun DailyTable(r: Report, unit: GlucoseUnit) {
                 modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp).tap { open = !open }.padding(vertical = 15.dp),
             )
         }
-        if (open) {
+        Fold(open) { Column(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(vertical = 6.dp)) {
                 Text(tr("Day"), style = head, modifier = Modifier.weight(1.4f))
                 Text(tr("Readings"), style = head, modifier = Modifier.weight(1f))
@@ -720,6 +738,6 @@ private fun DailyTable(r: Report, unit: GlucoseUnit) {
                     Text("${Glucose.format(d.min, unit)}–${Glucose.format(d.max, unit)}", style = cell, modifier = Modifier.weight(1.2f))
                 }
             }
-        }
+        } }
     }
 }

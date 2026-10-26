@@ -1,5 +1,7 @@
 package app.dropi.ui
 
+import androidx.compose.animation.animateContentSize
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -95,8 +97,8 @@ fun MealsPage(state: AppState) {
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
     ) {
-        item(key = "draft") { MealDraftCard() }
-        item(key = "log") {
+        glideItem(key = "draft") { MealDraftCard() }
+        glideItem(key = "log") {
             // The camera first and wider, then the other four ways in, all in one row.
             Row(
                 Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min),
@@ -109,9 +111,9 @@ fun MealsPage(state: AppState) {
                 CaptureButton(tr("Type it"), R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
             }
         }
-        item(key = "patterns") { PatternNotes(state) }
+        glideItem(key = "patterns") { PatternNotes(state) }
         if (byDay.isEmpty()) {
-            item(key = "empty") {
+            glideItem(key = "empty") {
                 Text(
                     tr("No meals yet. Log one with a photo, in words or from a label. It's saved at the time you ate, and joined to the readings before and after it."),
                     style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
@@ -119,25 +121,25 @@ fun MealsPage(state: AppState) {
                 )
             }
         } else {
-            item(key = "today") {
+            glideItem(key = "today") {
                 Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     if (todays.isEmpty()) {
                         RuleHeader(tr("Today"))
                         Text(tr("Nothing logged yet today."), style = mono(12.sp, color = C.TextMuted))
                     } else {
                         RuleHeader(tr("Today"), trn(todays.size, "{0} meal", "{0} meals"))
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            todays.forEach { m -> Receipt(state, m, now, fmt) }
+                        Column(Modifier.animateContentSize(Motion.size()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            todays.forEach { m -> androidx.compose.runtime.key(m.id) { Receipt(state, m, now, fmt) } }
                         }
                     }
                 }
             }
         }
-        item(key = "totals") { TotalsLines(state, today, todays) }
-        item(key = "plate") { FoodsCard(state) }
+        glideItem(key = "totals") { TotalsLines(state, today, todays) }
+        glideItem(key = "plate") { FoodsCard(state) }
         byDay.forEach { (day, meals) ->
             if (day == today) return@forEach
-            item(key = "day-$day") {
+            glideItem(key = "day-$day") {
                 val title = if (day == today.minusDays(1)) tr("Yesterday") else dayName.format(day).cap()
                 Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     RuleHeader(title, tr("{0} g", Grams.text(meals.sumOf { it.carbs })))

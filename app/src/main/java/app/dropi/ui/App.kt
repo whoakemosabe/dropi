@@ -2,7 +2,7 @@ package app.dropi.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -95,8 +95,20 @@ fun DropiRoot(state: AppState) {
             val latest = state.readings.lastOrNull()
             AuroraGlow(Modifier.fillMaxWidth().height(560.dp), tint = if (!C.dracula && latest != null) C.status(state.status(latest)) else null)
             CompositionLocalProvider(LocalHeaderHeight provides headerDp) {
-                // The four pages, cross-fading; back on any of them returns to Today.
-                Crossfade(state.tab, animationSpec = tween(220), label = "tab") { t ->
+                // The four pages slide a little in the direction of the tab (Today → Trends moves
+                // left) while cross-fading; back on any of them returns to Today.
+                androidx.compose.animation.AnimatedContent(
+                    targetState = state.tab,
+                    transitionSpec = {
+                        val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                        val shift = { w: Int -> w / 10 }
+                        (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { shift(it) * dir } +
+                            fadeIn(tween(220, delayMillis = 40))) togetherWith
+                            (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { -shift(it) * dir } +
+                                fadeOut(tween(160)))
+                    },
+                    label = "tab",
+                ) { t ->
                     when (t) {
                         Tab.TODAY -> TodayPage(state)
                         Tab.TRENDS -> TrendsPage(state)
@@ -464,14 +476,16 @@ private fun Wing(
 /** One page in a wing: its icon over a short name, on a lit capsule when it's the page showing. */
 @Composable
 private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val tint = if (selected) C.Text else C.TextMuted
+    // The lit capsule and the label fade between tabs rather than jumping.
+    val tint by androidx.compose.animation.animateColorAsState(if (selected) C.Text else C.TextMuted, tween(200), label = "tab-tint")
+    val lit by androidx.compose.animation.core.animateFloatAsState(if (selected) 0.09f else 0f, tween(220), label = "tab-lit")
     val press = rememberPress()
     Column(
         modifier
             .fillMaxHeight()
             .pressed(press)
             .clip(RoundedCornerShape(50))
-            .background(if (selected) C.Text.copy(alpha = 0.09f) else Color.Transparent)
+            .background(C.Text.copy(alpha = lit))
             .semantics(mergeDescendants = true) { this.selected = selected; role = Role.Tab }
             .tap(press, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,

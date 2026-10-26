@@ -143,7 +143,7 @@ private class Roll(var last: Double, var up: Boolean = true)
  * changed move. Read out as the whole number, not character by character.
  */
 @Composable
-private fun Odometer(text: String, up: Boolean, style: TextStyle, modifier: Modifier = Modifier) {
+fun Odometer(text: String, up: Boolean, style: TextStyle, modifier: Modifier = Modifier) {
     Row(modifier.clearAndSetSemantics { contentDescription = text }) {
         val n = text.length
         text.forEachIndexed { i, ch ->

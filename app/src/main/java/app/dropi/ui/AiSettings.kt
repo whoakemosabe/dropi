@@ -1,5 +1,9 @@
 package app.dropi.ui
 
+import androidx.compose.animation.using
+
+import androidx.compose.animation.togetherWith
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,43 +49,65 @@ fun OnDeviceAiSection() {
     val body = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Both models on the phone: the person picks which one does the work.
-        if (Ai.canPick) {
+        Fold(Ai.canPick) { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(tr("Model in use"), style = inter(15.sp, FontWeight.SemiBold))
             SlidingSegments(listOf("Gemma", "Gemini Nano"), if (Ai.pick == Ai.Pick.NANO) 1 else 0, Modifier.fillMaxWidth()) {
                 Ai.choose(context, if (it == 1) Ai.Pick.NANO else Ai.Pick.GEMMA)
             }
+            androidx.compose.animation.Crossfade(Ai.pick to Ai.nanoPending, animationSpec = Motion.fade(200), label = "pick-note") { (pick, pending) ->
             Text(
-                if (Ai.nanoPending) tr("Gemini Nano is still downloading on your phone. Gemma does the work until it's ready.")
-                else if (Ai.pick == Ai.Pick.NANO) tr("Gemini Nano comes with your phone and uses less memory. Its answers aren't held to a fixed shape, so meal and label numbers can come back less reliably.")
+                if (pending) tr("Gemini Nano is still downloading on your phone. Gemma does the work until it's ready.")
+                else if (pick == Ai.Pick.NANO) tr("Gemini Nano comes with your phone and uses less memory. Its answers aren't held to a fixed shape, so meal and label numbers can come back less reliably.")
                 else tr("Gemma is Dropi's own download. Its meal and label answers are held to a fixed shape, so they come back more reliably."),
                 style = body,
             )
+            }
+        } }
+        // Which part shows; switching between them (downloading → ready, say) fades and resizes.
+        val part = when {
+            Ai.checking -> "checking"
+            Ai.nanoThere && g is Gemma.State.Unsupported -> "nano"
+            g is Gemma.State.Unsupported -> "unsupported"
+            g is Gemma.State.NotDownloaded || g is Gemma.State.Failed -> "get"
+            g is Gemma.State.WaitingForWifi || g is Gemma.State.Downloading -> "busy"
+            g is Gemma.State.Verifying -> "verify"
+            g is Gemma.State.Ready -> "ready"
+            else -> "checking"
         }
-        when {
-            Ai.checking -> Text(tr("Checking…"), style = body)
+        androidx.compose.animation.AnimatedContent(
+            targetState = part,
+            transitionSpec = {
+                androidx.compose.animation.fadeIn(Motion.fade(220)) togetherWith androidx.compose.animation.fadeOut(Motion.fade(120)) using
+                    androidx.compose.animation.SizeTransform(clip = false) { _, _ -> Motion.size() }
+            },
+            label = "ai-part",
+        ) { b ->
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        when (b) {
+            "checking" -> Text(tr("Checking…"), style = body)
             // Nano is there and Gemma can't run on this phone: Nano does the work.
-            Ai.nanoThere && g is Gemma.State.Unsupported -> Text(
+            "nano" -> Text(
                 tr("Gemini Nano is on this phone. Meal photos and typed questions work here, with nothing uploaded."),
                 style = body,
             )
-            g is Gemma.State.Unsupported -> Text(
-                tr("This phone doesn't have Gemini Nano, and Dropi's own model can't run here: {0}. Meal photos and typed questions are hidden. Everything else works.", g.shownWhy),
+            "unsupported" -> Text(
+                tr("This phone doesn't have Gemini Nano, and Dropi's own model can't run here: {0}. Meal photos and typed questions are hidden. Everything else works.", (g as? Gemma.State.Unsupported)?.shownWhy.orEmpty()),
                 style = body,
             )
-            g is Gemma.State.NotDownloaded || g is Gemma.State.Failed -> {
+            "get" -> {
                 Text(
                     if (Ai.nanoThere) tr("Gemini Nano is on this phone. You can also download Google's Gemma 4 model: 2.6 GB, once, on Wi-Fi. Its meal and label answers come back more reliably, and it runs on this phone too.")
                     else tr("This phone doesn't have Gemini Nano. Dropi can download Google's Gemma 4 model instead: 2.6 GB, once, on Wi-Fi. It runs on this phone, so meal photos and questions are never uploaded."),
                     style = body,
                 )
-                if (g is Gemma.State.Failed) Text(g.shown, style = inter(13.sp, color = C.Low))
+                (g as? Gemma.State.Failed)?.let { f -> Text(f.shown, style = inter(13.sp, color = C.Low)) }
                 SettingsRows {
                     SettingsActionRow(if (g is Gemma.State.Failed) tr("Try again") else tr("Download (2.6 GB)"), labelColor = C.AccentText, first = true) {
                         scope.launch { Gemma.download(context) }
                     }
                 }
             }
-            g is Gemma.State.WaitingForWifi || g is Gemma.State.Downloading -> {
+            "busy" -> {
                 val done = (g as? Gemma.State.Downloading)?.done ?: 0L
                 Text(
                     if (g is Gemma.State.WaitingForWifi) tr("Waiting for Wi-Fi. The download carries on when you're connected.")
@@ -93,8 +119,8 @@ fun OnDeviceAiSection() {
                     SettingsActionRow(tr("Cancel"), first = true) { scope.launch { Gemma.remove(context) } }
                 }
             }
-            g is Gemma.State.Verifying -> Text(tr("Almost ready: setting up on-device AI on your phone (about half a minute)…"), style = body)
-            g is Gemma.State.Ready -> {
+            "verify" -> Text(tr("Almost ready: setting up on-device AI on your phone (about half a minute)…"), style = body)
+            "ready" -> {
                 Text(
                     if (Ai.nano) tr("Gemma is downloaded but not in use. It uses 2.6 GB of storage.")
                     else tr("Gemma is ready. Meal photos and typed questions work on this phone, with nothing uploaded. It uses 2.6 GB of storage."),
@@ -117,6 +143,8 @@ fun OnDeviceAiSection() {
                     }
                 }
             }
+        }
+        }
         }
     }
 }

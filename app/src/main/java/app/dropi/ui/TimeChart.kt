@@ -1,6 +1,9 @@
 package app.dropi.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.using
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -38,6 +41,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.positionChange
@@ -66,9 +70,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 private const val HOUR = 3_600_000L
 private const val DAY = 24 * HOUR
+
+/** How much of the evening before a day's chart shows, so you see how you came into the day. */
+private const val LEAD = 3 * HOUR
+
+/** Space inside the plot's left and right edges, so a dot at the very start or end shows whole. */
+private val EDGE = 6.dp
 
 /**
  * Every reading on a real time scale that zooms: a day, 3 days, a week or a month by button, or
@@ -87,15 +98,21 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
     val readings = state.readings
     val sensor = state.sensor
     val presets = listOf(DAY, 3 * DAY, 7 * DAY, 30 * DAY)
-    val earliest = (readings.firstOrNull()?.at ?: now - DAY).coerceAtMost(now - DAY)
+    // Opened on a day (or week) from Trends: that stretch plus the evening before it.
+    val window = if (windowStart != null && windowEnd != null && windowEnd > windowStart) windowStart to windowEnd else null
+    val earliest = minOf(
+        (readings.firstOrNull()?.at ?: now - DAY).coerceAtMost(now - DAY),
+        window?.let { it.first - LEAD } ?: Long.MAX_VALUE,
+    )
+    // The right edge can reach the end of the opened day, so today shows as a whole day, not "now".
+    val latest = maxOf(now + HOUR, window?.second ?: 0L)
     // The view: its right edge and how much time it shows, kept inside the data like clamp() does.
     val initial = remember(windowStart, windowEnd) {
-        if (windowStart == null || windowEnd == null || windowEnd <= windowStart) (now + HOUR) to DAY
+        if (window == null) (now + HOUR) to DAY
         else {
-            val latest = now + HOUR
-            val sp = (windowEnd - windowStart).coerceIn(6 * HOUR, maxOf(6 * HOUR, latest - earliest))
+            val sp = (window.second - window.first + LEAD).coerceIn(6 * HOUR, maxOf(6 * HOUR, latest - earliest))
             val lo = earliest + sp
-            (if (lo >= latest) latest else windowEnd.coerceIn(lo, latest)) to sp
+            (if (lo >= latest) latest else window.second.coerceIn(lo, latest)) to sp
         }
     }
     var end by remember(initial) { mutableLongStateOf(initial.first) }
@@ -109,11 +126,16 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
     // The chart's width, so the key knows whether days are drawn as bars (same rule as the chart).
     var boxW by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val density = androidx.compose.ui.platform.LocalDensity.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var glide by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    // Overlays fade in and out rather than pop.
+    val targetsA by androidx.compose.animation.core.animateFloatAsState(if (showTargets) 1f else 0f, Motion.fade(200), label = "targets")
+    val mealsA by androidx.compose.animation.core.animateFloatAsState(if (showMeals) 1f else 0f, Motion.fade(200), label = "meals")
+    val sensorA by androidx.compose.animation.core.animateFloatAsState(if (showSensor) 1f else 0f, Motion.fade(200), label = "sensor")
 
     // Keeps the view inside the data: never wider than all of it, never past now or before the
     // first reading. Written so the limits can't cross (zooming out past the data once crashed).
     fun clamp() {
-        val latest = now + HOUR
         val maxSpan = maxOf(6 * HOUR, latest - earliest)
         span = span.coerceIn(6 * HOUR, maxSpan)
         val lo = earliest + span
@@ -147,10 +169,20 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
         }
         val chosen = presets.withIndex().minByOrNull { (_, p) -> abs(kotlin.math.ln(p.toDouble() / span)) }?.index ?: 0
         SlidingSegments(listOf(tr("Day"), tr("3 days"), tr("Week"), tr("Month")), chosen, Modifier.fillMaxWidth()) {
-            span = presets[it]
-            end = now + HOUR
-            clamp()
+            // Glide to the new zoom rather than jump: the span eases on a log scale, so a month
+            // to a day feels as even as a day to 3 days.
+            val fromEnd = end; val fromSpan = span
+            val toSpan = presets[it].coerceIn(6 * HOUR, maxOf(6 * HOUR, latest - earliest))
+            val toEnd = latest.coerceAtMost(now + HOUR).coerceAtLeast(earliest + toSpan)
             selectedId = null
+            glide?.cancel()
+            glide = scope.launch {
+                androidx.compose.animation.core.animate(0f, 1f, animationSpec = androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { f, _ ->
+                    span = kotlin.math.exp(kotlin.math.ln(fromSpan.toDouble()) + (kotlin.math.ln(toSpan.toDouble()) - kotlin.math.ln(fromSpan.toDouble())) * f).toLong()
+                    end = fromEnd + ((toEnd - fromEnd) * f).toLong()
+                    clamp()
+                }
+            }
         }
 
         val axisW = 30.dp
@@ -185,6 +217,7 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     .pointerInput(earliest, now) {
                         awaitEachGesture {
                             awaitFirstDown(requireUnconsumed = false)
+                            glide?.cancel()
                             var total = Offset.Zero
                             var sideways: Boolean? = null
                             while (true) {
@@ -220,9 +253,10 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     .pointerInput(visible, start, end) {
                         detectTapGestures { p ->
                             val left = axisW.toPx()
+                            val inset = EDGE.toPx()
                             val plotW = size.width - left
                             val h = plotH.toPx()
-                            fun xOf(t: Long) = left + plotW * ((t - start).toFloat() / span)
+                            fun xOf(t: Long) = left + inset + (plotW - 2 * inset) * ((t - start).toFloat() / span)
                             fun yOf(m: Double) = h * (1f - ((m - minV) / (maxV - minV)).toFloat().coerceIn(0f, 1f))
                             val near = visible.minByOrNull { abs(xOf(it.at) - p.x) + abs(yOf(it.mmol) - p.y) * 0.5f }
                             selectedId = near?.takeIf { abs(xOf(it.at) - p.x) < 28.dp.toPx() }?.id
@@ -230,23 +264,27 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     },
             ) {
                 val left = axisW.toPx()
+                // Dots at the very start or end sit inside the plot, not half over its edge.
+                val inset = EDGE.toPx()
                 val plotW = size.width - left
                 val h = plotH.toPx()
-                fun xOf(t: Long) = left + plotW * ((t - start).toFloat() / span)
+                fun xOf(t: Long) = left + inset + (plotW - 2 * inset) * ((t - start).toFloat() / span)
                 fun yOf(m: Double) = h * (1f - ((m - minV) / (maxV - minV)).toFloat().coerceIn(0f, 1f))
-                val perDayPx = plotW * DAY / span
+                val perDayPx = (plotW - 2 * inset) * DAY / span
                 val asBars = perDayPx < 40.dp.toPx()
+                var barsToDraw: Map<java.time.LocalDate, List<Reading>> = emptyMap()
+                val sensorHere = showSensor && sensorIn(sensor, start, end).isNotEmpty()
 
                 // Target band (3.9–10.0) and its edges; personal before-meal band and after-meal limit.
                 drawRect(band, Offset(left, yOf(Glucose.TIR_HIGH)), Size(plotW, yOf(Glucose.LOW) - yOf(Glucose.TIR_HIGH)))
                 listOf(Glucose.LOW, Glucose.TIR_HIGH).forEach { g ->
                     drawLine(grid, Offset(left, yOf(g)), Offset(size.width, yOf(g)), strokeWidth = 1.dp.toPx())
                 }
-                if (showTargets) {
+                if (targetsA > 0f) {
                     val t = state.targets
-                    drawRect(beforeBand, Offset(left, yOf(t.beforeHigh)), Size(plotW, yOf(t.beforeLow) - yOf(t.beforeHigh)))
+                    drawRect(beforeBand.copy(alpha = beforeBand.alpha * targetsA), Offset(left, yOf(t.beforeHigh)), Size(plotW, yOf(t.beforeLow) - yOf(t.beforeHigh)))
                     drawLine(
-                        meal.copy(alpha = 0.6f), Offset(left, yOf(t.afterHigh)), Offset(size.width, yOf(t.afterHigh)),
+                        meal.copy(alpha = 0.6f * targetsA), Offset(left, yOf(t.afterHigh)), Offset(size.width, yOf(t.afterHigh)),
                         strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
                     )
                 }
@@ -284,9 +322,13 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     tick += step
                 }
 
+                // Lines, bars and meal marks stay inside the plot: nothing runs over the value labels
+                // on the left or off the right edge. (Dots are drawn after, inset so they never clip.)
+                clipRect(left, 0f, size.width, h) {
                 // The sensor trace behind the dots.
-                if (showSensor && !asBars) {
-                    val pts = sensorIn(sensor, start, end)
+                if (sensorA > 0f && !asBars) {
+                    // A few minutes either side, so the trace runs in from the edges.
+                    val pts = sensorIn(sensor, start - 15 * 60_000L, end + 15 * 60_000L)
                     if (pts.size >= 2) {
                         val path = Path()
                         var prev = Long.MIN_VALUE
@@ -300,19 +342,63 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                             else if (x - lastX >= minStep) { path.lineTo(x, y); lastX = x }
                             prev = p.at
                         }
-                        drawPath(path, trace.copy(alpha = 0.7f), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        drawPath(path, trace.copy(alpha = 0.7f * sensorA), style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                     }
                 }
 
                 if (asBars) {
                     // One bar a day: lowest to highest, a dot at the average.
-                    val days = readings.filter { it.at in start - DAY..end }.groupBy { it.date(zone) }
+                    // The days in view plus one each side, so the average line runs in from the edges.
+                    val days = readings.filter { it.at in start - DAY..end + DAY }.groupBy { it.date(zone) }
                     val w = (perDayPx * 0.45f).coerceIn(3.dp.toPx(), 10.dp.toPx())
                     // The daily averages joined by a smooth line, under the bars.
                     val avgs = days.entries.sortedBy { it.key }.map { (day, rs) ->
                         Offset(xOf(day.atStartOfDay(zone).toInstant().toEpochMilli() + DAY / 2), yOf(rs.map { it.mmol }.average()))
                     }
                     drawPath(smoothPath(avgs), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    // (Bars are drawn after the clip, below.)
+                    barsToDraw = days
+                } else {
+                    if (mealsA > 0f) {
+                        meals.forEach { (r, out) ->
+                            if (r.at !in start..end) return@forEach
+                            val x = xOf(r.at)
+                            drawRoundRect(meal.copy(alpha = mealsA), Offset(x - 5.dp.toPx(), h - 12.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), cornerRadius = CornerRadius(3.dp.toPx()))
+                            out?.let { o ->
+                                drawLine(
+                                    meal.copy(alpha = 0.55f * mealsA), Offset(xOf(r.at), yOf(o.start)), Offset(xOf(o.peakAt), yOf(o.peak)),
+                                    strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())),
+                                )
+                            }
+                        }
+                    }
+                    // The readings joined by a smooth line (not through a long overnight gap): the
+                    // ones in view plus the one just before and just after, so the line comes in
+                    // from the edge showing where you were. Left out where the sensor draws the line.
+                    if (!sensorHere) {
+                        val firstIn = readings.indexOfFirst { it.at >= start }.let { if (it < 0) readings.size else it }
+                        val lastIn = readings.indexOfLast { it.at <= end }
+                        val from = (firstIn - 1).coerceAtLeast(0)
+                        val to = (lastIn + 2).coerceAtMost(readings.size)
+                        val pts = if (to > from) readings.subList(from, to) else emptyList()
+                        var run = ArrayList<Offset>()
+                        var prev = Long.MIN_VALUE
+                        for (rd in pts) {
+                            if (rd.at - prev > 10 * HOUR && run.isNotEmpty()) {
+                                drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                                run = ArrayList()
+                            }
+                            run += Offset(xOf(rd.at), yOf(rd.mmol))
+                            prev = rd.at
+                        }
+                        if (run.size >= 2) drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
+                }
+                }
+
+                if (asBars) {
+                    val days = barsToDraw
+                    val w = (perDayPx * 0.45f).coerceIn(3.dp.toPx(), 10.dp.toPx())
                     days.forEach { (day, rs) ->
                         val mid = day.atStartOfDay(zone).toInstant().toEpochMilli() + DAY / 2
                         if (mid !in start..end) return@forEach
@@ -326,43 +412,11 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                         drawCircle(C.status(Glucose.status(avg, MealTag.OTHER, state.targets)), w / 2 + 0.5f, Offset(x, yOf(avg)))
                     }
                 } else {
-                    // Meals: a small plate mark on the bottom edge at the time eaten, and a dashed line
-                    // from there (at the starting value) up to the peak after.
-                    if (showMeals) {
-                        meals.forEach { (r, out) ->
-                            if (r.at !in start..end) return@forEach
-                            val x = xOf(r.at)
-                            drawRoundRect(meal, Offset(x - 5.dp.toPx(), h - 12.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), cornerRadius = CornerRadius(3.dp.toPx()))
-                            out?.let { o ->
-                                drawLine(
-                                    meal.copy(alpha = 0.55f), Offset(xOf(r.at), yOf(o.start)), Offset(xOf(o.peakAt), yOf(o.peak)),
-                                    strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())),
-                                )
-                            }
-                        }
-                    }
                     // Smaller dots as more days share the width, so a week doesn't clump.
                     val rad = when {
                         perDayPx > 160.dp.toPx() -> 5.dp.toPx()
                         perDayPx > 80.dp.toPx() -> 4.dp.toPx()
                         else -> 3.dp.toPx()
-                    }
-                    // The readings joined by a smooth line (not through a long overnight gap). Left
-                    // out where the sensor trace already draws the line.
-                    val sensorHere = showSensor && sensorIn(sensor, start, end).isNotEmpty()
-                    if (!sensorHere) {
-                        val pts = readings.filter { it.at in start - 12 * HOUR..end + 12 * HOUR }.sortedBy { it.at }
-                        var run = ArrayList<Offset>()
-                        var prev = Long.MIN_VALUE
-                        for (rd in pts) {
-                            if (rd.at - prev > 10 * HOUR && run.isNotEmpty()) {
-                                drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                                run = ArrayList()
-                            }
-                            run += Offset(xOf(rd.at), yOf(rd.mmol))
-                            prev = rd.at
-                        }
-                        if (run.size >= 2) drawPath(smoothPath(run), joinLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                     }
                     visible.forEach { rd ->
                         val c = Offset(xOf(rd.at), yOf(rd.mmol))
@@ -371,6 +425,22 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     }
                     selected?.takeIf { it.at in start..end }?.let { s ->
                         drawCircle(textCol, rad + 6.dp.toPx(), Offset(xOf(s.at), yOf(s.mmol)), style = Stroke(2.dp.toPx()))
+                    }
+                }
+
+                // The evening before (and anything after) the opened day: softly shaded over the
+                // line and dots there, with a firm line at midnight, so the day itself reads at a glance.
+                window?.let { (a, b) ->
+                    val shade = ring.copy(alpha = 0.55f)
+                    if (a > start) {
+                        val x = xOf(a).coerceIn(left, size.width)
+                        drawRect(shade, Offset(left, 0f), Size(x - left, h))
+                        drawLine(textCol.copy(alpha = 0.6f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
+                    }
+                    if (b < end) {
+                        val x = xOf(b).coerceIn(left, size.width)
+                        drawRect(shade, Offset(x, 0f), Size(size.width - x, h))
+                        drawLine(textCol.copy(alpha = 0.6f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.dp.toPx())
                     }
                 }
 
@@ -396,7 +466,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
             Modifier
                 .fillMaxWidth()
                 .ruleTop()
-                .padding(top = 12.dp),
+                .padding(top = 12.dp)
+                // Rows come and go with the overlays and the zoom: the key grows and shrinks smoothly.
+                .animateContentSize(Motion.size()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             KeyRow(KeyMark.BAND, C.InRange, tr("Shaded: in range, {0}", "${Glucose.format(Glucose.LOW, unit)}–${Glucose.format(Glucose.TIR_HIGH, unit)}"))
@@ -417,28 +489,41 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                 KeyRow(KeyMark.SLOPE_DASH, C.AccentText, tr("Sloped dashes: from the meal up to its peak"))
             }
             if (showSensor && inView && !zoomedOut) KeyRow(KeyMark.LINE, C.Aurora[1], tr("Coloured line: sensor values"))
+            if (window != null && (window.first > start || window.second < end)) {
+                KeyRow(KeyMark.SHADE, C.TextSecondary, tr("Shaded: before or after the day you opened, so you see how you came into it"))
+            }
         }
 
-        val s = selected
-        if (s != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(10.dp).clip(CircleShape).background(C.status(state.status(s))))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("${Glucose.format(s.mmol, unit)} ${unit.label} · ${s.tag.label}", style = inter(15.sp, FontWeight.SemiBold))
-                    Text(
-                        listOf(fmt.dayTime(s.at), state.linkText(s).orEmpty(), s.detailsText()).filter { it.isNotBlank() }.joinToString(" · "),
-                        style = inter(13.sp, color = C.TextSecondary),
-                    )
+        // The tapped reading's details slide in under the chart; the hint comes back when it's let go.
+        androidx.compose.animation.AnimatedContent(
+            targetState = selected,
+            contentKey = { it?.id },
+            transitionSpec = {
+                (androidx.compose.animation.fadeIn(Motion.fade(200)) + androidx.compose.animation.slideInVertically(Motion.size()) { it / 3 }) togetherWith
+                    androidx.compose.animation.fadeOut(Motion.fade(120)) using androidx.compose.animation.SizeTransform(clip = false)
+            },
+            label = "chart-detail",
+        ) { s ->
+            if (s != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).clip(CircleShape).background(C.status(state.status(s))))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("${Glucose.format(s.mmol, unit)} ${unit.label} · ${s.tag.label}", style = inter(15.sp, FontWeight.SemiBold))
+                        Text(
+                            listOf(fmt.dayTime(s.at), state.linkText(s).orEmpty(), s.detailsText()).filter { it.isNotBlank() }.joinToString(" · "),
+                            style = inter(13.sp, color = C.TextSecondary),
+                        )
+                    }
+                    Chip(tr("Edit"), icon = R.drawable.lc_pencil) { state.editing = s }
                 }
-                Chip(tr("Edit"), icon = R.drawable.lc_pencil) { state.editing = s }
+            } else {
+                Text(
+                    tr("Pinch to zoom, drag sideways to go back in time, tap a dot for details.") +
+                        if (span > 10 * DAY) " " + tr("Zoomed out, each day is a bar from its lowest to highest reading.") else "",
+                    style = inter(13.sp, FontWeight.Medium, C.TextMuted).copy(lineHeight = 17.sp),
+                )
             }
-        } else {
-            Text(
-                tr("Pinch to zoom, drag sideways to go back in time, tap a dot for details.") +
-                    if (span > 10 * DAY) " " + tr("Zoomed out, each day is a bar from its lowest to highest reading.") else "",
-                style = inter(13.sp, FontWeight.Medium, C.TextMuted).copy(lineHeight = 17.sp),
-            )
         }
     }
 }
@@ -557,7 +642,7 @@ private fun Legend(color: androidx.compose.ui.graphics.Color, text: String, line
     }
 }
 
-private enum class KeyMark { BAND, DOT, BAR, SQUARE, LINE, FLAT_DASH, SLOPE_DASH }
+private enum class KeyMark { BAND, DOT, BAR, SQUARE, LINE, FLAT_DASH, SLOPE_DASH, SHADE }
 
 /** One line of the chart's key: a small drawn sample, then what it means. */
 @Composable
@@ -578,6 +663,10 @@ private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, tex
                 KeyMark.LINE -> drawLine(color, Offset(0f, h * 0.7f), Offset(w, h * 0.3f), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
                 KeyMark.FLAT_DASH -> drawLine(color, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
                 KeyMark.SLOPE_DASH -> drawLine(color, Offset(0f, h * 0.9f), Offset(w, h * 0.1f), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+                KeyMark.SHADE -> {
+                    drawRect(color.copy(alpha = 0.18f), Offset(0f, 0f), Size(w * 0.55f, h))
+                    drawLine(color, Offset(w * 0.55f, 0f), Offset(w * 0.55f, h), strokeWidth = 1.dp.toPx())
+                }
             }
         }
         Spacer(Modifier.width(12.dp))
