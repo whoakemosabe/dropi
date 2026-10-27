@@ -188,6 +188,13 @@ object Ai {
         return read(Gemma.textJson(context, prompt, null, maxOut = 250))
     }
 
+    /** Ask Dropi's look-up pick: a small JSON reply (see [app.dropi.data.AskTools]). */
+    suspend fun plan(context: Context, prompt: String): String? = when {
+        nano -> Nano.text(prompt)
+        Gemma.state == Gemma.State.Ready -> Gemma.textJson(context, prompt, app.dropi.data.AskTools.PLAN_SCHEMA, maxOut = 120)
+        else -> null
+    }
+
     suspend fun ask(context: Context, prompt: String): String? = when {
         nano -> Nano.ask(prompt)
         Gemma.state == Gemma.State.Ready -> Gemma.ask(context, prompt)

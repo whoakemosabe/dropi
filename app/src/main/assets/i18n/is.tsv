@@ -1218,3 +1218,15 @@ After a short night (under 6 h), your waking number is {1} higher ({0} morning).
 After a short night (under 6 h), your waking number is {1} higher ({0} mornings).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} hærri ({0} morgnar).
 After a short night (under 6 h), your waking number is {1} lower ({0} morning).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} lægri ({0} morgunn).
 After a short night (under 6 h), your waking number is {1} lower ({0} mornings).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} lægri ({0} morgnar).
+{0} day, ending {1} days ago	{0} dagur, sem endaði fyrir {1} dögum
+{0} days, ending {1} days ago	{0} dagar, sem enduðu fyrir {1} dögum
+the last {0} day	síðasta {0} dag
+the last {0} days	síðustu {0} daga
+readings, {0}	mælingar, {0}
+meals, {0}	máltíðir, {0}
+meals with {0}	máltíðir með {0}
+the last {0} day against the one before	síðasta {0} dag borinn saman við daginn á undan
+the last {0} days against the {0} before	síðustu {0} daga borna saman við {0} dagana á undan
+time of day, {0}	tími dags, {0}
+a summary, {0}	yfirlit, {0}
+Looked up: {0}	Flett upp: {0}

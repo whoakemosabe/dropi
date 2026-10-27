@@ -77,6 +77,8 @@ fun AskSheet(state: AppState) {
 
 private class Turn(val q: String, a: String?) {
     var a by mutableStateOf(a)
+    /** What Dropi looked up in the log for this answer, shown under it; null for the summary. */
+    var looked by mutableStateOf<String?>(null)
     /** When it was asked, for the logbook margin. */
     val at: Long = System.currentTimeMillis()
 }
@@ -115,7 +117,15 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         text = ""
         busy = true
         scope.launch {
-            val facts = withContext(Dispatchers.Default) { Ask.facts(state.askCtx()) }
+            // First the model picks what to look up; Dropi runs that on the log and the model answers
+            // from exactly what came back. If the pick can't be read, the usual summary.
+            val ctx = state.askCtx()
+            val plan = try {
+                app.dropi.data.AskTools.parsePlan(Ai.plan(context, app.dropi.data.AskTools.planPrompt(q, ctx.today, ctx.unit)))
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+            val looked = plan?.let { p -> withContext(Dispatchers.Default) { try { app.dropi.data.AskTools.run(p, ctx) } catch (e: Exception) { null } } }
+            val facts = looked ?: withContext(Dispatchers.Default) { Ask.facts(ctx) }
+            if (looked != null) turn.looked = plan.shown
             val reply = Ai.ask(context, Ask.prompt(q, facts))
             turn.a = when {
                 reply == null -> tr("Couldn't answer that just now. Try one of the questions above.")
@@ -183,6 +193,10 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                                     a ?: Ai.warmUp ?: tr("Thinking…"),
                                     style = inter(15.sp, color = if (a == null) C.TextMuted else C.Text).copy(lineHeight = 22.sp),
                                 )
+                            }
+                            // What it looked up, so the answer can be checked against the log.
+                            t.looked?.let { l ->
+                                if (t.a != null) Text(caps(tr("Looked up: {0}", l)), style = mono(12.sp, color = C.TextMuted, tracking = 0.04f))
                             }
                         }
                     }
