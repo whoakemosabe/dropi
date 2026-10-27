@@ -97,6 +97,23 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var healthSync by mutableStateOf(prefs.healthSync)
         private set
 
+    /** The try-it week running (or finished, until put away), see [app.dropi.data.Experiment]. */
+    var experiment by mutableStateOf(
+        app.dropi.data.Experiment.Kind.of(prefs.experiment)?.let { app.dropi.data.Experiment.Running(it, prefs.experimentStart) }
+    )
+        private set
+
+    fun startExperiment(kind: app.dropi.data.Experiment.Kind) {
+        val now = System.currentTimeMillis()
+        prefs.experiment = kind.key; prefs.experimentStart = now
+        experiment = app.dropi.data.Experiment.Running(kind, now)
+    }
+
+    fun endExperiment() {
+        prefs.experiment = ""; prefs.experimentStart = 0L
+        experiment = null
+    }
+
     /** Steps and sleep from Health Connect (read only), for learnt patterns; empty while off. */
     var activityOn by mutableStateOf(prefs.activityOn)
         private set

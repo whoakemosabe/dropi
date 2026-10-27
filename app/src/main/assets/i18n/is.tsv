@@ -1168,3 +1168,30 @@ waking {0} lower	við vöknun {0} lægra
 Walks and sleep	Göngur og svefn
 Turn on Steps and sleep in Settings › Health Connect to learn what they do for you.	Kveiktu á Skref og svefn í Stillingar › Health Connect til að læra hvað þau gera fyrir þig.
 A walk after eating usually takes about {0} off your rise.	Ganga eftir mat tekur venjulega um {0} af hækkuninni.
+adjusted for your lab result	leiðrétt með niðurstöðu úr blóðprufu
+At the time, your lab result was {0} points above the estimate from your readings, so Dropi adds that: your estimate now reads {1}.	Á þeim tíma var niðurstaðan úr blóðprufunni {0} stigum yfir áætluninni út frá mælingunum, svo Dropi bætir því við: áætlunin er nú {1}.
+At the time, your lab result was {0} points below the estimate from your readings, so Dropi takes that off: your estimate now reads {1}.	Á þeim tíma var niðurstaðan úr blóðprufunni {0} stigum undir áætluninni út frá mælingunum, svo Dropi dregur það frá: áætlunin er nú {1}.
+A 10-minute walk after eating	10 mínútna ganga eftir mat
+Veg first at lunch and dinner	Grænmeti fyrst í hádeginu og á kvöldin
+No sugary drinks with meals	Engir sykraðir drykkir með mat
+Dinner before 19:00	Kvöldmatur fyrir kl. 19
+Walk for about 10 minutes soon after a meal, and tick "Walked after" on the meal (or turn on steps in Settings).	Gakktu í um 10 mínútur fljótlega eftir máltíð og hakaðu við „Gekk eftir“ á máltíðinni (eða kveiktu á skrefum í Stillingum).
+Start lunch and dinner with the vegetables, and tick "Veg first" on the meal.	Byrjaðu hádegis- og kvöldmat á grænmetinu og hakaðu við „Grænmeti fyrst“ á máltíðinni.
+Water, or a zero or diet drink, with your meals instead of juice or soda.	Vatn, eða sykurlaus drykkur, með máltíðum í stað safa eða gosdrykkja.
+Eat dinner before 19:00, and log it as usual.	Borðaðu kvöldmat fyrir kl. 19 og skráðu hann eins og venjulega.
+Try something for {0} days	Prófaðu eitthvað í {0} daga
+Pick one change. Afterwards Dropi compares those meals with your usual ones from the four weeks before, from your own readings.	Veldu eina breytingu. Á eftir ber Dropi þær máltíðir saman við venjulegar máltíðir síðustu fjögurra vikna á undan, út frá þínum mælingum.
+Choose one	Veldu eina
+Start	Byrja
+Trying: {0}	Í prófun: {0}
+Day {0} of {1}	Dagur {0} af {1}
+{0} meal with it so far, with a reading before and after.	{0} máltíð hingað til, með mælingu fyrir og eftir.
+{0} meals with it so far, with a reading before and after.	{0} máltíðir hingað til, með mælingu fyrir og eftir.
+Stop	Hætta
+How it went: {0}	Hvernig gekk: {0}
+Not enough meals to tell: {0} with it and {1} as usual. Each side needs {2} with a reading before and 1–3 h after.	Ekki nógu margar máltíðir til að segja til um það: {0} með breytingunni og {1} eins og venjulega. Hvor hlið þarf {2} með mælingu fyrir og 1–3 klst. eftir.
+Your rise was {0} smaller with it ({1} meals) than usual ({2} meals).	Hækkunin var {0} minni með breytingunni ({1} máltíðir) en venjulega ({2} máltíðir).
+Your rise was {0} bigger with it ({1} meals) than usual ({2} meals).	Hækkunin var {0} meiri með breytingunni ({1} máltíðir) en venjulega ({2} máltíðir).
+No clear difference: {0} apart, under the {1} that would count ({2} meals with it, {3} as usual).	Enginn skýr munur: {0} munur, undir þeim {1} sem myndu teljast ({2} máltíðir með breytingunni, {3} eins og venjulega).
+A few days of your own meals: a hint, not proof, and not advice.	Nokkrir dagar af þínum máltíðum: vísbending, ekki sönnun og ekki ráðgjöf.
+Try another	Prófa annað

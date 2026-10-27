@@ -101,6 +101,17 @@ fun LabA1cCard(state: AppState, report: Report) {
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
             }
+            // The gap at the time of the lab result, and the estimate it corrects.
+            val gap = remember(list, state.readings) { app.dropi.data.A1cCalibration.gap(list, state.readings, state.zone, java.time.LocalDate.now(state.zone)) }
+            val adjusted = app.dropi.data.A1cCalibration.adjusted(g, gap)
+            if (gap != null && adjusted != null && kotlin.math.abs(gap.points) >= 0.1) {
+                Text(
+                    if (gap.points > 0) tr("At the time, your lab result was {0} points above the estimate from your readings, so Dropi adds that: your estimate now reads {1}.", points(gap.points), pct(adjusted))
+                    else tr("At the time, your lab result was {0} points below the estimate from your readings, so Dropi takes that off: your estimate now reads {1}.", points(-gap.points), pct(adjusted)),
+                    style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
             // Earlier results, newest first, one ruled line each; a small × removes one.
             list.reversed().drop(1).take(5).forEachIndexed { ri, r ->
                 Row(Modifier.fillMaxWidth().ruleTop(ri > 0), verticalAlignment = Alignment.CenterVertically) {

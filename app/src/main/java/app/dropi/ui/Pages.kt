@@ -113,6 +113,7 @@ fun MealsPage(state: AppState) {
         }
         glideItem(key = "patterns") { PatternNotes(state) }
         glideItem(key = "learnt") { LearntCard(state) }
+        glideItem(key = "try") { ExperimentCard(state) }
         if (byDay.isEmpty()) {
             glideItem(key = "empty") {
                 Text(

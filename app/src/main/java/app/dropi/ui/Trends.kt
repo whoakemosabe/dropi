@@ -152,7 +152,11 @@ fun TrendsPage(state: AppState) {
             }
             return@LazyColumn
         }
-        glideItem(key = "box") { BoxScore(report, unit, Modifier.padding(top = 18.dp)) }
+        glideItem(key = "box") {
+            // The estimate corrected by the latest lab result, when there is one to go by.
+            val gap = remember(state.labA1c, state.readings) { app.dropi.data.A1cCalibration.gap(state.labA1c, state.readings, state.zone, today) }
+            BoxScore(report, unit, Modifier.padding(top = 18.dp), app.dropi.data.A1cCalibration.adjusted(report.gmiPercent, gap))
+        }
         report.bands?.let { b -> glideItem(key = "tir") { RangeBar(report, b) } }
 
         glideItem(key = "days-head") {
@@ -344,8 +348,8 @@ private fun oneDecimal(v: Double) = String.format(Locale.ROOT, "%.1f", v).replac
 
 /** The period in four numbers, divided by hairlines: average, in range, lows, estimated A1C. */
 @Composable
-private fun BoxScore(r: Report, unit: GlucoseUnit, modifier: Modifier) {
-    val gmi = r.gmiPercent
+private fun BoxScore(r: Report, unit: GlucoseUnit, modifier: Modifier, adjusted: Double? = null) {
+    val gmi = adjusted ?: r.gmiPercent
     val inRange = r.bands?.inRange?.roundToInt()
     val mean = r.mean
     Row(modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
@@ -367,7 +371,8 @@ private fun BoxScore(r: Report, unit: GlucoseUnit, modifier: Modifier) {
             tr("A1C est."),
             gmi?.let { percentText(oneDecimal(it)) } ?: AnnotatedString("—"),
             if (gmi != null) C.Text else C.TextMuted,
-            tr("Estimated A1C") + " " + (gmi?.let { oneDecimal(it) + "%" } ?: tr("after a week")),
+            tr("Estimated A1C") + " " + (gmi?.let { oneDecimal(it) + "%" } ?: tr("after a week")) +
+                if (adjusted != null) ", " + tr("adjusted for your lab result") else "",
         )
     }
 }

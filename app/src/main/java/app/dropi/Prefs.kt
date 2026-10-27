@@ -79,6 +79,14 @@ class Prefs(context: Context) {
         get() = p.getInt("after_meal_minutes", 120)
         set(v) = p.edit { putInt("after_meal_minutes", v) }
 
+    /** A try-it week: what's being tried ("walk", "veg_first"…) and since when; empty when none. */
+    var experiment: String
+        get() = p.getString("experiment", "") ?: ""
+        set(v) = p.edit { putString("experiment", v) }
+    var experimentStart: Long
+        get() = p.getLong("experiment_start", 0L)
+        set(v) = p.edit { putLong("experiment_start", v) }
+
     /** Read steps and sleep from Health Connect for learnt patterns. */
     var activityOn: Boolean
         get() = p.getBoolean("activity_on", false)
