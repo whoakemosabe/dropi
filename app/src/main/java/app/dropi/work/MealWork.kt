@@ -114,6 +114,22 @@ object MealWork {
         p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, app.dropi.data.Grams.round(item.carbs * per), s(item.sugars), s(item.protein), s(item.fat)))
     }
 
+    /**
+     * The person changed the carbs of a food the AI guessed (photo or words): remember by how much,
+     * per portion, so the next guess for that food comes closer. Ignored for their usual amounts,
+     * labels and barcodes (those are real numbers), and for wild ratios (a different food typed).
+     */
+    fun correct(context: Context, meal: Meal, old: MealItem, new: MealItem) {
+        if (meal.source != "photo" && meal.source != "words") return
+        if (old.usual || old.carbs <= 0.5 || new.carbs == old.carbs) return
+        if (app.dropi.data.Foods.key(old.name) != app.dropi.data.Foods.key(new.name)) return
+        val ratio = (new.carbs / new.qty.coerceAtLeast(0.1)) / (old.carbs / old.qty.coerceAtLeast(0.1))
+        if (ratio !in 0.25..4.0) return
+        val p = Prefs(context)
+        val k = app.dropi.data.Foods.key(old.name)
+        p.carbFixes = p.carbFixes + (k to (p.carbFixes[k].orEmpty() + ratio).takeLast(5))
+    }
+
     fun forget(context: Context, food: String) {
         val p = Prefs(context)
         p.usualFoods = p.usualFoods - food
@@ -411,7 +427,7 @@ object MealWork {
             if (!open || !visible) Alerts.postMealFailed(ctx)
             return
         }
-        val withUsual = MealAi.applyUsual(meal, usual(ctx))
+        val withUsual = MealAi.applyFixes(MealAi.applyUsual(meal, usual(ctx)), Prefs(ctx).carbFixes)
         land(id, Draft(id, Status.Ready, withUsual, forMeal = draft?.forMeal, started = draft?.started ?: System.currentTimeMillis()))
         // Worked out while the screen was closed: a notification to come back and check it.
         if (!open || !visible) Alerts.postMealReady(ctx, app.dropi.data.Grams.text(withUsual.carbs), withUsual.foods, null)

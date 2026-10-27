@@ -441,6 +441,18 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
 
     // ---- The meal as a receipt: each food and its carbs, a torn line, then the totals ----
     RuleHeader(tr("What you ate"), if (meal.items.isEmpty()) null else trn(meal.items.size, "{0} food", "{0} foods"))
+    // A photo can't show how much was on the plate: one quick question instead of a silent guess.
+    if (meal.source == "photo" && meal.items.any { !it.usual } && f.old == null) PortionPick(meal)
+    // Foods whose guesses were scaled from the person's earlier corrections, said once.
+    val fixes = remember(meal.source) { app.dropi.Prefs(context).carbFixes }
+    val fixed = if (meal.source == "photo" || meal.source == "words") meal.items.filter { !it.usual && app.dropi.data.MealAi.fixFor(it.name, fixes) != null } else emptyList()
+    if (fixed.isNotEmpty()) {
+        Text(
+            tr("Carbs for {0} adjusted to how you've corrected it before.", fixed.joinToString(", ") { Foods.display(it.name).lowercase(app.dropi.L.locale) }),
+            style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+    }
     val paper = C.Card
     val edge = C.Border.copy(alpha = 0.7f)
     Column(
@@ -703,6 +715,8 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             onDismiss = { editing = null },
             onRemove = { MealWork.update(meal.copy(items = meal.items.filterIndexed { k, _ -> k != open })); editing = null },
         ) { item, remember ->
+            // A changed guess teaches the next one (photo and words meals).
+            MealWork.correct(context, meal, meal.items[open], item)
             if (remember) MealWork.remember(context, item) else if (meal.items[open].key in usual) MealWork.forget(context, item.key)
             MealWork.update(meal.copy(items = meal.items.mapIndexed { k, it -> if (k == open) item.copy(usual = remember) else it }))
             editing = null
@@ -1391,6 +1405,36 @@ private fun ExpectedCurve(curve: app.dropi.data.MealCurve.Curve, start: Double?,
         if (start != null) {
             val t = measurer.measure(Glucose.format(start, unit), labelStyle)
             drawText(t, topLeft = androidx.compose.ui.geometry.Offset(w - t.size.width, y(0.0) - t.size.height - 1.dp.toPx()))
+        }
+    }
+}
+
+
+/**
+ * "Portion: Smaller · As guessed · Bigger" over a photo meal: scales every guessed food (not the
+ * person's usual amounts) by ¾ or 1⅓. Picking again re-scales from the last pick, never compounding.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun PortionPick(meal: app.dropi.data.Meal) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    var factor by remember { mutableStateOf(1.0) }
+    val options = listOf(0.75 to tr("Smaller"), 1.0 to tr("As guessed"), 1.33 to tr("Bigger"))
+    Column(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(tr("How big was the portion?"), style = inter(13.sp, FontWeight.SemiBold, C.TextSecondary))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (q, label) ->
+                Chip(label, selected = factor == q) {
+                    if (factor == q) return@Chip
+                    Haptics.segment(view)
+                    val r = q / factor
+                    fun sc(v: Double?) = v?.let { app.dropi.data.Grams.round(it * r) }
+                    MealWork.update(meal.copy(items = meal.items.map { i ->
+                        if (i.usual) i else i.copy(carbs = app.dropi.data.Grams.round(i.carbs * r), sugars = sc(i.sugars), fibre = sc(i.fibre), protein = sc(i.protein), fat = sc(i.fat))
+                    }))
+                    factor = q
+                }
+            }
         }
     }
 }

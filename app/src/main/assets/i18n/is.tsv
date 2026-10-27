@@ -1136,3 +1136,16 @@ Found from a sensor around 3 or more meals. Finger-pricks are too far apart to t
 From your own readings. Estimates, not advice.	Út frá þínum eigin mælingum. Áætlanir, ekki ráðgjöf.
 from {0} meal	út frá {0} máltíð
 from {0} meals	út frá {0} máltíðum
+Big change since {0} · retest, or tap to save	Mikil breyting frá {0} · mældu aftur eða ýttu til að vista
+Carbs for {0} adjusted to how you've corrected it before.	Kolvetni fyrir {0} aðlöguð að því hvernig þú hefur leiðrétt áður.
+Smaller	Minni
+As guessed	Eins og giskað var
+Bigger	Stærri
+How big was the portion?	Hversu stór var skammturinn?
+Sensor vs meter	Skynjari á móti mæli
+about the same	um það bil eins
+sensor {0} higher	skynjari {0} hærri
+sensor {0} lower	skynjari {0} lægri
+From {0} finger-prick within 5 min of a sensor value, last 14 days.	Út frá {0} fingurstungu innan 5 mín. frá skynjaragildi, síðustu 14 daga.
+From {0} finger-pricks within 5 min of a sensor value, last 14 days.	Út frá {0} fingurstungum innan 5 mín. frá skynjaragildi, síðustu 14 daga.
+A gap this size is worth a look: check your sensor's calibration or placement.	Svona mikill munur er þess virði að skoða: athugaðu kvörðun eða staðsetningu skynjarans.

@@ -99,6 +99,24 @@ fun LearntCard(state: AppState) {
             LearntLine(tr("Your usual peak"), tr("not yet"), hint = tr("Found from a sensor around 3 or more meals. Finger-pricks are too far apart to time a peak."))
         }
 
+        // ---- Sensor vs meter ----
+        val offset = androidx.compose.runtime.remember(state.readings, state.sensor) {
+            Learning.sensorOffset(state.readings, state.sensor, System.currentTimeMillis())
+        }
+        if (offset != null) {
+            val (d, pairs) = offset
+            LearntLine(
+                tr("Sensor vs meter"),
+                when {
+                    kotlin.math.abs(d) < 0.3 -> tr("about the same")
+                    d > 0 -> tr("sensor {0} higher", Foods.delta(d, unit).removePrefix("+"))
+                    else -> tr("sensor {0} lower", Foods.delta(-d, unit).removePrefix("+"))
+                },
+                hint = trn(pairs, "From {0} finger-prick within 5 min of a sensor value, last 14 days.", "From {0} finger-pricks within 5 min of a sensor value, last 14 days.") +
+                    if (kotlin.math.abs(d) >= 1.0) " " + tr("A gap this size is worth a look: check your sensor's calibration or placement.") else "",
+            )
+        }
+
         Text(
             tr("From your own readings. Estimates, not advice."),
             style = mono(12.sp, color = C.TextMuted),

@@ -119,6 +119,23 @@ object Learning {
     }
 
     /**
+     * How the sensor compares with the meter: finger-pricks with a sensor value within 5 minutes,
+     * over the last 14 days. Returns the middle difference (sensor minus meter, mmol/L) and the
+     * number of pairs, or null with fewer than five.
+     */
+    fun sensorOffset(readings: List<Reading>, sensor: List<SensorPoint>, now: Long): Pair<Double, Int>? {
+        if (sensor.isEmpty()) return null
+        val times = LongArray(sensor.size) { sensor[it].at }
+        val diffs = readings.filter { it.at >= now - 14 * 1440 * MIN }.mapNotNull { r ->
+            var lo = 0; var hi = times.size
+            while (lo < hi) { val mid = (lo + hi) ushr 1; if (times[mid] < r.at) lo = mid + 1 else hi = mid }
+            val near = listOfNotNull(sensor.getOrNull(lo), sensor.getOrNull(lo - 1)).minByOrNull { abs(it.at - r.at) }
+            near?.takeIf { abs(it.at - r.at) <= 5 * MIN }?.let { it.mmol - r.mmol }
+        }
+        return if (diffs.size < 5) null else Foods.median(diffs) to diffs.size
+    }
+
+    /**
      * Everything at once, from the meals measured in AppState. Hindcasts cover the last 60 meals
      * with an outcome, each predicted only from the meals eaten before it.
      */

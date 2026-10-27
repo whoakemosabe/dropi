@@ -425,6 +425,27 @@ object MealAi {
         }
     }
 
+    /** How a food's guesses are scaled from the person's corrections, or null (fewer than two, or about right). */
+    fun fixFor(name: String, fixes: Map<String, List<Double>>): Double? {
+        val rs = fixes[Foods.key(name)] ?: return null
+        if (rs.size < 2) return null
+        val r = Foods.median(rs).coerceIn(0.4, 2.5)
+        return r.takeIf { kotlin.math.abs(it - 1.0) >= 0.1 }
+    }
+
+    /**
+     * Scales the AI's carb (and sugar) guesses for foods the person has corrected before, photo
+     * and words meals only; their usual amounts are left as they are.
+     */
+    fun applyFixes(meal: Meal, fixes: Map<String, List<Double>>): Meal {
+        if (meal.source != "photo" && meal.source != "words") return meal
+        return meal.copy(items = meal.items.map { i ->
+            if (i.usual) return@map i
+            val r = fixFor(i.name, fixes) ?: return@map i
+            i.copy(carbs = Grams.round(i.carbs * r), sugars = i.sugars?.let { Grams.round(it * r) })
+        })
+    }
+
     /** Puts the person's usual amounts in place of guesses, scaled to the portions seen. */
     fun applyUsual(meal: Meal, usual: Map<String, Usual>): Meal = meal.copy(items = meal.items.map { i ->
         val u = usual[i.key] ?: return@map i

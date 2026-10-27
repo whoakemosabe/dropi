@@ -349,13 +349,23 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
             text = next
         }
 
+        // A new reading far from one taken within the hour (4 mmol/L or more): the Save label
+        // suggests a retest (sticky or wet fingers can do this) without blocking the save. Said in
+        // the label, so the sheet doesn't grow and Save stays on screen.
+        val near = if (isNew && mmol != null) state.readings.filter { kotlin.math.abs(it.at - at) <= 60 * 60_000L && it.id != initial.id }.maxByOrNull { it.at } else null
+        val bigJump = near != null && mmol != null && kotlin.math.abs(mmol - near.mmol) >= 4.0
         PrimaryButton(
-            if (isNew) tr("Save reading") else tr("Save changes"),
+            when {
+                bigJump -> tr("Big change since {0} · retest, or tap to save", fmt.time(near!!.at))
+                isNew -> tr("Save reading")
+                else -> tr("Save changes")
+            },
             Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
             icon = R.drawable.lc_check,
             enabled = mmol != null,
         ) {
             val v = mmol ?: return@PrimaryButton
+
             Haptics.confirm(view)
             state.save(
                 initial.copy(

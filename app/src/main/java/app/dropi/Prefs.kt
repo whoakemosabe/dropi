@@ -177,6 +177,25 @@ class Prefs(context: Context) {
 
     // ---- Meals ----
 
+    /**
+     * How the person corrects the on-device AI's carb guesses, per food (see [app.dropi.data.Foods.key]):
+     * the last five "what I typed ÷ what it guessed" ratios. Two or more, and future guesses for
+     * that food are scaled by their middle value.
+     */
+    var carbFixes: Map<String, List<Double>>
+        get() = try {
+            val o = org.json.JSONObject(p.getString("carb_fixes", null) ?: "{}")
+            o.keys().asSequence().associateWith { k ->
+                val a = o.getJSONArray(k)
+                (0 until a.length()).map { a.getDouble(it) }
+            }
+        } catch (e: Exception) { emptyMap() }
+        set(v) = p.edit {
+            val o = org.json.JSONObject()
+            v.entries.take(200).forEach { (k, rs) -> o.put(k, org.json.JSONArray(rs.takeLast(5))) }
+            putString("carb_fixes", o.toString())
+        }
+
     /** The person's own amounts per food (food → portion and carbs), used before any guess. */
     var usualFoods: Map<String, app.dropi.data.Usual>
         get() = try {
