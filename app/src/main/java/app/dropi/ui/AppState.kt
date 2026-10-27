@@ -96,6 +96,26 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
 
     var healthSync by mutableStateOf(prefs.healthSync)
         private set
+
+    /** Steps and sleep from Health Connect (read only), for learnt patterns; empty while off. */
+    var activityOn by mutableStateOf(prefs.activityOn)
+        private set
+    var steps by mutableStateOf<List<app.dropi.data.Span>>(emptyList())
+        private set
+    var sleep by mutableStateOf<List<app.dropi.data.Span>>(emptyList())
+        private set
+
+    fun changeActivity(on: Boolean) {
+        activityOn = on
+        prefs.activityOn = on
+        if (on) scope.launch { loadActivity() } else { steps = emptyList(); sleep = emptyList() }
+    }
+
+    private suspend fun loadActivity() {
+        if (!activityOn || demo) return
+        val (st, sl) = try { HealthSync.activity(context) } catch (e: Exception) { emptyList<app.dropi.data.Span>() to emptyList() }
+        steps = st; sleep = sl
+    }
     /** What the last Health Connect sync did, for Settings. */
     var healthNote by mutableStateOf<String?>(null)
 
@@ -310,6 +330,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         scope.launch {
             reload()
             if (healthSync) syncHealth()
+            loadActivity()
             try { UpdateWatch.check(context, background = false) } catch (e: Exception) { }
         }
         Reminders.rescheduleAsync(context)

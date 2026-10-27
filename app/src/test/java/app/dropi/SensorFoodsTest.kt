@@ -46,6 +46,15 @@ class SensorFoodsTest {
     }
 
     @Test
+    fun anEasingFallDoesNotWarn() {
+        // Falling fast a quarter hour ago, nearly flat now: 5.4 → 4.4, then 4.4 → 4.35.
+        val pts = listOf(5.4, 5.0, 4.6, 4.4, 4.35).mapIndexed { i, v -> SensorPoint(t0 - (4 - i) * 4 * min, v) }
+        assertNull(Trend.headsUp(pts, t0 + min, 0, null))
+        // A fall that keeps going still warns.
+        assertNotNull(Trend.headsUp(line(4.6, -0.06), t0 + min, 0, null))
+    }
+
+    @Test
     fun lowNowBreaksThroughAWarning() {
         val low = line(3.6, -0.03)
         val h = Trend.headsUp(low, t0, lastAt = t0 - 10 * min, lastKind = Heads.HEADING_LOW)

@@ -1149,3 +1149,22 @@ sensor {0} lower	skynjari {0} lægri
 From {0} finger-prick within 5 min of a sensor value, last 14 days.	Út frá {0} fingurstungu innan 5 mín. frá skynjaragildi, síðustu 14 daga.
 From {0} finger-pricks within 5 min of a sensor value, last 14 days.	Út frá {0} fingurstungum innan 5 mín. frá skynjaragildi, síðustu 14 daga.
 A gap this size is worth a look: check your sensor's calibration or placement.	Svona mikill munur er þess virði að skoða: athugaðu kvörðun eða staðsetningu skynjarans.
+Dropi asks Health Connect for blood glucose. Steps and sleep only if you turn them on, and only to read.	Dropi biður Health Connect um blóðsykur. Skref og svefn aðeins ef þú kveikir á þeim, og aðeins til að lesa.
+Steps and sleep, if you turn them on: read to learn your own patterns, like how a walk after eating or a short night changes your numbers. They're never written or shared.	Skref og svefn, ef þú kveikir á þeim: lesin til að læra þín eigin mynstur, t.d. hvernig ganga eftir mat eða stutt nótt breytir tölunum. Þau eru aldrei skrifuð eða deilt.
+Everything stays on your phone. Dropi has no account and no servers, and never sends your readings anywhere. It only goes online to check GitHub for app updates, to look up a barcode you scan on Open Food Facts (only the barcode number is sent) and, if you ask for it, to download the on-device AI model once.	Allt verður eftir í símanum. Dropi hefur engan aðgang og enga netþjóna og sendir mælingarnar þínar aldrei neitt. Það fer aðeins á netið til að athuga uppfærslur á GitHub, til að fletta upp strikamerki sem þú skannar á Open Food Facts (aðeins númer strikamerkisins er sent) og, ef þú biður um það, til að sækja gervigreindarlíkanið einu sinni.
+Steps and sleep	Skref og svefn
+Read only, to learn how a walk after eating or a short night changes your numbers	Aðeins lesið, til að læra hvernig ganga eftir mat eða stutt nótt breytir tölunum
+Optional: lets Dropi learn how walks and sleep change your numbers	Valfrjálst: leyfir Dropi að læra hvernig göngur og svefn breyta tölunum
+A walk after eating	Ganga eftir mat
+rise {0} smaller	hækkun {0} minni
+rise {0} bigger	hækkun {0} meiri
+{0} meal with 1,500+ steps in the hour after, against meals with hardly any.	{0} máltíð með 1.500+ skrefum klukkustundina á eftir, borið saman við máltíðir með nær engum.
+{0} meals with 1,500+ steps in the hour after, against meals with hardly any.	{0} máltíðir með 1.500+ skrefum klukkustundina á eftir, borið saman við máltíðir með nær engum.
+After a short night	Eftir stutta nótt
+waking {0} higher	við vöknun {0} hærra
+waking {0} lower	við vöknun {0} lægra
+{0} morning after under 6 h asleep, against nights of 7 h or more.	{0} morgunn eftir minna en 6 klst. svefn, borið saman við nætur með 7 klst. eða meira.
+{0} mornings after under 6 h asleep, against nights of 7 h or more.	{0} morgnar eftir minna en 6 klst. svefn, borið saman við nætur með 7 klst. eða meira.
+Walks and sleep	Göngur og svefn
+Turn on Steps and sleep in Settings › Health Connect to learn what they do for you.	Kveiktu á Skref og svefn í Stillingar › Health Connect til að læra hvað þau gera fyrir þig.
+A walk after eating usually takes about {0} off your rise.	Ganga eftir mat tekur venjulega um {0} af hækkuninni.

@@ -629,6 +629,10 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             if (why) {
                 // What shaped the estimate, one reason a line, like the items on a receipt.
                 Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // What a walk after usually does for this person, learnt from their steps.
+                    app.dropi.data.Learning.walkEffect(state.measured, state.steps)?.takeIf { it.first < 0 }?.let { (d, _) ->
+                        Text(tr("A walk after eating usually takes about {0} off your rise.", Foods.delta(-d, unit).removePrefix("+")), style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
+                    }
                     if (curve.reasons.isNotEmpty()) {
                         Text(tr("Shaped by: {0}.", curve.reasons.joinToString(", ")), style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp))
                     }

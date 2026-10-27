@@ -51,10 +51,11 @@ class PrivacyActivity : ComponentActivity() {
                     RuleHeader(tr("Health Connect"))
                     // Ruled paragraphs, like the rest of 1.1: a hairline between each, no cards.
                     listOf(
-                        tr("Dropi only asks Health Connect for blood glucose. Nothing else."),
+                        tr("Dropi asks Health Connect for blood glucose. Steps and sleep only if you turn them on, and only to read."),
                         tr("Reading: blood glucose other apps saved (a sensor or another meter app) is copied into Dropi so your log, trends and reports are complete."),
                         tr("Writing: readings you log in Dropi are saved to Health Connect so your other health apps can use them."),
-                        tr("Everything stays on your phone. Dropi has no account and no servers, and never sends your readings anywhere. It only goes online to check GitHub for app updates and, if you ask for it, to download the on-device AI model once."),
+                        tr("Steps and sleep, if you turn them on: read to learn your own patterns, like how a walk after eating or a short night changes your numbers. They're never written or shared."),
+                        tr("Everything stays on your phone. Dropi has no account and no servers, and never sends your readings anywhere. It only goes online to check GitHub for app updates, to look up a barcode you scan on Open Food Facts (only the barcode number is sent) and, if you ask for it, to download the on-device AI model once."),
                         tr("Reports you share (PDF or CSV) go only where you send them."),
                         tr("Turn sync off any time in Dropi's Settings, or remove its access in Health Connect."),
                     ).forEachIndexed { i, para ->

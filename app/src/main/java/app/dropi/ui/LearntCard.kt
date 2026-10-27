@@ -99,6 +99,27 @@ fun LearntCard(state: AppState) {
             LearntLine(tr("Your usual peak"), tr("not yet"), hint = tr("Found from a sensor around 3 or more meals. Finger-pricks are too far apart to time a peak."))
         }
 
+        // ---- Walks and sleep (Health Connect, if turned on) ----
+        val walk = androidx.compose.runtime.remember(state.measured, state.steps) { Learning.walkEffect(state.measured, state.steps) }
+        walk?.let { (d, n) ->
+            LearntLine(
+                tr("A walk after eating"),
+                if (d < 0) tr("rise {0} smaller", Foods.delta(-d, unit).removePrefix("+")) else tr("rise {0} bigger", Foods.delta(d, unit).removePrefix("+")),
+                hint = trn(n, "{0} meal with 1,500+ steps in the hour after, against meals with hardly any.", "{0} meals with 1,500+ steps in the hour after, against meals with hardly any."),
+            )
+        }
+        val night = androidx.compose.runtime.remember(state.readings, state.sleep) { Learning.sleepEffect(state.readings, state.sleep) }
+        night?.let { (d, n) ->
+            LearntLine(
+                tr("After a short night"),
+                if (d > 0) tr("waking {0} higher", Foods.delta(d, unit).removePrefix("+")) else tr("waking {0} lower", Foods.delta(-d, unit).removePrefix("+")),
+                hint = trn(n, "{0} morning after under 6 h asleep, against nights of 7 h or more.", "{0} mornings after under 6 h asleep, against nights of 7 h or more."),
+            )
+        }
+        if (!state.activityOn) {
+            LearntLine(tr("Walks and sleep"), tr("off"), hint = tr("Turn on Steps and sleep in Settings › Health Connect to learn what they do for you."))
+        }
+
         // ---- Sensor vs meter ----
         val offset = androidx.compose.runtime.remember(state.readings, state.sensor) {
             Learning.sensorOffset(state.readings, state.sensor, System.currentTimeMillis())

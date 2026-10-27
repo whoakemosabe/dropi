@@ -118,6 +118,64 @@ object Learning {
         return p to peaks.size
     }
 
+    /** Steps in the hour after eating that count as a walk, and as staying put. */
+    const val WALK_STEPS = 1500L
+    const val STILL_STEPS = 300L
+
+    /** Steps between [a] and [b], each record counted for the part of it inside. */
+    fun stepsBetween(steps: List<Span>, a: Long, b: Long): Long {
+        var total = 0.0
+        for (s in steps) {
+            if (s.end <= a) continue
+            if (s.start >= b) break
+            val len = (s.end - s.start).coerceAtLeast(1)
+            val overlap = minOf(s.end, b) - maxOf(s.start, a)
+            if (overlap > 0) total += s.count * overlap.toDouble() / len
+        }
+        return total.toLong()
+    }
+
+    /**
+     * What walking after eating does for this person: the middle rise of meals with [WALK_STEPS]+
+     * steps in the hour after, minus that of meals with under [STILL_STEPS]. Needs three meals each
+     * side and a gap of 0.8 mmol/L or more. Returns (difference, walked meals).
+     */
+    fun walkEffect(measured: List<Foods.Meal>, steps: List<Span>): Pair<Double, Int>? {
+        if (steps.isEmpty()) return null
+        val first = steps.first().start
+        val walked = ArrayList<Double>(); val still = ArrayList<Double>()
+        for (m in measured) {
+            val rise = m.rise ?: continue
+            if (m.at < first) continue
+            val n = stepsBetween(steps, m.at, m.at + 60 * MIN)
+            if (n >= WALK_STEPS) walked += rise else if (n < STILL_STEPS) still += rise
+        }
+        if (walked.size < 3 || still.size < 3) return null
+        val d = Foods.median(walked) - Foods.median(still)
+        return if (abs(d) < 0.8) null else d to walked.size
+    }
+
+    /**
+     * Short nights: the middle waking reading after under 6 h asleep, minus that after 7 h or more.
+     * Sleep is the sessions in the 16 hours before the reading. Three mornings each side and a gap
+     * of 0.5 mmol/L or more. Returns (difference, short nights).
+     */
+    fun sleepEffect(readings: List<Reading>, sleep: List<Span>): Pair<Double, Int>? {
+        if (sleep.isEmpty()) return null
+        val short = ArrayList<Double>(); val long = ArrayList<Double>()
+        for (r in readings) {
+            if (r.tag != MealTag.FASTING) continue
+            val from = r.at - 16 * 60 * MIN
+            val slept = sleep.filter { it.end > from && it.start < r.at }.sumOf { minOf(it.end, r.at) - maxOf(it.start, from) }
+            if (slept <= 0) continue
+            val hours = slept / (60.0 * MIN)
+            if (hours < 6) short += r.mmol else if (hours >= 7) long += r.mmol
+        }
+        if (short.size < 3 || long.size < 3) return null
+        val d = Foods.median(short) - Foods.median(long)
+        return if (abs(d) < 0.5) null else d to short.size
+    }
+
     /**
      * How the sensor compares with the meter: finger-pricks with a sensor value within 5 minutes,
      * over the last 14 days. Returns the middle difference (sensor minus meter, mmol/L) and the

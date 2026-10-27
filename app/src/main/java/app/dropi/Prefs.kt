@@ -79,6 +79,11 @@ class Prefs(context: Context) {
         get() = p.getInt("after_meal_minutes", 120)
         set(v) = p.edit { putInt("after_meal_minutes", v) }
 
+    /** Read steps and sleep from Health Connect for learnt patterns. */
+    var activityOn: Boolean
+        get() = p.getBoolean("activity_on", false)
+        set(v) = p.edit { putBoolean("activity_on", v) }
+
     /** The peak time learnt from the sensor (minutes), or -1 while there isn't one. */
     var learntPeak: Int
         get() = p.getInt("learnt_peak", -1)

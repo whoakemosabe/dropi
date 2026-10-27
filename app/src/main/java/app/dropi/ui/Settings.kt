@@ -44,6 +44,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import app.dropi.R
 import app.dropi.tr
@@ -283,6 +286,15 @@ private fun HealthConnectRow(state: AppState) {
         state.changeHealthSync(granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS))
         if (!granted.containsAll(app.dropi.work.HealthSync.PERMISSIONS)) state.healthNote = tr("Permission wasn't given")
     }
+    // Steps and sleep: asked for on their own, read only.
+    var activityNote by remember { mutableStateOf<String?>(null) }
+    val askActivity = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        val ok = granted.containsAll(app.dropi.work.HealthSync.ACTIVITY)
+        state.changeActivity(ok)
+        if (!ok) activityNote = tr("Permission wasn't given")
+    }
     val note = when {
         !available && needsInstall -> tr("Install or update Health Connect to use this")
         !available -> tr("Health Connect isn't available on this phone")
@@ -296,6 +308,20 @@ private fun HealthConnectRow(state: AppState) {
             else scope.launch {
                 if (app.dropi.work.HealthSync.granted(context)) state.changeHealthSync(true)
                 else try { ask.launch(app.dropi.work.HealthSync.PERMISSIONS) } catch (e: Exception) { state.healthNote = tr("Couldn't open Health Connect") }
+            }
+        }
+        SettingsToggleRow(
+            tr("Steps and sleep"),
+            activityNote ?: if (state.activityOn) tr("Read only, to learn how a walk after eating or a short night changes your numbers")
+            else tr("Optional: lets Dropi learn how walks and sleep change your numbers"),
+            state.activityOn,
+            enabled = available,
+        ) { on ->
+            Haptics.toggle(view, on)
+            if (!on) state.changeActivity(false)
+            else scope.launch {
+                if (app.dropi.work.HealthSync.activityGranted(context)) state.changeActivity(true)
+                else try { askActivity.launch(app.dropi.work.HealthSync.ACTIVITY) } catch (e: Exception) { activityNote = tr("Couldn't open Health Connect") }
             }
         }
         if (!available && needsInstall) {

@@ -2,6 +2,8 @@ package app.dropi.data
 
 import app.dropi.tr
 import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.roundToInt
 
 /** One value from a continuous glucose sensor (CGM), in mmol/L. */
@@ -74,9 +76,12 @@ object Trend {
      * Slope in mmol/L a minute: a least-squares line through the last 15 minutes (at least two
      * points 4+ minutes apart), so one noisy value doesn't swing the arrow. Null without enough data.
      */
-    fun slope(points: List<SensorPoint>): Double? {
+    fun slope(points: List<SensorPoint>): Double? = slopeOver(points, 16)
+
+    /** The same over the last [minutes] minutes. */
+    private fun slopeOver(points: List<SensorPoint>, minutes: Int): Double? {
         val last = latest(points) ?: return null
-        val window = points.filter { it.at in (last.at - 16 * MIN)..last.at }
+        val window = points.filter { it.at in (last.at - minutes * MIN)..last.at }
         if (window.size < 2) return null
         val span = window.maxOf { it.at } - window.minOf { it.at }
         if (span < 4 * MIN) return null
@@ -95,11 +100,34 @@ object Trend {
 
     fun arrow(points: List<SensorPoint>): Arrow? = slope(points)?.let { Arrow.of(it) }
 
-    /** Where the line points [minutes] ahead, kept within what a sensor can read. */
+    /** How quickly an easing change dies away (minutes). */
+    private const val EASE = 15.0
+
+    /**
+     * Whether the change is easing off: the last 8 minutes run at under 70 % of the quarter
+     * hour's rate (or the other way). Then the look-ahead curves off instead of running straight,
+     * which is what usually happens and what stops false warnings; a change that holds or speeds
+     * up stays a straight line, so real lows are never warned later than before.
+     */
+    /** The last 8 minutes' rate when the change is easing off, else null (see above). */
+    private fun easing(points: List<SensorPoint>, s: Double): Double? {
+        val recent = slopeOver(points, 8) ?: return null
+        return recent.takeIf { it * s < 0 || abs(it) < abs(s) * 0.7 }
+    }
+
+    /** The change expected [t] minutes ahead (mmol/L), or null without a slope. */
+    fun change(points: List<SensorPoint>, t: Double): Double? {
+        val s = slope(points) ?: return null
+        // Easing: from today's slower rate, dying away. Otherwise the straight line.
+        val r = easing(points, s) ?: return s * t
+        return r * EASE * (1 - exp(-t / EASE))
+    }
+
+    /** Where it's heading [minutes] ahead, kept within what a sensor can read. */
     fun ahead(points: List<SensorPoint>, minutes: Int): Double? {
         val last = latest(points) ?: return null
-        val s = slope(points) ?: return null
-        return (last.mmol + s * minutes).coerceIn(Glucose.MIN_MMOL, Glucose.MAX_MMOL)
+        val d = change(points, minutes.toDouble()) ?: return null
+        return (last.mmol + d).coerceIn(Glucose.MIN_MMOL, Glucose.MAX_MMOL)
     }
 
     /**
@@ -118,7 +146,16 @@ object Trend {
         }
         val s = slope(points) ?: return null
         if (s >= 0) return null
-        val minutes = (last.mmol - Glucose.LOW) / -s
+        val drop = last.mmol - Glucose.LOW
+        val r = easing(points, s)
+        val minutes = if (r != null) {
+            // An easing fall only gets so far: its current rate × 15 at most. Short of 3.9 (or
+            // already turning up), no warning.
+            if (r >= 0) return null
+            val k = drop / (-r * EASE)
+            if (k >= 1) return null
+            -EASE * ln(1 - k)
+        } else drop / -s
         if (minutes > 20) return null
         if (quiet) return null
         // Round to 5 minutes; "about 5 min" at the soonest.
@@ -132,3 +169,7 @@ object Trend {
         return (mg * 30).coerceIn(-90.0, 90.0).toFloat().let { if (abs(it) < 8f) 0f else it }
     }
 }
+
+
+/** A stretch of time from Health Connect: steps ([count]) or a sleep session (count 0). */
+data class Span(val start: Long, val end: Long, val count: Long)

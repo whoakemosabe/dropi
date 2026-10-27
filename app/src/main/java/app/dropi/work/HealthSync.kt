@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.BloodGlucoseRecord
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -32,6 +34,46 @@ object HealthSync {
     )
 
     private const val DAY = 86_400_000L
+
+    /**
+     * Steps and sleep, read only, asked for on their own (Settings › Health Connect) so glucose
+     * sync works without them. Used for learnt patterns: a walk after eating, short nights.
+     */
+    val ACTIVITY = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+    )
+
+    suspend fun activityGranted(context: Context): Boolean = try {
+        available(context) && client(context).permissionController.getGrantedPermissions().containsAll(ACTIVITY)
+    } catch (e: Exception) { false }
+
+    /** Steps and sleep sessions from the last [days] days (oldest first), or empty without permission. */
+    suspend fun activity(context: Context, days: Int = 90): Pair<List<app.dropi.data.Span>, List<app.dropi.data.Span>> {
+        if (!activityGranted(context)) return emptyList<app.dropi.data.Span>() to emptyList()
+        val now = Instant.now()
+        val range = TimeRangeFilter.between(now.minusMillis(days * DAY), now)
+        val steps = ArrayList<app.dropi.data.Span>()
+        val sleep = ArrayList<app.dropi.data.Span>()
+        try {
+            var token: String? = null
+            var pages = 0
+            do {
+                val res = client(context).readRecords(ReadRecordsRequest(StepsRecord::class, timeRangeFilter = range, pageToken = token))
+                res.records.forEach { steps += app.dropi.data.Span(it.startTime.toEpochMilli(), it.endTime.toEpochMilli(), it.count) }
+                token = res.pageToken
+            } while (token != null && ++pages < 50)
+            token = null; pages = 0
+            do {
+                val res = client(context).readRecords(ReadRecordsRequest(SleepSessionRecord::class, timeRangeFilter = range, pageToken = token))
+                res.records.forEach { sleep += app.dropi.data.Span(it.startTime.toEpochMilli(), it.endTime.toEpochMilli(), 0) }
+                token = res.pageToken
+            } while (token != null && ++pages < 20)
+        } catch (e: Exception) {
+            Diag.log(context, "Health Connect: couldn't read steps or sleep (${e.javaClass.simpleName})")
+        }
+        return steps.sortedBy { it.start } to sleep.sortedBy { it.start }
+    }
 
     fun available(context: Context): Boolean =
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE

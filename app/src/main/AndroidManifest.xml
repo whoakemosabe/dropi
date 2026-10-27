@@ -25,6 +25,9 @@
     <!-- Health Connect: blood glucose only, both ways. -->
     <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE" />
     <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
+    <!-- Read only, asked for separately: steps and sleep for learnt patterns. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
 
     <queries>
         <!-- Health Connect's app on Android 13 and older. -->
