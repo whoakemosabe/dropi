@@ -362,7 +362,6 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     // line between them would claim to know (and smooth away) what happened in between.
                 }
                 }
-                }
 
                 if (asBars) {
                     val days = barsToDraw
