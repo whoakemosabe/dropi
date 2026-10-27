@@ -4,5 +4,4 @@ Write this list for each release: short, exciting, one line each, written for pe
 the app. It becomes the "Highlights" in the release notes and the app's "What's new" window.
 Only included when this file changed since the last release.
 
-- Ask Dropi looks things up: ask about "lunches over 9 this month" or "my mornings last week" and it searches your log first, then answers from what it found
-- Each answer says what it looked up, so you can check it
+- New bottom bar: docked to the edge of the screen with the + in a curved cradle, so pages get more room

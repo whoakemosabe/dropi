@@ -145,7 +145,7 @@ fun TrendsPage(state: AppState) {
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
         state = listState,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + TAB_BAR_CLEARANCE),
     ) {
         glideItem(key = "period") {
             PeriodTabs(periods, period) { state.trendsDays = periods[it] }

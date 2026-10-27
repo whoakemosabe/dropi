@@ -95,7 +95,7 @@ fun MealsPage(state: AppState) {
 
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + TAB_BAR_CLEARANCE),
     ) {
         glideItem(key = "log") {
             // The camera first and wider, then the other four ways in, all in one row.
@@ -516,7 +516,7 @@ fun MorePage(state: AppState) {
 
     LazyColumn(
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + TAB_BAR_CLEARANCE),
     ) {
         item(key = "log") {
             Column(Modifier.fillMaxWidth()) {

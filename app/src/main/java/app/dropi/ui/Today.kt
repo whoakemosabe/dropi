@@ -112,7 +112,7 @@ fun TodayPage(state: AppState) {
             // Content starts below the sticky header and scrolls under its blur.
             top = LocalHeaderHeight.current + HEADER_FADE,
             // Room for the floating log button over the navigation bar.
-            bottom = bars.calculateBottomPadding() + 124.dp,
+            bottom = bars.calculateBottomPadding() + TAB_BAR_CLEARANCE,
         ),
     ) {
         item(key = "banner") {

@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -133,7 +134,7 @@ fun DropiRoot(state: AppState) {
 
         if (C.dracula) BloodDrips(Modifier.align(Alignment.TopCenter))
 
-        // The tab bar floats over the page, above the navigation bar, with the big + in the middle.
+        // The tab bar, docked to the bottom edge with the + in its cradle.
         AnimatedVisibility(
             visible = !state.sheetOpen,
             enter = fadeIn(tween(180)),
@@ -161,7 +162,7 @@ fun DropiRoot(state: AppState) {
             Row(
                 Modifier
                     .navigationBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, bottom = 118.dp)
+                    .padding(start = 24.dp, end = 24.dp, bottom = TAB_BAR_CLEARANCE + 8.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(Corner.M))
@@ -205,7 +206,7 @@ fun DropiRoot(state: AppState) {
                 style = inter(15.sp, FontWeight.SemiBold, C.Bg),
                 modifier = Modifier
                     .navigationBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, bottom = 118.dp)
+                    .padding(start = 24.dp, end = 24.dp, bottom = TAB_BAR_CLEARANCE + 8.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(Corner.M))
@@ -359,9 +360,10 @@ private fun TopBar(state: AppState) {
 }
 
 /**
- * The bottom bar: two frosted wings (the same blur and tint as the header) curving in around a
- * big floating + with a halo, two pages in each: Today and Trends on the left, Meals and More on
- * the right. Nothing joins the wings, so the page shows through the gaps.
+ * The bottom bar, docked to the bottom edge (option A, "Cradle", from the "Dropi bottom bar
+ * options" canvas): one frosted bar the full width of the screen, running under the navigation
+ * bar, with a curved cradle carved out of its middle. The + sits in the cradle, half above the
+ * bar. Today and Trends on the left, Meals and More on the right.
  */
 @Composable
 private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
@@ -370,109 +372,86 @@ private fun TabBar(state: AppState, backdrop: LayerBackdrop) {
         if (state.tab != t) Haptics.segment(view)
         state.tab = t
     }
-    Box(
-        Modifier
-            .navigationBarsPadding()
-            .padding(bottom = 12.dp)
-            .widthIn(max = 460.dp)
-            .fillMaxWidth()
-            .height(104.dp),
-    ) {
-        Row(
-            Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    val shape = remember { CradleShape(CRADLE_R, CRADLE_SHOULDER) }
+    // Room above the bar for the half of the + that rises out of the cradle.
+    Box(Modifier.fillMaxWidth().padding(top = PLUS / 2)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .frosted(backdrop, shape, base = C.Sheet)
+                .border(1.dp, C.Border, shape)
+                .blockTouches()
+                .navigationBarsPadding(),
         ) {
-            Wing(left = true, backdrop = backdrop, modifier = Modifier.weight(1f)) {
+            Row(
+                Modifier
+                    .widthIn(max = 460.dp)
+                    .fillMaxWidth()
+                    .height(BAR_H)
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 8.dp)
+                    .semantics { isTraversalGroup = true },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 TabItem(tr("Today"), R.drawable.lc_droplet, state.tab == Tab.TODAY, Modifier.weight(1f)) { go(Tab.TODAY) }
                 TabItem(tr("Trends"), R.drawable.lc_chart, state.tab == Tab.TRENDS, Modifier.weight(1f)) { go(Tab.TRENDS) }
-            }
-            // Room for the orb between the wings' curved inner edges.
-            Spacer(Modifier.width(ORB_GAP))
-            Wing(left = false, backdrop = backdrop, modifier = Modifier.weight(1f)) {
+                // The cradle: nothing here but the + above it.
+                Spacer(Modifier.width(CRADLE_R * 2 + CRADLE_SHOULDER * 2))
                 TabItem(tr("Meals"), R.drawable.lc_utensils, state.tab == Tab.MEALS, Modifier.weight(1f)) { go(Tab.MEALS) }
                 TabItem(tr("More"), R.drawable.lc_layout_grid, state.tab == Tab.MORE, Modifier.weight(1f)) { go(Tab.MORE) }
             }
         }
-        // The halo, then the + itself: solid ink, no gradient.
-        Box(
-            Modifier
-                .align(Alignment.Center)
-                .size(96.dp)
-                .border(1.dp, C.AccentText.copy(alpha = 0.22f), CircleShape)
-        )
+        // The + itself: solid champagne-on-smoke, centred on the bar's top edge, in the cradle.
         val plus = rememberPress()
         Box(
             Modifier
-                .align(Alignment.Center)
+                .align(Alignment.TopCenter)
+                .offset(y = -PLUS / 2)
                 .pressed(plus)
-                .size(80.dp)
-                .shadow(10.dp, CircleShape)
+                .size(PLUS)
+                .shadow(8.dp, CircleShape)
                 .clip(CircleShape)
                 .background(C.Accent)
-                .border(1.5.dp, C.AccentText.copy(alpha = 0.55f), CircleShape)
+                .border(1.5.dp, C.AccentText.copy(alpha = 0.6f), CircleShape)
                 .tap(plus) { state.addOpen = true },
             contentAlignment = Alignment.Center,
-        ) { Ic(R.drawable.lc_plus, C.OnAccent, 32.dp, contentDescription = tr("Add a reading or meal")) }
+        ) { Ic(R.drawable.lc_plus, C.OnAccent, 26.dp, contentDescription = tr("Add a reading or meal")) }
     }
 }
 
-/** Space between the two wings: the orb's width less how far the wings' curves reach in. */
-private val ORB_GAP = 72.dp
+/** The bar's height (above the navigation bar), the + and the cradle carved around it. */
+private val BAR_H = 64.dp
+private val PLUS = 60.dp
+private val CRADLE_R = 38.dp
+private val CRADLE_SHOULDER = 10.dp
+
+/** How far pages scroll clear of the bar at the bottom (the bar, plus the + rising out of it). */
+val TAB_BAR_CLEARANCE = 96.dp
 
 /**
- * One wing: round on the outside, and on the inside a concave curve that follows the orb (a
- * circle of 48 dp about the orb's centre), so the pair hugs the + with an even 8 dp gap.
+ * A full-width bar with a round cradle carved out of the middle of its top edge: a half circle of
+ * [radius] below the edge, eased into the edge by soft shoulders of [shoulder] each side.
  */
-private class WingShape(private val left: Boolean) : Shape {
+private class CradleShape(private val radius: androidx.compose.ui.unit.Dp, private val shoulder: androidx.compose.ui.unit.Dp) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val r = with(density) { 48.dp.toPx() }
-        val h = size.height
-        val w = size.width
-        val reach = kotlin.math.sqrt(r * r - (h / 2) * (h / 2)) // how far the curve's tips sit from the orb centre
+        val r = with(density) { radius.toPx() }
+        val sh = with(density) { shoulder.toPx() }
+        val w = size.width; val h = size.height; val cx = w / 2
+        // Where the shoulders meet the circle: 18° below the edge each side.
+        val a = Math.toRadians(18.0)
+        val px = (r * kotlin.math.cos(a)).toFloat(); val py = (r * kotlin.math.sin(a)).toFloat()
         val p = Path()
-        if (left) {
-            val cx = w + reach
-            p.moveTo(h / 2, 0f)
-            p.lineTo(w, 0f)
-            p.arcTo(Rect(cx - r, h / 2 - r, cx + r, h / 2 + r), 180f + Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(),
-                -2f * Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(), false)
-            p.lineTo(h / 2, h)
-            p.arcTo(Rect(0f, 0f, h, h), 90f, 180f, false)
-        } else {
-            val cx = -reach
-            p.moveTo(0f, 0f)
-            p.lineTo(w - h / 2, 0f)
-            p.arcTo(Rect(w - h, 0f, w, h), -90f, 180f, false)
-            p.lineTo(0f, h)
-            p.arcTo(Rect(cx - r, h / 2 - r, cx + r, h / 2 + r), Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(),
-                -2f * Math.toDegrees(kotlin.math.atan2(h / 2.0, reach.toDouble())).toFloat(), false)
-        }
+        p.moveTo(0f, 0f)
+        p.lineTo(cx - r - sh, 0f)
+        p.cubicTo(cx - r - sh * 0.3f, 0f, cx - px - sh * 0.15f, py * 0.35f, cx - px, py)
+        p.arcTo(Rect(cx - r, -r, cx + r, r), 180f - 18f, -(180f - 36f), false)
+        p.cubicTo(cx + px + sh * 0.15f, py * 0.35f, cx + r + sh * 0.3f, 0f, cx + r + sh, 0f)
+        p.lineTo(w, 0f)
+        p.lineTo(w, h)
+        p.lineTo(0f, h)
         p.close()
         return Outline.Generic(p)
     }
-}
-
-@Composable
-private fun Wing(
-    left: Boolean,
-    backdrop: LayerBackdrop,
-    modifier: Modifier,
-    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) {
-    val shape = remember(left) { WingShape(left) }
-    Row(
-        modifier
-            .height(64.dp)
-            .frosted(backdrop, shape)
-            .border(1.5.dp, C.Text.copy(alpha = 0.22f), shape)
-            .clip(shape)
-            .semantics { isTraversalGroup = true }
-            // Keep the items clear of the curved inner edge and the round outer one.
-            .padding(start = if (left) 6.dp else 20.dp, end = if (left) 20.dp else 6.dp, top = 6.dp, bottom = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        content = content,
-    )
 }
 
 /** One page in a wing: its icon over a short name, on a lit capsule when it's the page showing. */
@@ -486,14 +465,16 @@ private fun TabItem(label: String, icon: Int, selected: Boolean, modifier: Modif
         modifier
             .fillMaxHeight()
             .pressed(press)
-            .clip(RoundedCornerShape(50))
-            .background(C.Text.copy(alpha = lit))
             .semantics(mergeDescendants = true) { this.selected = selected; role = Role.Tab }
             .tap(press, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Ic(icon, tint, 20.dp)
+        // The chosen page's icon sits on a small lit pill.
+        Box(
+            Modifier.size(width = 52.dp, height = 28.dp).clip(RoundedCornerShape(50)).background(C.Text.copy(alpha = lit)),
+            contentAlignment = Alignment.Center,
+        ) { Ic(icon, tint, 20.dp) }
         Spacer(Modifier.height(4.dp))
         Text(label, style = inter(12.sp, if (selected) FontWeight.Bold else FontWeight.SemiBold, tint), maxLines = 1, softWrap = false)
     }
