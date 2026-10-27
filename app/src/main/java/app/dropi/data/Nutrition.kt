@@ -154,7 +154,11 @@ object MealCurve {
         return if (ratios.size < 4) null else Foods.median(ratios).coerceIn(0.015, 0.15)
     }
 
-    fun predict(meal: Meal, perGram: Double?, history: MealHistory.Estimate?): Curve? {
+    /**
+     * [learntPeak]: the person's own peak time (see [Learning.peak]); the usual 60 min is replaced
+     * by it and the adjustments below (fast, slow, fat…) are kept relative to it.
+     */
+    fun predict(meal: Meal, perGram: Double?, history: MealHistory.Estimate?, learntPeak: Int? = null): Curve? {
         if (meal.items.isEmpty() || meal.carbs <= 0) return null
         val reasons = ArrayList<String>()
         var rise = meal.carbs * (perGram ?: DEFAULT_PER_GRAM)
@@ -181,13 +185,17 @@ object MealCurve {
             meal.someFatProtein -> { peak += 20; tail += 30; reasons += tr("some fat and protein slow it a little") }
         }
         if (fat >= 25 && protein >= 30 && !meal.slowDigesting) peak += 10
+        if (learntPeak != null) {
+            peak = (peak - 60 + learntPeak).coerceIn(30, 240)
+            reasons += tr("your usual peak time")
+        }
         // Past meals with the same foods know this person best: they count for half.
         if (history != null) {
             rise = 0.5 * rise + 0.5 * history.rise.coerceAtLeast(0.0)
             val f = history.foods.take(2).map { Foods.display(it).lowercase(Locale.ROOT) }
             reasons += if (f.size >= 2) tr("your past meals with {0} and {1}", f[0], f[1]) else tr("your past meals with {0}", f.firstOrNull().orEmpty())
         }
-        return Curve(rise.coerceIn(0.0, 12.0), peak, peak + tail, reasons, perGram != null || history != null)
+        return Curve(rise.coerceIn(0.0, 12.0), peak, peak + tail, reasons, perGram != null || history != null || learntPeak != null)
     }
 
     /** "1 h 15 min", "45 min", "2 h". */

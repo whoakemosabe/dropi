@@ -1103,3 +1103,36 @@ Your usual value at each check time: on waking, after breakfast and so on. It ne
 Dot and number: your usual value (the middle one)	Punktur og tala: venjulegt gildi þitt (miðgildið)
 Box: the middle half of your checks	Kassi: miðjuhelmingur mælinganna
 Line: lowest to highest	Lína: frá lægsta til hæsta
+your usual peak time	venjulegur hámarkstími þinn
+likely {0} to {1}	líklega {0} til {1}
+likely a rise of {0} to {1}	líklega hækkun um {0} til {1}
+Dropi expected {0}: close. This meal is now part of what it learns from.	Dropi bjóst við {0}: nálægt. Þessi máltíð er nú hluti af því sem Dropi lærir af.
+Dropi expected {0}, so it was off by {1}. This meal is now part of what it learns from.	Dropi bjóst við {0}, svo það munaði {1}. Þessi máltíð er nú hluti af því sem Dropi lærir af.
+Expected {0} · got {1}	Áætlað {0} · mælt {1}
+What Dropi has learnt	Það sem Dropi hefur lært
+Its guesses	Ágiskanir þess
+{1} of the last {0} within {2}	{1} af síðustu {0} innan við {2}
+Usually off by	Munar venjulega
+Tends to guess	Giskar yfirleitt
+{0} too low	{0} of lágt
+{0} too high	{0} of hátt
+after {0} more meal	eftir {0} máltíð í viðbót
+after {0} more meals	eftir {0} máltíðir í viðbót
+A meal counts once it has a reading just before and one 1–3 h after.	Máltíð telst með þegar hún hefur mælingu rétt fyrir og aðra 1–3 klst. eftir.
+50 g of carbs	50 g af kolvetnum
+From {0} meal of 15 g or more.	Út frá {0} máltíð með 15 g eða meira.
+From {0} meals of 15 g or more.	Út frá {0} máltíðum með 15 g eða meira.
+{0}, 50 g	{0}, 50 g
+not yet	ekki enn
+Needs 4 meals of 15 g or more with a reading before and after. Until then Dropi uses a typical rise.	Þarf 4 máltíðir með 15 g eða meira og mælingu fyrir og eftir. Þangað til notar Dropi dæmigerða hækkun.
+Your usual peak	Venjulegt hámark þitt
+{0} after eating	{0} eftir mat
+From your sensor, {0} meal.	Frá skynjaranum, {0} máltíð.
+From your sensor, {0} meals.	Frá skynjaranum, {0} máltíðum.
+After-eating check at your peak	Mæling eftir mat við hámarkið
+Reminders come {0} after eating (later for rich meals).	Áminningar koma {0} eftir mat (seinna eftir þungar máltíðir).
+Off: reminders use your set time.	Slökkt: áminningar nota tímann sem þú stilltir.
+Found from a sensor around 3 or more meals. Finger-pricks are too far apart to time a peak.	Fundið út frá skynjara í kringum 3 eða fleiri máltíðir. Fingurstungur eru of strjálar til að tímasetja hámark.
+From your own readings. Estimates, not advice.	Út frá þínum eigin mælingum. Áætlanir, ekki ráðgjöf.
+from {0} meal	út frá {0} máltíð
+from {0} meals	út frá {0} máltíðum

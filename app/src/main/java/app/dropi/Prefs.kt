@@ -79,6 +79,16 @@ class Prefs(context: Context) {
         get() = p.getInt("after_meal_minutes", 120)
         set(v) = p.edit { putInt("after_meal_minutes", v) }
 
+    /** The peak time learnt from the sensor (minutes), or -1 while there isn't one. */
+    var learntPeak: Int
+        get() = p.getInt("learnt_peak", -1)
+        set(v) = p.edit { putInt("learnt_peak", v) }
+
+    /** After-eating checks follow the learnt peak time (on unless the person chose their set time). */
+    var checkAtPeak: Boolean
+        get() = p.getBoolean("check_at_peak", true)
+        set(v) = p.edit { putBoolean("check_at_peak", v) }
+
     var oneOffs: List<OneOff>
         get() = Schedule.oneOffsFromJson(p.getString("one_offs", null))
         set(v) = p.edit { putString("one_offs", Schedule.oneOffsToJson(v.sortedBy { it.at }.takeLast(20))) }

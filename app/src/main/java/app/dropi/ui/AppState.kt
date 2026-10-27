@@ -232,23 +232,51 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var foodScores by mutableStateOf<List<Foods.Score>>(emptyList())
         private set
 
+    /** What's been learnt from the meals, and how well past guesses did (see [app.dropi.data.Learning]). */
+    var learning by mutableStateOf(app.dropi.data.Learning.Model.EMPTY)
+        private set
+
+    /** After-eating checks follow the learnt peak time (Meals › What Dropi has learnt). */
+    var checkAtPeak by mutableStateOf(prefs.checkAtPeak)
+        private set
+
+    fun changeCheckAtPeak(on: Boolean) {
+        checkAtPeak = on
+        prefs.checkAtPeak = on
+        app.dropi.data.Learning.peakForChecks = learning.peakMin.takeIf { on }
+    }
+
+    private fun applyLearning(m: app.dropi.data.Learning.Model) {
+        learning = m
+        // Demo data never sets when the real reminders are due.
+        if (demo) return
+        prefs.learntPeak = m.peakMin ?: -1
+        app.dropi.data.Learning.peakForChecks = m.peakMin.takeIf { checkAtPeak }
+    }
+
     /** How a logged meal went, from the shared measurements. */
     fun outcome(e: MealEntry) = app.dropi.data.MealHistory.outcome(measuredById[e.id])
 
     private suspend fun measure(rs: List<Reading>, sp: List<SensorPoint>, ms: List<MealEntry>) =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             val all = try { Foods.meals(rs, sp, ms) } catch (e: Exception) { emptyList() }
-            Triple(all, all.associateBy { it.entryId }, try { Foods.scores(all) } catch (e: Exception) { emptyList() })
+            val learnt = try { app.dropi.data.Learning.build(all, ms) } catch (e: Exception) { app.dropi.data.Learning.Model.EMPTY }
+            Measured(all, all.associateBy { it.entryId }, try { Foods.scores(all) } catch (e: Exception) { emptyList() }, learnt)
         }
+
+    private data class Measured(
+        val all: List<Foods.Meal>, val byId: Map<Long, Foods.Meal>, val scores: List<Foods.Score>, val learnt: app.dropi.data.Learning.Model,
+    )
 
     /** One load at a time, so a sensor value arriving mid-save can't leave a mix of old and new. */
     private val loading = kotlinx.coroutines.sync.Mutex()
 
     private suspend fun reloadSensor() = loading.withLock {
         val sp = try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() }
-        val (all, byId, scores) = measure(readings, sp, meals)
+        val (all, byId, scores, learnt) = measure(readings, sp, meals)
         sensor = sp
         measured = all; measuredById = byId; foodScores = scores
+        applyLearning(learnt)
     }
 
     /**
@@ -260,9 +288,10 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         val rs = try { db.since(since) } catch (e: Exception) { emptyList() }
         val ms = try { db.mealsSince(since) } catch (e: Exception) { emptyList() }
         val sp = if (withSensor) try { db.sensorSince(System.currentTimeMillis() - 31L * 86_400_000) } catch (e: Exception) { emptyList() } else sensor
-        val (all, byId, scores) = measure(rs, sp, ms)
+        val (all, byId, scores, learnt) = measure(rs, sp, ms)
         readings = rs; meals = ms; sensor = sp
         measured = all; measuredById = byId; foodScores = scores
+        applyLearning(learnt)
         if (historyOpen) loadHistory()
     }
 

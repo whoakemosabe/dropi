@@ -24,6 +24,29 @@ object Foods {
 
     fun display(s: String): String = s.replaceFirstChar { it.titlecase(Locale.ROOT) }
 
+    /**
+     * The food a name stands for, so similar names share what's learnt: "white rice", "rice" and
+     * "hrísgrjón" all count as rice. Only short names are pooled (up to two words, the basic food
+     * one of them), so "banana bread" stays its own food. Cached: it's asked for every food of
+     * every meal on each reload.
+     */
+    fun key(name: String): String {
+        val n = normalize(name)
+        keyCache[n]?.let { return it }
+        val basic = try { Basics.find(n)?.name } catch (e: Exception) { null }
+        val words = n.split(' ').filter { it.isNotEmpty() }
+        val k = when {
+            basic == null -> n
+            words.size <= 2 && (words.any { it == basic || it == basic + "s" || it == basic + "es" } || FoodNames.english(n) != null) -> basic
+            else -> n
+        }
+        if (keyCache.size > 2000) keyCache.clear()
+        keyCache[n] = k
+        return k
+    }
+
+    private val keyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     fun pack(foods: List<String>): String = foods.map(::normalize).filter { it.isNotEmpty() }.distinct().joinToString("|")
 
     fun unpack(s: String?): List<String> =
@@ -98,12 +121,18 @@ object Foods {
 
     /** The same, from meals already measured with [meals]. */
     fun scores(measured: List<Meal>): List<Score> {
+        // Grouped by the food each name stands for ([key]), shown under the name used most.
         val byFood = HashMap<String, MutableList<Meal>>()
+        val names = HashMap<String, MutableMap<String, Int>>()
         for (m in measured) {
             if (m.rise == null) continue
-            for (f in m.foods.distinct()) byFood.getOrPut(f) { ArrayList() } += m
+            for (f in m.foods.map { it to key(it) }.distinctBy { it.second }) {
+                byFood.getOrPut(f.second) { ArrayList() } += m
+                names.getOrPut(f.second) { HashMap() }.merge(f.first, 1, Int::plus)
+            }
         }
-        return byFood.map { (food, ms) ->
+        return byFood.map { (k, ms) ->
+            val food = names[k]?.maxByOrNull { it.value }?.key ?: k
             val points = ms.flatMap { it.after }.filter { it.first <= 240 }
             val curve = ArrayList<Pair<Int, Double>>()
             curve += 0 to 0.0

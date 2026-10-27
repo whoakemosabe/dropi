@@ -705,10 +705,11 @@ object MealHistory {
     /** The same, from meals already measured (leave out the meal being looked at). */
     fun estimate(start: Double, foods: List<String>, measured: List<Foods.Meal>): Estimate? {
         if (foods.isEmpty()) return null
-        val wanted = foods.toSet()
-        val past = measured.filter { m -> m.rise != null && m.foods.any { it in wanted } }
+        // Similar names count as the same food ("white rice" and "rice"; see [Foods.key]).
+        val wanted = foods.map { Foods.key(it) }.toSet()
+        val past = measured.filter { m -> m.rise != null && m.foods.any { Foods.key(it) in wanted } }
         if (past.size < Foods.MIN_MEALS) return null
-        val shared = past.flatMap { m -> m.foods.filter { it in wanted } }.distinct()
+        val shared = foods.filter { Foods.key(it) in past.flatMap { m -> m.foods.map(Foods::key) }.toSet() }.distinct()
         return Estimate(start, Foods.median(past.mapNotNull { it.rise }), past.size, shared)
     }
 

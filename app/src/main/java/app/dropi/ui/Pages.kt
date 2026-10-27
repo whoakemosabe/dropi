@@ -112,6 +112,7 @@ fun MealsPage(state: AppState) {
             }
         }
         glideItem(key = "patterns") { PatternNotes(state) }
+        glideItem(key = "learnt") { LearntCard(state) }
         if (byDay.isEmpty()) {
             glideItem(key = "empty") {
                 Text(
@@ -309,6 +310,14 @@ private fun Receipt(state: AppState, m: MealEntry, now: Long, fmt: Fmt) {
             }
         }
         NutrientLines(m)
+        // Expected vs actual, once the after-eating reading is in.
+        state.learning.hindcast(m.id)?.let { h ->
+            Text(
+                caps(tr("Expected {0} · got {1}", Glucose.format(h.expected, state.unit), Glucose.format(h.actual, state.unit))),
+                style = mono(12.sp, FontWeight.Medium, if (h.close) C.InRange else C.TextSecondary, 0.04f),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
+            )
+        }
         Text(
             info.line,
             style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),

@@ -74,7 +74,7 @@ fun FoodsCard(state: AppState) {
                 // The gentlest three, a gap, then the biggest three.
                 if (ranked.size > 6 && i == 3) Spacer(Modifier.height(12.dp))
                 // No line above the first row, nor above the first after the gap.
-                RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, first = i == 0 || (ranked.size > 6 && i == 3)) {
+                RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, meals = s.meals, first = i == 0 || (ranked.size > 6 && i == 3)) {
                     state.foodOpen = s.food
                     state.foodsOpen = true
                 }
@@ -96,7 +96,7 @@ fun FoodsCard(state: AppState) {
 
 /** A food's rise as a bar and a number. [ruled]: a row of the ruled list on the Meals page. */
 @Composable
-private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, expanded: Boolean? = null, first: Boolean = false, onClick: () -> Unit) {
+private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, ruled: Boolean = false, expanded: Boolean? = null, first: Boolean = false, meals: Int? = null, onClick: () -> Unit) {
     val (step, tone) = riseTone(rise)
     val delta = Foods.delta(rise, unit)
     val spoken = when (step) {
@@ -110,13 +110,17 @@ private fun RiseRow(name: String, rise: Double, top: Double, unit: GlucoseUnit, 
             .then(if (ruled) Modifier.heightIn(min = 48.dp).ruleTop(!first) else Modifier.clip(RoundedCornerShape(Corner.S)))
             .tap(onClick = onClick)
             .semantics(mergeDescendants = true) {
-                contentDescription = spoken
+                contentDescription = spoken + (meals?.let { ", " + trn(it, "from {0} meal", "from {0} meals") } ?: "")
                 if (expanded != null) stateDescription = if (expanded) tr("Expanded") else tr("Collapsed")
             }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(name, style = inter(15.sp, FontWeight.Medium), modifier = Modifier.width(0.dp).weight(0.42f), maxLines = 2)
+        // The name, and how many meals the score is from: two meals is a hint, ten a pattern.
+        Column(Modifier.width(0.dp).weight(0.42f)) {
+            Text(name, style = inter(15.sp, FontWeight.Medium), maxLines = 2)
+            if (meals != null) Text(trn(meals, "{0} meal", "{0} meals"), style = Chart.label)
+        }
         Spacer(Modifier.width(12.dp))
         BoxWithConstraints(Modifier.weight(0.4f).height(if (ruled) 8.dp else 10.dp)) {
             val h = if (ruled) 8.dp else 10.dp
@@ -161,7 +165,7 @@ private fun ColumnScope.FoodsContent(state: AppState, close: () -> Unit) {
                 Column(
                     Modifier.fillMaxWidth().animateContentSize(),
                 ) {
-                    RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, expanded = open, first = si == 0) { state.foodOpen = if (open) null else s.food }
+                    RiseRow(Foods.display(s.food), s.rise, top, state.unit, ruled = true, meals = s.meals, expanded = open, first = si == 0) { state.foodOpen = if (open) null else s.food }
                     if (open) {
                         val peak = s.curve.drop(1).maxByOrNull { it.second }
                         val (step, _) = riseTone(s.rise)

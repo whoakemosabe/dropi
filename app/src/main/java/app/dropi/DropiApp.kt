@@ -13,6 +13,8 @@ class DropiApp : Application() {
         CrashLog.install(this)
         // The app's language (English or Icelandic), before any text is made.
         L.init(this)
+        // The learnt peak time, for reminders worked out with no screen open.
+        Prefs(this).let { p -> app.dropi.data.Learning.peakForChecks = p.learntPeak.takeIf { it > 0 && p.checkAtPeak } }
         // Sensor broadcasts sent to "any app" reach Dropi while it's running.
         app.dropi.work.LiveCgm.listen(this)
     }

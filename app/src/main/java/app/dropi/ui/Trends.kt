@@ -548,7 +548,6 @@ private fun StripRow(
     val unit = state.unit
     val targets = state.targets
     // The shared chart style (ChartStyle.kt): the same band, line and dots as the big charts.
-    val ghostLine = Chart.faint
     val nowLine = Chart.now
     val ring = C.Bg
     val colors = Status.entries.associateWith { C.status(it) }
@@ -595,11 +594,6 @@ private fun StripRow(
             fun inRow(at: Long): Boolean = frac(at) in 0f..1f
             fun yOf(m: Double): Float = pad + h * (1f - ((m - SPARK_MIN) / (maxV - SPARK_MIN)).toFloat().coerceIn(0f, 1f))
             with(Chart) { rangeGround(0f, size.width, yOf(Glucose.TIR_HIGH), yOf(Glucose.LOW)) }
-            // The same weekday last week: small hollow rings behind today's dots, so you can
-            // compare without a line claiming what happened between checks.
-            if (!s.week) s.ghost.filter { inRow(it.at) }.forEach { r ->
-                drawCircle(ghostLine, 2.5.dp.toPx(), Offset(xOf(r.at), yOf(r.mmol)), style = Stroke(1.dp.toPx()))
-            }
             // Readings are dots only (drawn below); no joining line.
             val shown = s.readings.filter { inRow(it.at) }
             // Today's row: a thin ink line at the time it is now.

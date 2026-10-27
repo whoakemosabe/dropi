@@ -170,12 +170,15 @@ object Schedule {
      * The gap after eating before the after-meal check: 3 h when it's rich (or high in fat or
      * protein by the numbers), 2½ h with some fat or protein, else the usual gap.
      */
-    fun gapFor(meal: MealEntry?, afterMin: Int): Int {
-        val m = meal?.meal ?: return afterMin
+    fun gapFor(meal: MealEntry?, afterMin: Int, learntPeak: Int? = Learning.peakForChecks): Int {
+        // With a learnt peak time (from the sensor), the check lands on the person's own peak
+        // instead of the set gap; slow meals still wait longer.
+        val base = learntPeak?.coerceIn(45, 180) ?: afterMin
+        val m = meal?.meal ?: return base
         return when {
-            m.slowDigesting -> maxOf(afterMin, 180)
-            m.someFatProtein -> maxOf(afterMin, 150)
-            else -> afterMin
+            m.slowDigesting -> maxOf(base, 180)
+            m.someFatProtein -> maxOf(base, 150)
+            else -> base
         }
     }
 

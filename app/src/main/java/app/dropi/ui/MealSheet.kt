@@ -527,8 +527,10 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     // All from the meals measured once in AppState, leaving this meal out of its own estimate.
     val othersMeasured = remember(state.measured, f.old?.id) { state.measured.filter { it.entryId != f.old?.id } }
     val est = remember(start?.mmol, meal.foods, othersMeasured) { start?.let { MealHistory.estimate(it.mmol, meal.foods, othersMeasured) } }
-    val perGram = remember(othersMeasured, state.meals) { app.dropi.data.MealCurve.perGram(othersMeasured, state.meals) }
-    val curve = remember(meal, perGram, est) { app.dropi.data.MealCurve.predict(meal, perGram, est) }
+    // Breakfast, lunch and dinner each learn their own factor once there are enough of them.
+    val perGram = remember(othersMeasured, state.meals, f.name) { app.dropi.data.Learning.perGramFor(othersMeasured, state.meals, f.name) }
+    val learnt = state.learning
+    val curve = remember(meal, perGram, est, learnt.peakMin) { app.dropi.data.MealCurve.predict(meal, perGram, est, learnt.peakMin) }
     val actual = f.old?.let { o -> state.measuredById[o.id]?.after }.orEmpty()
     RuleHeader(if (curve != null && start == null) tr("Likely rise") else tr("Likely peak"))
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -566,15 +568,34 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
                     modifier = Modifier.padding(bottom = 8.dp).align(Alignment.Bottom),
                 )
             }
+            // A range from how far off past guesses were: narrower as Dropi learns.
+            learnt.spread?.let { sp ->
+                val lo = (if (s0 != null) s0 + curve.rise else curve.rise) - sp
+                val hi = (if (s0 != null) s0 + curve.rise else curve.rise) + sp
+                Text(
+                    if (s0 != null) tr("likely {0} to {1}", Glucose.format(lo.coerceAtLeast(s0), unit), Glucose.format(hi, unit))
+                    else tr("likely a rise of {0} to {1}", Foods.delta(lo.coerceAtLeast(0.0), unit), Foods.delta(hi, unit)),
+                    style = mono(13.sp, FontWeight.Medium, C.TextSecondary),
+                )
+            }
             if (start != null) Text(tr("from your {0} reading, {1}", fmt.time(start.at), Glucose.format(start.mmol, unit)), style = mono(12.sp, color = C.TextMuted))
             ExpectedCurve(curve, s0, actual, unit)
             val outcome = actual.filter { it.first in 30..240 }.maxByOrNull { it.second }
             if (outcome != null && s0 != null) {
-                Text(
-                    tr("How it went: peaked {0} at {1}.", Glucose.format(s0 + outcome.second, unit), app.dropi.data.MealCurve.duration(outcome.first)),
-                    style = inter(15.sp, FontWeight.SemiBold),
-                    modifier = Modifier.fillMaxWidth().ruleTop().padding(top = 10.dp),
-                )
+                // Expected vs actual: what Dropi guessed from the meals before this one.
+                val expected = f.old?.let { learnt.hindcast(it.id)?.expected } ?: (s0 + curve.rise)
+                val got = s0 + outcome.second
+                Column(Modifier.fillMaxWidth().ruleTop().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        tr("How it went: peaked {0} at {1}.", Glucose.format(got, unit), app.dropi.data.MealCurve.duration(outcome.first)),
+                        style = inter(15.sp, FontWeight.SemiBold),
+                    )
+                    Text(
+                        if (kotlin.math.abs(got - expected) <= app.dropi.data.Learning.CLOSE) tr("Dropi expected {0}: close. This meal is now part of what it learns from.", Glucose.format(expected, unit))
+                        else tr("Dropi expected {0}, so it was off by {1}. This meal is now part of what it learns from.", Glucose.format(expected, unit), Foods.delta(kotlin.math.abs(got - expected), unit).removePrefix("+")),
+                        style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
+                    )
+                }
             }
             Row(Modifier.fillMaxWidth().ruleTop(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
