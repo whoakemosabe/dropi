@@ -152,7 +152,6 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
     val meal = Chart.meal
     val beforeBand = C.AccentText.copy(alpha = 0.08f)
     val trace = Chart.sensor
-    val joinLine = Chart.ink
     val measurer = rememberTextMeasurer()
     val labelStyle = Chart.label
     val labelStrong = Chart.labelStrong
@@ -317,14 +316,6 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     tick += step
                 }
 
-                // A stretch between two readings the sensor trace already draws: at least one value
-                // every 10 minutes or so across it.
-                fun covered(a: Long, b: Long): Boolean {
-                    if (!showSensor || b <= a || a == Long.MIN_VALUE) return false
-                    val n = sensorIn(sensor, a, b).size
-                    return n >= ((b - a) / (10 * 60_000L)).coerceAtLeast(2)
-                }
-
                 // Lines, bars and meal marks stay inside the plot: nothing runs over the value labels
                 // on the left or off the right edge. (Dots are drawn after, inset so they never clip.)
                 clipRect(left, 0f, size.width, h) {
@@ -350,17 +341,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                 }
 
                 if (asBars) {
-                    // One bar a day: lowest to highest, a dot at the average.
-                    // The days in view plus one each side, so the average line runs in from the edges.
-                    val days = readings.filter { it.at in start - DAY..end + DAY }.groupBy { it.date(zone) }
-                    val w = (perDayPx * 0.45f).coerceIn(3.dp.toPx(), 10.dp.toPx())
-                    // The daily averages joined by a smooth line, under the bars.
-                    val avgs = days.entries.sortedBy { it.key }.map { (day, rs) ->
-                        Offset(xOf(day.atStartOfDay(zone).toInstant().toEpochMilli() + DAY / 2), yOf(rs.map { it.mmol }.average()))
-                    }
-                    drawPath(smoothPath(avgs), joinLine, style = with(Chart) { line() })
-                    // (Bars are drawn after the clip, below.)
-                    barsToDraw = days
+                    // One bar a day: lowest to highest, a dot at the average (drawn after the clip,
+                    // below). No line joins the days: each bar stands for what was measured.
+                    barsToDraw = readings.filter { it.at in start - DAY..end + DAY }.groupBy { it.date(zone) }
                 } else {
                     if (mealsA > 0f) {
                         meals.forEach { (r, out) ->
@@ -375,29 +358,9 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                             }
                         }
                     }
-                    // The readings joined by a smooth line (not through a long overnight gap): the
-                    // ones in view plus the one just before and just after, so the line comes in
-                    // from the edge showing where you were. Only the stretches the sensor trace
-                    // really covers are left to it; a few scattered sensor values no longer hide
-                    // the line and leave the dots unjoined.
-                    run {
-                        val firstIn = readings.indexOfFirst { it.at >= start }.let { if (it < 0) readings.size else it }
-                        val lastIn = readings.indexOfLast { it.at <= end }
-                        val from = (firstIn - 1).coerceAtLeast(0)
-                        val to = (lastIn + 2).coerceAtMost(readings.size)
-                        val pts = if (to > from) readings.subList(from, to) else emptyList()
-                        var run = ArrayList<Offset>()
-                        var prev = Long.MIN_VALUE
-                        for (rd in pts) {
-                            if ((rd.at - prev > 10 * HOUR || (sensorA > 0f && covered(prev, rd.at))) && run.isNotEmpty()) {
-                                drawPath(smoothPath(run), joinLine, style = with(Chart) { line() })
-                                run = ArrayList()
-                            }
-                            run += Offset(xOf(rd.at), yOf(rd.mmol))
-                            prev = rd.at
-                        }
-                        if (run.size >= 2) drawPath(smoothPath(run), joinLine, style = with(Chart) { line() })
-                    }
+                    // Readings are dots only, never joined: finger-prick checks are hours apart, and a
+                    // line between them would claim to know (and smooth away) what happened in between.
+                }
                 }
                 }
 
@@ -473,10 +436,8 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
             KeyRow(KeyMark.BAND, C.InRange, tr("Shaded: in range, {0}", "${Glucose.format(Glucose.LOW, unit)}–${Glucose.format(Glucose.TIR_HIGH, unit)}"))
             if (zoomedOut) {
                 KeyRow(KeyMark.BAR, C.TextSecondary, tr("Bar: one day, lowest to highest; dot is the average"))
-                KeyRow(KeyMark.LINE, Chart.ink, tr("Grey line: joins each day's average"))
             } else {
                 KeyRow(KeyMark.DOT, C.InRange, tr("Dot: a reading, coloured by range (tap one)"))
-                KeyRow(KeyMark.LINE, Chart.ink, tr("Grey line: joins your readings in time order"))
             }
             if (showTargets) {
                 val t = state.targets
@@ -667,34 +628,6 @@ private fun KeyRow(mark: KeyMark, color: androidx.compose.ui.graphics.Color, tex
         Spacer(Modifier.width(12.dp))
         Text(text, style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp))
     }
-}
-
-/**
- * A smooth line through [pts] (in x order) that never overshoots: monotone cubic curves
- * (Fritsch–Carlson), so a smooth join never draws a peak or dip that wasn't measured.
- */
-private fun smoothPath(pts: List<Offset>): Path {
-    val path = Path()
-    if (pts.isEmpty()) return path
-    path.moveTo(pts[0].x, pts[0].y)
-    if (pts.size == 1) return path
-    val n = pts.size
-    val d = FloatArray(n - 1) { i -> val dx = pts[i + 1].x - pts[i].x; if (dx == 0f) 0f else (pts[i + 1].y - pts[i].y) / dx }
-    val m = FloatArray(n)
-    m[0] = d[0]; m[n - 1] = d[n - 2]
-    for (i in 1 until n - 1) m[i] = if (d[i - 1] * d[i] <= 0f) 0f else (d[i - 1] + d[i]) / 2f
-    for (i in 0 until n - 1) {
-        if (d[i] == 0f) { m[i] = 0f; m[i + 1] = 0f; continue }
-        val a = m[i] / d[i]; val b = m[i + 1] / d[i]
-        val s = a * a + b * b
-        if (s > 9f) { val t = 3f / kotlin.math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i] }
-    }
-    for (i in 0 until n - 1) {
-        val p0 = pts[i]; val p1 = pts[i + 1]
-        val dx = (p1.x - p0.x) / 3f
-        path.cubicTo(p0.x + dx, p0.y + m[i] * dx, p1.x - dx, p1.y - m[i + 1] * dx, p1.x, p1.y)
-    }
-    return path
 }
 
 /** The sensor points from [start] to [end], found by binary search in the time-ordered list (a view, no copy). */

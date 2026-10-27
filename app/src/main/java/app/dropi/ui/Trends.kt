@@ -525,7 +525,7 @@ private fun stripDescription(s: Strip, unit: GlucoseUnit): String {
 /**
  * A day's readings by time of day across the shared scale: the in-range band faint behind, the
  * readings joined in grey, each a dot in its range colour (bigger when out of range). A week's
- * row lays its days over each other, one faint line each.
+ * row lays its days over each other, as dots.
  */
 @Composable
 private fun StripRow(
@@ -543,7 +543,6 @@ private fun StripRow(
     val unit = state.unit
     val targets = state.targets
     // The shared chart style (ChartStyle.kt): the same band, line and dots as the big charts.
-    val line = Chart.ink
     val ghostLine = Chart.faint
     val nowLine = Chart.now
     val ring = C.Bg
@@ -591,27 +590,13 @@ private fun StripRow(
             fun inRow(at: Long): Boolean = frac(at) in 0f..1f
             fun yOf(m: Double): Float = pad + h * (1f - ((m - SPARK_MIN) / (maxV - SPARK_MIN)).toFloat().coerceIn(0f, 1f))
             with(Chart) { rangeGround(0f, size.width, yOf(Glucose.TIR_HIGH), yOf(Glucose.LOW)) }
-            // The same weekday last week, faint and dashed behind the day's own line (no dots).
-            if (!s.week && s.ghost.size >= 2) {
-                val gp = Path()
-                s.ghost.filter { inRow(it.at) }.forEachIndexed { i, r ->
-                    if (i == 0) gp.moveTo(xOf(r.at), yOf(r.mmol)) else gp.lineTo(xOf(r.at), yOf(r.mmol))
-                }
-                drawPath(gp, ghostLine, style = with(Chart) { faintLine() })
+            // The same weekday last week: small hollow rings behind today's dots, so you can
+            // compare without a line claiming what happened between checks.
+            if (!s.week) s.ghost.filter { inRow(it.at) }.forEach { r ->
+                drawCircle(ghostLine, 2.5.dp.toPx(), Offset(xOf(r.at), yOf(r.mmol)), style = Stroke(1.dp.toPx()))
             }
+            // Readings are dots only (drawn below); no joining line.
             val shown = s.readings.filter { inRow(it.at) }
-            val runs = if (s.week) shown.groupBy { it.date(zone) }.values.toList() else listOf(shown)
-            runs.forEach { rs ->
-                if (rs.size >= 2) {
-                    val path = Path()
-                    rs.forEachIndexed { i, r ->
-                        if (i == 0) path.moveTo(xOf(r.at), yOf(r.mmol)) else path.lineTo(xOf(r.at), yOf(r.mmol))
-                    }
-                    // A week row lays seven days over one: each a faint line, so the dots read.
-                    if (s.week) drawPath(path, Chart.faint, style = Stroke(Chart.faintW.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                    else drawPath(path, line, style = with(Chart) { line() })
-                }
-            }
             // Today's row: a thin ink line at the time it is now.
             if (isToday && !s.week) {
                 val f = frac(now)
