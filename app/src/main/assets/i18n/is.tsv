@@ -1094,3 +1094,12 @@ Gemma is downloaded but not in use. It uses 2.6 GB of storage.	Gemma er sótt en
 Gemini Nano is still downloading on your phone. Gemma does the work until it's ready.	Gemini Nano er enn að sækjast í símann. Gemma sér um verkið þangað til.
 Shaded: before or after the day you opened, so you see how you came into it	Skyggt: fyrir eða eftir daginn sem þú opnaðir, svo þú sjáir hvernig dagurinn byrjaði
 Thin line: sensor values	Mjó lína: gildi frá skynjara
+Values	Gildi
+Standard day	Venjulegur dagur
+{0} check	{0} mæling
+{0} checks	{0} mælingar
+Your usual value at each check time: on waking, after breakfast and so on. It needs at least 3 checks at a time, so keep logging.	Venjulegt gildi þitt á hverjum mælingartíma: við vöknun, eftir morgunmat og svo framvegis. Það þarf a.m.k. 3 mælingar á hverjum tíma, svo haltu áfram að skrá.
+{0}: usually {1}, the middle half from {2} to {3}, lowest {4}, highest {5}, from {6} checks.	{0}: venjulega {1}, miðjuhelmingurinn frá {2} til {3}, lægst {4}, hæst {5}, út frá {6} mælingum.
+Dot and number: your usual value (the middle one)	Punktur og tala: venjulegt gildi þitt (miðgildið)
+Box: the middle half of your checks	Kassi: miðjuhelmingur mælinganna
+Line: lowest to highest	Lína: frá lægsta til hæsta

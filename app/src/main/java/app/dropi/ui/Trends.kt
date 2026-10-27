@@ -189,6 +189,9 @@ fun TrendsPage(state: AppState) {
             }
         }
 
+        // Your usual value at each check time, for the period: the pattern view for finger-pricks.
+        glideItem(key = "standard") { StandardDayView(state, report) }
+
         if (insights.isNotEmpty()) {
             glideItem(key = "insights-head") { RuleHeader(tr("What stands out")) }
             insights.forEachIndexed { i, ins ->
@@ -269,8 +272,10 @@ fun TrendsPage(state: AppState) {
         }
         if (state.trendsMore) {
             glideItem(key = "numbers") { MoreNumbers(report, unit) }
-            glideItem(key = "agp") { TypicalDay(state, report) }
-            if (report.byTag.isNotEmpty()) glideItem(key = "tags") { ByMoment(state, report) }
+            // Hour by hour only makes sense with a sensor; with finger-pricks the standard day above
+            // does this job (and replaces the old "By time of day" bars).
+            val from = report.from.atStartOfDay(zone).toInstant().toEpochMilli()
+            if (state.sensor.any { it.at >= from }) glideItem(key = "agp") { TypicalDay(state, report) }
             glideItem(key = "table") { DailyTable(report, unit) }
         }
         glideItem(key = "note") {
@@ -642,41 +647,6 @@ private fun MoreNumbers(r: Report, unit: GlucoseUnit) {
             else tr("Estimated A1C needs a week of readings."),
             style = style,
         )
-    }
-}
-
-/** Average for each moment of the day, as short bars on a shared scale with the value at the end. */
-@Composable
-private fun ByMoment(state: AppState, r: Report) {
-    val unit = state.unit
-    val maxV = maxOf(12.0, r.byTag.maxOf { it.average } + 1.0)
-    Column(Modifier.fillMaxWidth()) {
-        RuleHeader(tr("By time of day"))
-        r.byTag.forEach { t ->
-            val s = Glucose.status(t.average, t.tag, state.targets)
-            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Ic(t.tag.icon(), C.TextMuted, 13.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(t.tag.label, style = inter(13.sp, FontWeight.SemiBold, C.Text), modifier = Modifier.weight(1f))
-                    Text(trn(t.count, "{0} reading", "{0} readings"), style = mono(12.sp, color = C.TextMuted))
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f).height(8.dp)) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth((t.average / maxV).toFloat().coerceIn(0.04f, 1f))
-                                .height(8.dp)
-                                .background(C.status(s))
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(Glucose.format(t.average, unit), style = numeral(17.sp, C.Text))
-                }
-                Text(s.label, style = mono(12.sp, color = C.TextMuted))
-            }
-        }
     }
 }
 

@@ -120,6 +120,8 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
     var selectedId by remember { mutableStateOf<Long?>(null) }
     val selected = selectedId?.let { id -> readings.firstOrNull { it.id == id } }
     var showTargets by remember { mutableStateOf(false) }
+    // Each reading's number beside its dot. Highs and lows always carry theirs.
+    var showValues by remember { mutableStateOf(false) }
     var showMeals by remember { mutableStateOf(true) }
     var showSensor by remember { mutableStateOf(true) }
     // The chart's width, so the key knows whether days are drawn as bars (same rule as the chart).
@@ -384,6 +386,22 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
                     visible.forEach { rd ->
                         with(Chart) { readingDot(C.status(Glucose.status(rd.mmol, rd.tag, state.targets)), Offset(xOf(rd.at), yOf(rd.mmol)), ring, small) }
                     }
+                    // Values: highs and lows always, bold in their range colour; the rest when the
+                    // Values chip is on, muted. Above the dot, or below it for a low or near the top.
+                    visible.forEach { rd ->
+                        val out = rd.mmol > Glucose.TIR_HIGH || rd.mmol < Glucose.LOW
+                        if (!out && !showValues) return@forEach
+                        val st = Glucose.status(rd.mmol, rd.tag, state.targets)
+                        val style = if (out) Chart.label.copy(color = C.status(st), fontWeight = FontWeight.SemiBold) else Chart.label
+                        val tl = measurer.measure(Glucose.format(rd.mmol, unit), style)
+                        val cx = xOf(rd.at); val cy = yOf(rd.mmol)
+                        val gap = (Chart.dot + Chart.dotRing + 2.dp).toPx()
+                        val above = cy - gap - tl.size.height
+                        val below = cy + gap
+                        val ty = if (rd.mmol < Glucose.LOW || above < 0f) below.coerceAtMost(h - tl.size.height) else above
+                        val tx = (cx - tl.size.width / 2f).coerceIn(left, size.width - tl.size.width)
+                        drawText(tl, topLeft = Offset(tx, ty))
+                    }
                     selected?.takeIf { it.at in start..end }?.let { s ->
                         with(Chart) { tappedRing(Offset(xOf(s.at), yOf(s.mmol))) }
                     }
@@ -413,8 +431,11 @@ fun TimeChart(state: AppState, fmt: Fmt, now: Long, windowStart: Long? = null, w
             }
         }
 
+        // Zoomed out to one bar a day, there are no single readings to label.
+        val asBarsNow = with(density) { (boxW - 30.dp.toPx()) * DAY / span < 40.dp.toPx() }
         // Overlays, as switches that wrap (never a sideways-scrolling row).
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!asBarsNow) Chip(tr("Values"), selected = showValues) { showValues = !showValues }
             Chip(tr("Your targets"), selected = showTargets) { showTargets = !showTargets }
             Chip(tr("Meals"), icon = R.drawable.lc_utensils, selected = showMeals) { showMeals = !showMeals }
             if (sensor.isNotEmpty()) Chip(tr("Sensor"), icon = R.drawable.lc_activity, selected = showSensor) { showSensor = !showSensor }
