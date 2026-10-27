@@ -221,6 +221,7 @@ fun DropiRoot(state: AppState) {
         BackupSheet(state)
         HistorySheet(state)
         LiveSheet(state)
+        InsightsSheet(state)
         FoodsSheet(state)
         AskSheet(state)
         ChangelogSheet(state)
@@ -252,6 +253,7 @@ fun DropiRoot(state: AppState) {
                 state.liveOpen = false
                 state.askOpen = false
                 state.foodsOpen = false
+                state.insightsOpen = false
                 state.changelogOpen = false
                 state.historyOpen = false
                 state.addOpen = false

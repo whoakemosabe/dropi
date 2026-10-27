@@ -104,7 +104,15 @@ fun TrendsPage(state: AppState) {
     val report = remember(state.readings, period, today) { Analytics.report(state.readings, periods[period], today, state.zone) }
     val unit = state.unit
     fun v(m: Double) = Glucose.format(m, unit)
-    val insights = remember(report, unit) { Analytics.insights(report, state.targets, state.meals) { v(it) } }
+    // The period's findings, plus what short nights do to the waking number (steps and sleep on).
+    val insights = remember(report, unit, state.sleep, state.readings) {
+        val sleep = app.dropi.data.Learning.sleepEffect(state.readings, state.sleep)?.let { (d, n) ->
+            val amount = app.dropi.data.Foods.delta(kotlin.math.abs(d), unit).removePrefix("+")
+            if (d > 0) app.dropi.data.Insight(app.dropi.data.InsightKind.ATTENTION, trn(n, "After a short night (under 6 h), your waking number is {1} higher ({0} morning).", "After a short night (under 6 h), your waking number is {1} higher ({0} mornings).", amount))
+            else app.dropi.data.Insight(app.dropi.data.InsightKind.INFO, trn(n, "After a short night (under 6 h), your waking number is {1} lower ({0} morning).", "After a short night (under 6 h), your waking number is {1} lower ({0} mornings).", amount))
+        }
+        Analytics.insights(report, state.targets, state.meals) { v(it) } + listOfNotNull(sleep)
+    }
     val strips = remember(report, zone, state.readings) { buildStrips(report, zone, state.readings) }
     // One scale for every sparkline, so the rows compare: 06–24 unless something was logged earlier.
     val fromHour = remember(report, zone) {

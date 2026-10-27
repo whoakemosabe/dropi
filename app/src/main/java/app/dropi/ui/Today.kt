@@ -120,6 +120,7 @@ fun TodayPage(state: AppState) {
                 UpdateBanner()
                 if (state.demo) DemoBanner(state)
                 MealDraftCard()
+                ExperimentBanner(state)
                 AiBanner(state)
                 CrashCard(state)
             }

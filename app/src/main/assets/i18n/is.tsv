@@ -1195,3 +1195,26 @@ Your rise was {0} bigger with it ({1} meals) than usual ({2} meals).	Hækkunin v
 No clear difference: {0} apart, under the {1} that would count ({2} meals with it, {3} as usual).	Enginn skýr munur: {0} munur, undir þeim {1} sem myndu teljast ({2} máltíðir með breytingunni, {3} eins og venjulega).
 A few days of your own meals: a hint, not proof, and not advice.	Nokkrir dagar af þínum máltíðum: vísbending, ekki sönnun og ekki ráðgjöf.
 Try another	Prófa annað
+{1} of {0} guesses close	{1} af {0} ágiskunum nálægt
+{0} pattern	{0} mynstur
+{0} patterns	{0} mynstur
+{0} food scored	{0} fæða metin
+{0} foods scored	{0} fæður metnar
+Patterns, your plate and what Dropi has learnt	Mynstur, diskurinn þinn og það sem Dropi hefur lært
+Your {0}-day try is done: {1}. Tap to see how it went.	{0} daga prófuninni er lokið: {1}. Ýttu til að sjá hvernig gekk.
+Day {0} of {1} · {2}	Dagur {0} af {1} · {2}
+Show {0} more day	Sýna {0} dag í viðbót
+Show {0} more days	Sýna {0} daga í viðbót
+Your after-eating check follows it (Check times and reminders).	Mælingin eftir mat fylgir því (Mælingartímar og áminningar).
+Your after-eating check uses your set time (Check times and reminders).	Mælingin eftir mat notar tímann sem þú stilltir (Mælingartímar og áminningar).
+More: by meal time, and walks	Meira: eftir máltíð og göngur
+By meal time	Eftir máltíð
+Breakfast, lunch and dinner each get their own once there are 4 of that meal with a reading before and after.	Morgun-, hádegis- og kvöldmatur fá hver sitt þegar komnar eru 4 slíkar máltíðir með mælingu fyrir og eftir.
+Needs 3 meals with a walk after and 3 without, with readings before and after.	Þarf 3 máltíðir með göngu á eftir og 3 án, með mælingum fyrir og eftir.
+At your usual peak instead	Við venjulega hámarkið í staðinn
+{0} after eating, learnt from your sensor (later for rich meals)	{0} eftir mat, lært af skynjaranum (seinna eftir þungar máltíðir)
+Your sensor shows meals usually peak at {0}	Skynjarinn sýnir að máltíðir ná venjulega hámarki eftir {0}
+After a short night (under 6 h), your waking number is {1} higher ({0} morning).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} hærri ({0} morgunn).
+After a short night (under 6 h), your waking number is {1} higher ({0} mornings).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} hærri ({0} morgnar).
+After a short night (under 6 h), your waking number is {1} lower ({0} morning).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} lægri ({0} morgunn).
+After a short night (under 6 h), your waking number is {1} lower ({0} mornings).	Eftir stutta nótt (undir 6 klst.) er talan við vöknun {1} lægri ({0} morgnar).

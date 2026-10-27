@@ -159,6 +159,10 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var reportOpen by mutableStateOf(false)
     /** The food scores sheet, and the food opened in it (null: the list). */
     var foodsOpen by mutableStateOf(false)
+    /** Meals › What your meals show: patterns, Your plate, what's been learnt, try-it weeks. */
+    var insightsOpen by mutableStateOf(false)
+    /** Meals page: all 14 days shown, not just the last three. */
+    var mealsAllDays by mutableStateOf(false)
     var foodOpen by mutableStateOf<String?>(null)
     /** The + panel: reading, meal photo, words, label. */
     var addOpen by mutableStateOf(false)
@@ -173,13 +177,14 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun closeSheets() {
         settingsOpen = false; scheduleOpen = false; exportOpen = false; historyOpen = false; backupOpen = false
         liveOpen = false; askOpen = false; changelogOpen = false; foodsOpen = false; addOpen = false; reportOpen = false
+        insightsOpen = false
         editing = null
         app.dropi.work.MealWork.open = false
     }
 
     /** Any sheet over the page (the tab bar hides). */
     val sheetOpen get() = !onboarded || editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
-        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || reportOpen || app.dropi.work.MealWork.open
+        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || reportOpen || insightsOpen || app.dropi.work.MealWork.open
 
     // ---- Live sensor ----
 

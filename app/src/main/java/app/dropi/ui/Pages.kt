@@ -97,7 +97,6 @@ fun MealsPage(state: AppState) {
         Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 672.dp),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + 124.dp),
     ) {
-        glideItem(key = "draft") { MealDraftCard() }
         glideItem(key = "log") {
             // The camera first and wider, then the other four ways in, all in one row.
             Row(
@@ -111,9 +110,9 @@ fun MealsPage(state: AppState) {
                 CaptureButton(tr("Type it"), R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
             }
         }
-        glideItem(key = "patterns") { PatternNotes(state) }
-        glideItem(key = "learnt") { LearntCard(state) }
-        glideItem(key = "try") { ExperimentCard(state) }
+        // Logging first: an unsaved meal, a running try-it week, then today.
+        glideItem(key = "draft") { MealDraftCard() }
+        if (state.experiment != null) glideItem(key = "try-banner") { ExperimentBanner(state) }
         if (byDay.isEmpty()) {
             glideItem(key = "empty") {
                 Text(
@@ -138,9 +137,18 @@ fun MealsPage(state: AppState) {
             }
         }
         glideItem(key = "totals") { TotalsLines(state, today, todays) }
-        glideItem(key = "plate") { FoodsCard(state) }
-        byDay.forEach { (day, meals) ->
-            if (day == today) return@forEach
+        // Everything learnt from meals lives on its own page, one row away.
+        glideItem(key = "insights") { InsightsRow(state) }
+        // The last three days, the rest folded behind one line.
+        val earlier = byDay.keys.filter { it != today }
+        earlier.forEachIndexed { di, day ->
+            val meals = byDay.getValue(day)
+            if (di == 3 && !state.mealsAllDays) {
+                glideItem(key = "more-days") {
+                    MonoLink(trn(earlier.size - 3, "Show {0} more day", "Show {0} more days"), Modifier.padding(top = 12.dp)) { state.mealsAllDays = true }
+                }
+            }
+            if (di >= 3 && !state.mealsAllDays) return@forEachIndexed
             glideItem(key = "day-$day") {
                 val title = if (day == today.minusDays(1)) tr("Yesterday") else dayName.format(day).cap()
                 Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
@@ -189,7 +197,7 @@ private fun CaptureButton(title: String, icon: Int, modifier: Modifier, filled: 
 
 /** What the person's own meals show, as short notes, once there's enough to say it. */
 @Composable
-private fun PatternNotes(state: AppState) {
+fun PatternNotes(state: AppState) {
     val patterns = remember(state.measured, state.readings, state.meals, state.unit) {
         app.dropi.data.MealPatterns.fromMeasured(state.measured, state.readings, state.meals, state.unit)
     }
@@ -516,6 +524,7 @@ fun MorePage(state: AppState) {
                 IndexRow(tr("All readings"), state.readings.size.toString(), first = true) { state.openHistory() }
                 IndexRow(tr("Report for your care team"), "PDF · CSV") { state.exportOpen = true }
                 IndexRow(tr("Ask Dropi"), aiStatus, mark = if (Ai.usable) C.InRange else null) { state.askOpen = true }
+                IndexRow(tr("What your meals show"), null) { state.insightsOpen = true }
             }
         }
         item(key = "setup") {

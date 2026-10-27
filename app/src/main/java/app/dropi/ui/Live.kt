@@ -352,6 +352,11 @@ private fun ColumnScope.LiveContent(state: AppState, close: () -> Unit) {
             }
         }
 
+        // How the sensor compares with finger-pricks, once there are enough pairs.
+        if (app.dropi.data.Learning.sensorOffset(state.readings, state.sensor, now) != null) {
+            SheetSection(tr("Sensor vs meter")) { SensorVsMeter(state) }
+        }
+
         SheetSection(tr("Connect your sensor")) {
             Step("xDrip+", tr("Settings › Inter-app settings › Broadcast locally: on. In Identify receiver, add app.dropi."), first = true)
             Step("Juggluco", tr("Settings › xDrip+ broadcast: on, and add app.dropi as a receiver."))

@@ -139,6 +139,18 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
                     options.indexOf(state.afterMealMinutes).coerceAtLeast(0),
                     Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 ) { state.changeAfterMeal(true, options[it]) }
+                // Learnt from the sensor: the check can land on the person's own peak instead.
+                state.learning.peakMin?.let { peak ->
+                    SettingsToggleRow(
+                        tr("At your usual peak instead"),
+                        if (state.checkAtPeak) tr("{0} after eating, learnt from your sensor (later for rich meals)", app.dropi.data.MealCurve.duration(peak.coerceIn(45, 180)))
+                        else tr("Your sensor shows meals usually peak at {0}", app.dropi.data.MealCurve.duration(peak)),
+                        state.checkAtPeak,
+                    ) { on ->
+                        Haptics.toggle(view, on)
+                        state.changeCheckAtPeak(on)
+                    }
+                }
             }
             SettingsToggleRow(tr("Weekly recap"), tr("Sunday at 19:00: your week's time in range, lows and logging"), state.recapOn) { on ->
                 Haptics.toggle(view, on)
