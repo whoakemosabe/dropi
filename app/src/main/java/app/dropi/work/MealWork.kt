@@ -280,6 +280,14 @@ object MealWork {
             }
             val why = if (lines.isEmpty()) Scan.problem else tr("Found text, but no carbs or sugars in it.")
             val whyEn = if (lines.isEmpty()) Scan.problemEn else "Found text, but no carbs or sugars in it."
+            // What was read and from where, and the camera's text when something's missing, so a
+            // problem report shows exactly what the label gave.
+            if (p != null) {
+                fun mark(v: Double?, mine: Double?) = when { mine != null -> "read"; v != null -> "AI"; else -> "–" }
+                Diag.log(ctx, "Label: carbs ${mark(p.carbs, found?.carbs)}, sugars ${mark(p.sugars, found?.sugars)}, fibre ${mark(p.fibre, found?.fibre)}, " +
+                    "protein ${mark(p.protein, found?.protein)}, fat ${mark(p.fat, found?.fat)}; AI ${if (ai != null) "answered" else if (Ai.usable) "not needed or no answer" else "not ready"}")
+                if (p.fibre == null || p.protein == null || p.fat == null) Diag.log(ctx, "Label text: " + Scan.lastText.take(30).joinToString(" | ").take(900))
+            }
             if (p == null) Diag.log(ctx, "Label: nothing usable (${whyEn ?: "?"}; ${Scan.lastText.size} lines read; AI ${if (ai != null) "answered" else if (Ai.usable) "had no answer" else "not ready"})")
             else if (found?.carbs == null) Diag.log(ctx, "Label: the parser missed it, the AI read it (${Scan.lastText.size} lines)")
             val seen = Scan.lastText

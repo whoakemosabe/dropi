@@ -227,13 +227,15 @@ private fun LabelGrams(
     // US labels give their numbers per serving; European ones per 100 g.
     val us = found.us
     val per = if (us) tr("per serving") else tr("per 100 g")
-    var name by remember { mutableStateOf(found.name) }
-    var carbs by remember { mutableStateOf(fmt(found.carbs)) }
-    var sugars by remember { mutableStateOf(fmt(found.sugars)) }
-    var fibre by remember { mutableStateOf(fmt(found.fibre)) }
-    var protein by remember { mutableStateOf(fmt(found.protein)) }
-    var fat by remember { mutableStateOf(fmt(found.fat)) }
-    var serving by remember { mutableStateOf(fmt(found.serving)) }
+    // Keyed to what was read: scanning the label after a barcode wasn't found fills the boxes
+    // afresh instead of keeping the empty ones from before.
+    var name by remember(found) { mutableStateOf(found.name) }
+    var carbs by remember(found) { mutableStateOf(fmt(found.carbs)) }
+    var sugars by remember(found) { mutableStateOf(fmt(found.sugars)) }
+    var fibre by remember(found) { mutableStateOf(fmt(found.fibre)) }
+    var protein by remember(found) { mutableStateOf(fmt(found.protein)) }
+    var fat by remember(found) { mutableStateOf(fmt(found.fat)) }
+    var serving by remember(found) { mutableStateOf(fmt(found.serving)) }
     val packetG = portion?.let { Math.round(it).toInt() }?.takeIf { !us && it in 5..2000 }
     var grams by remember { mutableStateOf(found.serving?.let { Math.round(it).toInt() }?.takeIf { us } ?: packetG ?: 100) }
     fun num(t: String) = t.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..(if (us) 400.0 else 100.0) }

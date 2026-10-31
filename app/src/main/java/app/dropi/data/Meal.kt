@@ -484,7 +484,7 @@ object Label {
     }
 
     private val proteinWords = listOf(
-        "prótein", "protein", "eiweiß", "eiweiss", "protéines", "proteines", "proteine", "proteínas", "proteinas", "eiwitten",
+        "prótein", "prótín", "eggjahvítuefni", "hvítuefni", "protein", "eiweiß", "eiweiss", "protéines", "proteines", "proteine", "proteínas", "proteinas", "eiwitten",
         "białko", "bialko", "proteiini", "bílkoviny", "fehérje", "baltymai", "olbaltumvielas", "valk", "πρωτεΐνες", "bjelančevine",
         "beljakovine", "proteine", "белтъци",
     )
@@ -496,6 +496,17 @@ object Label {
     private val saturatedWords = listOf(
         "mettuð", "mettað", "mettaðar", "saturate", "saturated", "gesättigt", "gesattigt", "saturés", "satures", "saturi", "saturadas",
         "saturados", "verzadigd", "nasycone", "tyydyttyneet", "mættede", "mättat", "mettet", "nasycen",
+    )
+    /** Words that turn a following fat word into something else ("trans fat", "polyunsaturated fat", fatty acids). */
+    private val notFatWords = listOf(
+        "trans", "mono", "poly", "fettsäure", "fettsaure", "fitusýr", "fitusyr", "vetzuren", "fatty acid", "einómett", "fjölómett",
+        "omega", "ómega", "acides gras", "acidi grassi", "ácidos grasos",
+    )
+    /** Other rows on a label: they end the row before them, and their numbers are never taken. */
+    private val otherWords = listOf(
+        "orka", "energy", "energi", "énergie", "energie", "brennwert", "calories", "kaloríur", "salt", "sodium", "natrium", "sel",
+        "starch", "sterkja", "stärke", "amidon", "polyol", "sugar alcohol", "fjölalkóhól", "cholesterol", "kólesteról",
+        "vitamin", "vítamín", "calcium", "kalk", "potassium", "kalíum", "fatty", "sterkju",
     )
     private val usMarks = listOf("nutrition facts", "total carbohydrate", "total carb", "dietary fiber", "total fat")
 
@@ -511,7 +522,7 @@ object Label {
         "socker", "suiker", "cukr", "sokeri", "cukry", "cukor", "šećer", "sladkor", "zaharuri", "захари", "σάκχαρα",
     )
     private val fibreWords = listOf(
-        "trefjar", "fibre", "fiber", "ballaststoff", "fibres", "fibra", "kostfiber", "vezel", "błonnik", "blonnik",
+        "trefjar", "trefjaefni", "trefja", "fibre", "dietary fiber", "dietary fibre", "fiber", "ballaststoff", "fibres", "fibra", "kostfiber", "vezel", "błonnik", "blonnik",
         "ravintokuitu", "kuitu", "vláknina", "vlakna", "vlaknine", "fibre alimentare", "φυτικές ίνες",
     )
 
@@ -542,8 +553,10 @@ object Label {
         }
         // The slant as reported, its opposite (in case the sign is the other way) and none:
         // whichever lines the most up into rows wins.
-        val best = listOf(slant, -slant, 0.0).distinct().map { group(it) }.minBy { it.size }
-        return best.map { r -> r.sortedBy { it.x }.joinToString(" ") { it.l.text } }
+        fun text(g: List<List<P>>) = g.map { r -> r.sortedBy { it.x }.joinToString(" ") { it.l.text } }
+        val tries = listOf(slant, -slant, 0.0).distinct().map { text(group(it)) }
+        // The one that reads the most of the five numbers; then the one with the fewest rows.
+        return tries.sortedWith(compareByDescending<List<String>> { score(it) }.thenBy { it.size }).first()
     }
 
     /** Every single-word nutrient name, for fixing small camera misreads ("Kolvetnl" → "kolvetni"). */
@@ -581,8 +594,8 @@ object Label {
      * that have no number with the number-only lines, in order.
      */
     private fun pairColumns(clean: List<String>): List<String> {
-        val all = carbWords + sugarWords + fibreWords + proteinWords + fatWords + listOf("orka", "energy", "energi", "salt")
-        val names = clean.filter { l -> all.any { l.contains(it) } && l.none { it.isDigit() } }
+        // Every name, saturates and salt too, so the two columns stay in step.
+        val names = clean.filter { l -> hits(l).isNotEmpty() && l.none { it.isDigit() } }
         val values = clean.filter { l -> l.isNotBlank() && Regex("^[<~]?\\s*\\d").containsMatchIn(l.trim()) && l.count { it.isLetter() } <= 6 }
         if (names.size < 3 || values.size < names.size) return emptyList()
         // Energy rows often take two values (kJ and kcal): line the rest up from the end when needed.
@@ -590,34 +603,93 @@ object Label {
         return names.zip(v.take(names.size)) { n, x -> "$n $x" }
     }
 
-    /** [lines] in reading order. The first amount on (or right after) a matching line is per 100 g. */
-    fun read(lines: List<String>): Per100? {
-        val fixed = lines.map { fixWords(normal(it)) }
-        val clean = fixed + pairColumns(fixed)
-        fun find(words: List<String>, avoid: List<String> = emptyList(), skip: List<String> = emptyList()): Double? {
-            for ((k, l) in clean.withIndex()) {
-                if (skip.any { l.contains(it) }) continue
-                val at = words.filter { l.contains(it) }.minOfOrNull { l.indexOf(it) } ?: continue
-                // "of which sugars" before the word means this row is about sugars, not carbs.
-                if (avoid.any { w -> l.indexOf(w).let { it in 0 until at } }) continue
-                val after = l.substring(words.filter { l.contains(it) }.maxOf { l.indexOf(it) + it.length })
-                val here = number(after) ?: number(l) ?: clean.getOrNull(k + 1)?.let { next ->
-                    // A value on the next row, when that row isn't another nutrient.
-                    if ((carbWords + sugarWords + fibreWords + proteinWords + fatWords).any { next.contains(it) }) null else number(next)
-                }
-                if (here != null) return here
+    /** What a name on a label stands for. NOT_FAT and OTHER rows are found only so their numbers aren't taken. */
+    private enum class Kind { CARBS, SUGARS, FIBRE, PROTEIN, FAT, NOT_FAT, OTHER }
+
+    private data class Hit(val at: Int, val end: Int, val kind: Kind)
+
+    /** Every name, longest first, so "trefjaefni" wins over "trefja" and "saturated" over "saturate". */
+    private val keywords: List<Pair<String, Kind>> by lazy {
+        (carbWords.map { it to Kind.CARBS } + sugarWords.map { it to Kind.SUGARS } + fibreWords.map { it to Kind.FIBRE } +
+            proteinWords.map { it to Kind.PROTEIN } + fatWords.map { it to Kind.FAT } +
+            (saturatedWords + notFatWords).map { it to Kind.NOT_FAT } + otherWords.map { it to Kind.OTHER })
+            .distinct().sortedByDescending { it.first.length }
+    }
+
+    /**
+     * The names on a line, left to right. A name counts at the start of a word only, so "vet"
+     * (Dutch for fat) isn't found inside "kolvetni", but it may run on ("sykurtegundir", "proteins").
+     */
+    private fun hits(l: String): List<Hit> {
+        val all = ArrayList<Hit>()
+        for ((w, k) in keywords) {
+            var i = l.indexOf(w)
+            while (i >= 0) {
+                if (i == 0 || !l[i - 1].isLetter()) all += Hit(i, i + w.length, k)
+                i = l.indexOf(w, i + 1)
             }
-            return null
         }
-        val carbs = find(carbWords, avoid = sugarWords + fibreWords)
-        val sugars = find(sugarWords)
-        val fibre = find(fibreWords)
-        val protein = find(proteinWords)
-        // Fat: never a carbs row ("kolvetni" holds "vet") or a saturated-fat row ("þar af mettuð fita").
-        val fatClean = find(fatWords, skip = carbWords + sugarWords + saturatedWords)
+        val kept = ArrayList<Hit>()
+        for (h in all.sortedWith(compareBy<Hit> { it.at }.thenByDescending { it.end })) {
+            if (kept.isNotEmpty() && h.at < kept.last().end) continue
+            kept += h
+        }
+        return kept
+    }
+
+    /**
+     * The amounts on one line, by what they're for: each name takes the first amount after it, up
+     * to the next name. So a row the camera ran together ("Fita 12 g þar af mettuð fita 3,1 g",
+     * "Carbohydrate 60 g of which sugars 22 g") still gives every number to the right name.
+     * "Saturated fat", "mettuð fita" and "trans fat" are one name, never fat. A name ending the line
+     * with no number takes the next line's, when that line has no names of its own.
+     */
+    private fun amounts(l: String, next: String?): Map<Kind, Double> {
+        val hs = hits(l)
+        if (hs.isEmpty()) return emptyMap()
+        val out = HashMap<Kind, Double>()
+        var i = 0
+        while (i < hs.size) {
+            val kind = hs[i].kind
+            var j = i
+            while (j + 1 < hs.size && hs[j].kind == Kind.NOT_FAT && hs[j + 1].kind == Kind.FAT &&
+                l.substring(hs[j].end, hs[j + 1].at).none { it.isDigit() }) j++
+            val to = hs.getOrNull(j + 1)?.at ?: l.length
+            var v = number(l.substring(hs[j].end, to))
+            if (v == null && j + 1 == hs.size && next != null && hits(next).isEmpty()) v = number(next)
+            if (v != null && kind !in out) out[kind] = v
+            i = j + 1
+        }
+        return out
+    }
+
+    /** Lines ready to read: lower case, decimal points, small misreads fixed. */
+    private fun prepare(lines: List<String>) = lines.map { fixWords(normal(it)) }
+
+    /** How many of the five numbers a set of rows gives (for choosing how to straighten a photo). */
+    internal fun score(rows: List<String>): Int {
+        val clean = prepare(rows)
+        val found = HashSet<Kind>()
+        clean.forEachIndexed { k, l -> amounts(l, clean.getOrNull(k + 1)).keys.forEach { found += it } }
+        return found.count { it != Kind.NOT_FAT && it != Kind.OTHER }
+    }
+
+    /** [lines] in reading order. The first amount for each name is per 100 g (or per serving on a US label). */
+    fun read(lines: List<String>): Per100? {
+        val fixed = prepare(lines)
+        val clean = fixed + pairColumns(fixed)
+        val found = HashMap<Kind, Double>()
+        clean.forEachIndexed { k, l ->
+            for ((kind, v) in amounts(l, clean.getOrNull(k + 1))) if (kind !in found) found[kind] = v
+        }
+        val carbs = found[Kind.CARBS]
+        val sugars = found[Kind.SUGARS]
         if (carbs == null && sugars == null) return null
         val us = isUs(clean)
-        return Per100(carbs, sugars, fibre, protein = protein, fat = fatClean, us = us, serving = if (us) servingGrams(clean) else null)
+        return Per100(
+            carbs, sugars, found[Kind.FIBRE], protein = found[Kind.PROTEIN], fat = found[Kind.FAT],
+            us = us, serving = if (us) servingGrams(clean) else null,
+        )
     }
 
     /** "Serving size 1 cup (40g)" → 40. */
@@ -648,6 +720,8 @@ object Label {
             "Use a dot for decimals. Use null for anything missing.\n\n" + text.take(1500)
         else "This is text read by a camera from a food packet's nutrition label (it may be Icelandic, English or another " +
             "European language, with decimal commas). Find the values per 100 g or 100 ml, and the product's name if it's there. " +
+            "Icelandic names: Kolvetni = carbs, sykurtegundir = sugars, Trefjar or Trefjaefni = fibre, Prótein = protein, " +
+            "Fita = fat (not \"mettuð fita\", which is saturated fat). Numbers only, no units. " +
             "Reply with only JSON: {\"name\":\"granola\",\"carbs\":60.5,\"sugars\":22,\"fibre\":7,\"protein\":9,\"fat\":12}. " +
             "Use a dot for decimals (60.5, not 60,5). Use null for anything missing.\n\n" +
             text.take(1500)
@@ -660,7 +734,13 @@ object Label {
         return try {
             // A decimal comma ("60,5") would break the JSON: make it a point first.
             val o = org.json.JSONObject(reply.substring(a, b + 1).replace(Regex("(\\d),(\\d)"), "$1.$2"))
-            fun d(k: String) = if (o.isNull(k)) null else o.optDouble(k).takeIf { !it.isNaN() && it in 0.0..100.0 }
+            fun d(k: String): Double? {
+                if (!o.has(k) || o.isNull(k)) return null
+                // A number, or text with one in it ("9.5 g", "<0.5"): the model doesn't always keep to plain numbers.
+                val v = o.optDouble(k).takeIf { !it.isNaN() }
+                    ?: Regex("\\d{1,3}(?:\\.\\d{1,2})?").find(o.optString(k))?.value?.toDoubleOrNull()
+                return v?.takeIf { it in 0.0..100.0 }
+            }
             val p = Per100(
                 d("carbs"), d("sugars"), d("fibre"), o.optString("name").takeIf { it != "null" }.orEmpty().take(40),
                 protein = d("protein"), fat = d("fat"),
