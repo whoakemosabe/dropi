@@ -488,6 +488,7 @@ fun MorePage(state: AppState) {
     LaunchedEffect(Unit) { Ai.refresh(context) }
     // Read again whenever the backup sheet opens or closes, so a new backup shows straight away.
     val lastBackup = remember(state.backupOpen) { app.dropi.Prefs(context).lastBackup }
+    val myFoodsCount = remember(state.myFoodsOpen, state.meals) { app.dropi.Prefs(context).usualFoods.size }
 
     val aiStatus = when {
         Ai.usable -> tr("ready")
@@ -525,6 +526,7 @@ fun MorePage(state: AppState) {
                 IndexRow(tr("Report for your care team"), "PDF · CSV") { state.exportOpen = true }
                 IndexRow(tr("Ask Dropi"), aiStatus, mark = if (Ai.usable) C.InRange else null) { state.askOpen = true }
                 IndexRow(tr("What your meals show"), null) { state.insightsOpen = true }
+                IndexRow(tr("My foods"), myFoodsCount.takeIf { it > 0 }?.toString()) { state.myFoodsOpen = true }
             }
         }
         item(key = "setup") {

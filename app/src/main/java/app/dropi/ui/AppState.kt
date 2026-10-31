@@ -161,6 +161,8 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     var foodsOpen by mutableStateOf(false)
     /** Meals › What your meals show: patterns, Your plate, what's been learnt, try-it weeks. */
     var insightsOpen by mutableStateOf(false)
+    /** More › My foods: the foods saved as "my …". */
+    var myFoodsOpen by mutableStateOf(false)
     /** Meals page: all 14 days shown, not just the last three. */
     var mealsAllDays by mutableStateOf(false)
     var foodOpen by mutableStateOf<String?>(null)
@@ -177,14 +179,14 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun closeSheets() {
         settingsOpen = false; scheduleOpen = false; exportOpen = false; historyOpen = false; backupOpen = false
         liveOpen = false; askOpen = false; changelogOpen = false; foodsOpen = false; addOpen = false; reportOpen = false
-        insightsOpen = false
+        insightsOpen = false; myFoodsOpen = false
         editing = null
         app.dropi.work.MealWork.open = false
     }
 
     /** Any sheet over the page (the tab bar hides). */
     val sheetOpen get() = !onboarded || editing != null || settingsOpen || scheduleOpen || exportOpen || historyOpen || backupOpen ||
-        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || reportOpen || insightsOpen || app.dropi.work.MealWork.open
+        liveOpen || askOpen || changelogOpen || foodsOpen || addOpen || reportOpen || insightsOpen || myFoodsOpen || app.dropi.work.MealWork.open
 
     // ---- Live sensor ----
 

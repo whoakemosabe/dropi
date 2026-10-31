@@ -747,7 +747,8 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         }
     }
     if (adding) {
-        AddFoodDialog(usual, onDismiss = { adding = false }) { item, known, keep ->
+        val recentFoods = remember(state.meals) { Foods.recent(state.meals, 30) }
+        AddFoodDialog(usual, recentFoods, onDismiss = { adding = false }) { item, known, keep ->
             if (keep && known) MealWork.remember(context, item)
             MealWork.update(meal.copy(items = meal.items + item.copy(usual = item.usual || (keep && known))))
             // Added before its numbers came back: they land on the meal when ready.
@@ -1167,7 +1168,12 @@ private fun FoodDialogFrame(onDismiss: () -> Unit, content: @Composable ColumnSc
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: () -> Unit, onAdd: (MealItem, Boolean, Boolean) -> Unit) {
+private fun AddFoodDialog(
+    usual: Map<String, app.dropi.data.Usual>,
+    recent: List<String>,
+    onDismiss: () -> Unit,
+    onAdd: (MealItem, Boolean, Boolean) -> Unit,
+) {
     val context = LocalContext.current
     val view = LocalView.current
     var name by remember { mutableStateOf("") }
@@ -1240,6 +1246,28 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FieldLabel(tr("What is it?"))
             FieldBox(name, tr("e.g. hard boiled egg"), label = tr("What is it?"), onDone = { askNow++ }) { name = it.take(40) }
+        }
+        // One tap: your saved foods first (most used first), then the foods you log most. While a
+        // name is typed, only the ones that match it.
+        val picks = remember(usual, recent, key) {
+            val rank = recent.withIndex().associate { (i, f) -> f to i }
+            val mine = usual.keys.sortedWith(compareBy<String> { rank[it] ?: Int.MAX_VALUE }.thenBy { it })
+            val all = mine.map { it to true } + recent.filter { it !in usual }.map { it to false }
+            all.filter { (f, _) -> key.length < 2 || (f != key && (f.startsWith(key) || f.contains(" $key") || f.contains(key))) }.take(10)
+        }
+        if (picks.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (key.length < 2) FieldLabel(if (usual.isNotEmpty()) tr("My foods and recent") else tr("Recent"))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    picks.forEach { (f, mine) ->
+                        Chip(Foods.display(f), icon = if (mine) R.drawable.lc_bookmark else null) {
+                            Haptics.tap(view)
+                            name = Foods.display(f)
+                            askNow++
+                        }
+                    }
+                }
+            }
         }
 
         if (key.length >= 2) {
