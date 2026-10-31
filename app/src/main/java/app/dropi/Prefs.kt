@@ -216,7 +216,7 @@ class Prefs(context: Context) {
             o.keys().asSequence().associateWith { k ->
                 val u = o.getJSONObject(k)
                 fun n(k: String) = if (u.has(k)) u.optDouble(k).takeIf { !it.isNaN() } else null
-                app.dropi.data.Usual(u.optString("portion", "1 portion"), u.optDouble("carbs", 0.0), n("sugars"), n("protein"), n("fat"))
+                app.dropi.data.Usual(u.optString("portion", "1 portion"), u.optDouble("carbs", 0.0), n("sugars"), n("protein"), n("fat"), n("fibre"))
             }
         } catch (e: Exception) { emptyMap() }
         set(v) = p.edit {
@@ -226,6 +226,7 @@ class Prefs(context: Context) {
                     u.sugars?.let { put("sugars", it) }
                     u.protein?.let { put("protein", it) }
                     u.fat?.let { put("fat", it) }
+                    u.fibre?.let { put("fibre", it) }
                 })
             }
             putString("usual_foods", o.toString())

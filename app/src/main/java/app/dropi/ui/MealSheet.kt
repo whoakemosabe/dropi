@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -236,6 +237,9 @@ private fun LabelGrams(
     var protein by remember(found) { mutableStateOf(fmt(found.protein)) }
     var fat by remember(found) { mutableStateOf(fmt(found.fat)) }
     var serving by remember(found) { mutableStateOf(fmt(found.serving)) }
+    val saved = remember { MealWork.usual(context) }
+    // Remember this packet as "my <name>" at the amount eaten; on when that name is saved already.
+    var keep by remember(found) { mutableStateOf(Foods.normalize(found.name).let { it.isNotEmpty() && it in saved }) }
     val packetG = portion?.let { Math.round(it).toInt() }?.takeIf { !us && it in 5..2000 }
     var grams by remember { mutableStateOf(found.serving?.let { Math.round(it).toInt() }?.takeIf { us } ?: packetG ?: 100) }
     fun num(t: String) = t.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..(if (us) 400.0 else 100.0) }
@@ -324,7 +328,10 @@ private fun LabelGrams(
         )
         if (eaten != null) NumbersPreview(eaten)
     }
+    val key = Foods.normalize(name)
+    if (eaten != null && key.length >= 2) RememberRow(key, key in saved, eaten.copy(name = key), keep) { keep = it }
     PrimaryButton(tr("Next"), Modifier.fillMaxWidth(), enabled = ready) {
+        if (keep && eaten != null && key.length >= 2) MealWork.remember(context, eaten.copy(name = key))
         MealWork.labelGrams(context, Foods.normalize(name), grams, checked, code, packetG?.toDouble())
     }
     if (source == "label") Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -724,20 +731,25 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     val open = editing
     if (open != null && open in meal.items.indices) {
         FoodEditDialog(meal.items[open], score = scores[meal.items[open].key], unit = unit,
-            remembered = meal.items[open].key in usual,
+            saved = usual.keys,
             onDismiss = { editing = null },
             onRemove = { MealWork.update(meal.copy(items = meal.items.filterIndexed { k, _ -> k != open })); editing = null },
         ) { item, remember ->
-            // A changed guess teaches the next one (photo and words meals).
-            MealWork.correct(context, meal, meal.items[open], item)
-            if (remember) MealWork.remember(context, item) else if (meal.items[open].key in usual) MealWork.forget(context, item.key)
+            val old = meal.items[open]
+            // A changed guess teaches the next one (photo and words meals; not when renamed).
+            MealWork.correct(context, meal, old, item)
+            // Remember: saves (or updates) "my <name>". Off, under the same name: forgets it.
+            // Renamed and off: the old saved food is left as it was.
+            if (remember) MealWork.remember(context, item)
+            else if (item.key == old.key && old.key in usual) MealWork.forget(context, old.key)
             MealWork.update(meal.copy(items = meal.items.mapIndexed { k, it -> if (k == open) item.copy(usual = remember) else it }))
             editing = null
         }
     }
     if (adding) {
-        AddFoodDialog(usual, onDismiss = { adding = false }) { item, known ->
-            MealWork.update(meal.copy(items = meal.items + item))
+        AddFoodDialog(usual, onDismiss = { adding = false }) { item, known, keep ->
+            if (keep && known) MealWork.remember(context, item)
+            MealWork.update(meal.copy(items = meal.items + item.copy(usual = item.usual || (keep && known))))
             // Added before its numbers came back: they land on the meal when ready.
             if (!known) MealWork.fillIn(context, item)
             adding = false
@@ -1155,7 +1167,7 @@ private fun FoodDialogFrame(onDismiss: () -> Unit, content: @Composable ColumnSc
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: () -> Unit, onAdd: (MealItem, Boolean) -> Unit) {
+private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: () -> Unit, onAdd: (MealItem, Boolean, Boolean) -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     var name by remember { mutableStateOf("") }
@@ -1169,6 +1181,8 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
     var otherPortion by remember { mutableStateOf("") }
     var numbersOpen by remember { mutableStateOf(false) }
     var edited by remember { mutableStateOf<MealItem?>(null) }
+    // Remember these numbers as "my <food>": on already when it's one the person has saved.
+    var keep by remember(key) { mutableStateOf(key in usual) }
 
     // Get the model loading now, so it's ready by the time the name is typed.
     LaunchedEffect(Unit) { app.dropi.work.Ai.warm(context) }
@@ -1194,7 +1208,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
             portion == null && u == null && known != null -> { base = known; from = tr("Looked up before") }
             portion != null && known != null -> { base = known; from = tr("Looked up before") }
             portion == null && u != null -> {
-                base = MealItem(key, u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein, fat = u.fat, usual = true); from = tr("Your usual amount")
+                base = MealItem(key, u.portion, carbs = u.carbs, sugars = u.sugars, protein = u.protein, fat = u.fat, fibre = u.fibre, usual = true); from = tr("Your usual amount")
             }
             portion == null && basic != null -> { base = basic.copy(name = key); from = tr("Found: {0}, from Dropi's food list", app.dropi.data.FoodNames.shown(basic.name)) }
             app.dropi.work.Ai.usable -> {
@@ -1271,6 +1285,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
                 }
             }
             if (numbersOpen) NumbersGrid(current) { edited = it }
+            if (known) RememberRow(key, key in usual, current, keep) { keep = it }
         }
 
         PrimaryButton(
@@ -1282,7 +1297,7 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
             },
             Modifier.fillMaxWidth(),
             enabled = key.length >= 2,
-        ) { onAdd(current.copy(name = key), known) }
+        ) { onAdd(current.copy(name = key), known, keep) }
         GhostButton(tr("Cancel"), Modifier.fillMaxWidth()) { onDismiss() }
     }
 }
@@ -1294,7 +1309,7 @@ private fun FoodEditDialog(
     initial: MealItem,
     score: Foods.Score?,
     unit: app.dropi.data.GlucoseUnit,
-    remembered: Boolean,
+    saved: Set<String>,
     onDismiss: () -> Unit,
     onRemove: () -> Unit,
     onDone: (MealItem, Boolean) -> Unit,
@@ -1304,10 +1319,13 @@ private fun FoodEditDialog(
     // is worked out from it, so going 150 → 40 → 150 g lands back on the same numbers, no drift.
     var basis by remember(initial) { mutableStateOf(initial) }
     var item by remember(initial) { mutableStateOf(initial) }
-    var keep by remember(initial) { mutableStateOf(remembered || initial.usual) }
+    // Its name: change it to save a separate food ("my lasagna") next to the one already saved.
+    var name by remember(initial) { mutableStateOf(Foods.display(initial.name)) }
+    val key = Foods.normalize(name).ifBlank { initial.key }
+    var keep by remember(initial) { mutableStateOf(initial.key in saved || initial.usual) }
     FoodDialogFrame(onDismiss) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(Foods.display(initial.name), style = heading(24.sp), modifier = Modifier.weight(1f))
+            Text(Foods.display(key), style = heading(24.sp), modifier = Modifier.weight(1f))
             Spacer(Modifier.width(12.dp))
             Text(item.portionShown(), style = mono(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(bottom = 5.dp))
         }
@@ -1334,17 +1352,12 @@ private fun FoodEditDialog(
             Text(tr("Guessed {0} g carbs. You changed it to {1} g.", app.dropi.data.Grams.text(initial.carbs), app.dropi.data.Grams.text(item.carbs)), style = inter(13.sp, color = C.TextMuted))
         }
 
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop().padding(top = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(tr("Remember as my {0}", Foods.display(initial.name).lowercase()), style = inter(15.sp, FontWeight.SemiBold))
-                Text(tr("Next time: {0} g carbs for {1}", app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1)), app.dropi.data.Portions.shown(item.portion)), style = mono(12.sp, color = C.TextMuted))
-            }
-            Switch(checked = keep, onCheckedChange = { Haptics.toggle(view, it); keep = it }, colors = dropiSwitchColors(),
-                modifier = Modifier.semantics { contentDescription = tr("Remember this amount") })
+        Column(Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel(tr("Name"))
+            FieldBox(name, Foods.display(initial.name), label = tr("Name")) { name = it.take(40) }
+            if (key != initial.key) Text(tr("Saved as a separate food. Your {0} stays as it was.", Foods.display(initial.name).lowercase(app.dropi.L.locale)), style = inter(13.sp, color = C.TextMuted))
         }
+        RememberRow(key, key in saved, item, keep) { keep = it }
 
         if (score != null) {
             Column(
@@ -1369,7 +1382,7 @@ private fun FoodEditDialog(
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GhostButton(tr("Remove"), Modifier.weight(1f), color = C.Low) { onRemove() }
-            PrimaryButton(tr("Done"), Modifier.weight(2f)) { onDone(item, keep) }
+            PrimaryButton(tr("Done"), Modifier.weight(2f)) { onDone(item.copy(name = key), keep) }
         }
     }
 }
@@ -1473,5 +1486,31 @@ private fun PortionPick(meal: app.dropi.data.Meal) {
                 }
             }
         }
+    }
+}
+
+
+/**
+ * "Remember as my lasagna" (or "Update my lasagna" when one is saved already): these numbers
+ * become the person's own amount for that food, used before any guess next time.
+ */
+@Composable
+private fun RememberRow(key: String, exists: Boolean, item: MealItem, keep: Boolean, onChange: (Boolean) -> Unit) {
+    val view = LocalView.current
+    val shown = Foods.display(key).lowercase(app.dropi.L.locale)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).ruleTop().padding(top = 12.dp)
+            .toggleable(value = keep, role = Role.Switch) { Haptics.toggle(view, it); onChange(it) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(if (exists) tr("Update my {0}", shown) else tr("Remember as my {0}", shown), style = inter(15.sp, FontWeight.SemiBold))
+            Text(
+                if (exists && keep) tr("Replaces the one you saved: {0} g carbs for {1}", app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1)), app.dropi.data.Portions.shown(item.portion))
+                else tr("Next time: {0} g carbs for {1}", app.dropi.data.Grams.text(item.carbs / item.qty.coerceAtLeast(0.1)), app.dropi.data.Portions.shown(item.portion)),
+                style = mono(12.sp, color = C.TextMuted),
+            )
+        }
+        Switch(checked = keep, onCheckedChange = null, colors = dropiSwitchColors())
     }
 }

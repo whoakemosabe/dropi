@@ -1234,3 +1234,7 @@ Grams	Grömm
 Millilitres	Millilítrar
 In {0} g: {1} g carbs.	Í {0} g: {1} g kolvetni.
 Grams of each for the whole amount. Decimals are fine: 0,8 or 0.8.	Grömm af hverju fyrir allt magnið. Aukastafir eru í lagi: 0,8.
+Name	Heiti
+Saved as a separate food. Your {0} stays as it was.	Vistað sem sér fæða. {0} þín helst óbreytt.
+Update my {0}	Uppfæra {0} mína
+Replaces the one you saved: {0} g carbs for {1}	Kemur í stað þeirrar sem þú vistaðir: {0} g kolvetni í {1}

@@ -309,7 +309,7 @@ object Grams {
 }
 
 /** The person's own amount for a food: carbs (and sugars) in one [portion]. */
-data class Usual(val portion: String, val carbs: Double, val sugars: Double? = null, val protein: Double? = null, val fat: Double? = null)
+data class Usual(val portion: String, val carbs: Double, val sugars: Double? = null, val protein: Double? = null, val fat: Double? = null, val fibre: Double? = null)
 
 /** Prompts for the on-device model, and reading its replies. */
 object MealAi {
@@ -486,7 +486,7 @@ object MealAi {
         fun s(v: Double?) = v?.let { Grams.round(it * i.qty) }
         i.copy(
             portion = u.portion, carbs = Grams.round(u.carbs * i.qty), sugars = s(u.sugars) ?: i.sugars,
-            protein = s(u.protein) ?: i.protein, fat = s(u.fat) ?: i.fat, usual = true,
+            protein = s(u.protein) ?: i.protein, fat = s(u.fat) ?: i.fat, fibre = s(u.fibre) ?: i.fibre, usual = true,
         )
     })
 }

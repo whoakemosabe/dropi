@@ -111,7 +111,7 @@ object MealWork {
         val p = Prefs(context)
         val per = if (item.qty > 0) 1.0 / item.qty else 1.0
         fun s(v: Double?) = v?.let { app.dropi.data.Grams.round(it * per) }
-        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, app.dropi.data.Grams.round(item.carbs * per), s(item.sugars), s(item.protein), s(item.fat)))
+        p.usualFoods = p.usualFoods + (item.key to Usual(item.portion, app.dropi.data.Grams.round(item.carbs * per), s(item.sugars), s(item.protein), s(item.fat), s(item.fibre)))
     }
 
     /**
