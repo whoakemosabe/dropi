@@ -308,15 +308,22 @@ private fun LabelGrams(
     // Per 100 g from here on (a US label's per-serving numbers are converted by its serving size).
     val checked = raw.toPer100()
     val ready = c != null && (!us || servingG != null)
-    Text(
-        when {
-            c == null -> tr("Type the carbs {0} to work it out.", per)
-            us && servingG == null -> tr("Type the serving size to work it out.")
-            else -> tr("That's {0} g carbs.", app.dropi.data.Grams.text((checked.netCarbs ?: 0.0) * grams / 100.0))
-        },
-        style = inter(15.sp, FontWeight.SemiBold),
-        modifier = Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
-    )
+    // What's being eaten, all five numbers, following the grams and the boxes above as they change.
+    val eaten = if (ready) app.dropi.data.Label.item(name, grams, checked) else null
+    Column(
+        Modifier.fillMaxWidth().ruleTop().padding(top = 12.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            when {
+                c == null -> tr("Type the carbs {0} to work it out.", per)
+                us && servingG == null -> tr("Type the serving size to work it out.")
+                else -> tr("In {0} g: {1} g carbs.", grams, app.dropi.data.Grams.text(eaten?.carbs ?: 0.0))
+            },
+            style = inter(15.sp, FontWeight.SemiBold),
+        )
+        if (eaten != null) NumbersPreview(eaten)
+    }
     PrimaryButton(tr("Next"), Modifier.fillMaxWidth(), enabled = ready) {
         MealWork.labelGrams(context, Foods.normalize(name), grams, checked, code, packetG?.toDouble())
     }
@@ -1002,7 +1009,7 @@ private fun FieldBox(value: String, hint: String, numeric: Boolean = false, labe
 
 /** − number + where the number itself can be tapped and typed. */
 @Composable
-private fun NumberRow(label: String, value: Int, step: Int, max: Int, onChange: (Int) -> Unit) {
+private fun NumberRow(label: String, value: Int, step: Int, max: Int, unit: String = "g", onChange: (Int) -> Unit) {
     var text by remember(value) { mutableStateOf(value.toString()) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         StepButton(R.drawable.lc_minus, tr("{0} less", step)) { onChange((value - step).coerceAtLeast(0)) }
@@ -1020,7 +1027,7 @@ private fun NumberRow(label: String, value: Int, step: Int, max: Int, onChange: 
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                 modifier = Modifier.widthIn(min = 80.dp, max = 140.dp).semantics { contentDescription = tr("{0}, {1}. Edit to type a number", label, value) },
             )
-            Text("g", style = mono(15.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(bottom = 10.dp).clearAndSetSemantics {})
+            Text(unit, style = mono(15.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(bottom = 10.dp).clearAndSetSemantics {})
         }
         StepButton(R.drawable.lc_plus, tr("{0} more", step)) { onChange((value + step).coerceAtMost(max)) }
     }
@@ -1167,11 +1174,18 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
     LaunchedEffect(Unit) { app.dropi.work.Ai.warm(context) }
     // Done on the keyboard asks straight away instead of waiting for a pause.
     var askNow by remember { mutableStateOf(0) }
-    LaunchedEffect(key, if (other) otherPortion else "", askNow) {
+    // A weight typed for a food known by weight ("100 g" → "150 g"): scaled at once, no new lookup.
+    // A bare number counts in the food's own unit ("150" for a food listed per 100 g), so it follows as it's typed.
+    val baseUnit = base?.let { app.dropi.data.gramsUnit(it.portion)?.second }
+    val typedG = if (!other) null else app.dropi.data.gramsUnit(otherPortion)
+        ?: otherPortion.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 && baseUnit != null }?.let { it to baseUnit!! }
+    val byWeight = base?.takeIf { b -> typedG != null && app.dropi.data.gramsUnit(b.portion)?.second == typedG.second }
+    LaunchedEffect(key, if (other && byWeight == null) otherPortion else "", askNow) {
         // A different food or amount: numbers typed for the old one don't carry over.
         edited = null
         looking = false
         if (key.length < 2) { base = null; return@LaunchedEffect }
+        if (byWeight != null) return@LaunchedEffect
         val portion = otherPortion.trim().takeIf { other && it.isNotEmpty() }
         val u = usual[key]
         val basic = app.dropi.data.Basics.find(key)
@@ -1198,8 +1212,13 @@ private fun AddFoodDialog(usual: Map<String, app.dropi.data.Usual>, onDismiss: (
         if (portion == null) qty = 1.0
     }
 
-    val preview = base?.let { b -> if (other) b.copy(qty = 1.0) else b.withQty(qty) }
-    val current = edited ?: preview ?: MealItem(key, otherPortion.trim().ifEmpty { "1 portion" }, carbs = 0.0)
+    val preview = when {
+        byWeight != null && typedG != null -> byWeight.copy(qty = 1.0).withGrams(typedG.first)
+        else -> base?.let { b -> if (other) b.copy(qty = 1.0) else b.withQty(qty) }
+    }
+    // Numbers typed by hand follow a new weight too, scaled from what was typed.
+    val current = edited?.let { e -> if (typedG != null && e.grams != null && byWeight != null) e.withGrams(typedG.first) else e }
+        ?: preview ?: MealItem(key, otherPortion.trim().ifEmpty { "1 portion" }, carbs = 0.0)
     val known = edited != null || preview != null
 
     FoodDialogFrame(onDismiss) {
@@ -1281,6 +1300,9 @@ private fun FoodEditDialog(
     onDone: (MealItem, Boolean) -> Unit,
 ) {
     val view = LocalView.current
+    // [basis]: the food as its numbers were last set (by the guess or by hand). Every amount change
+    // is worked out from it, so going 150 → 40 → 150 g lands back on the same numbers, no drift.
+    var basis by remember(initial) { mutableStateOf(initial) }
     var item by remember(initial) { mutableStateOf(initial) }
     var keep by remember(initial) { mutableStateOf(remembered || initial.usual) }
     FoodDialogFrame(onDismiss) {
@@ -1291,15 +1313,24 @@ private fun FoodEditDialog(
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(0.5, 1.0, 1.5, 2.0, 3.0).forEach { q ->
-                Chip(initial.withQty(q).portionShown(), selected = item.qty == q) {
+                Chip(basis.withQty(q).portionShown(), selected = item.portion == basis.portion && item.qty == q) {
                     Haptics.tap(view)
-                    item = item.withQty(q)
+                    item = basis.withQty(q)
                 }
             }
         }
-        Text(tr("Grams for the whole amount. Decimals are fine: 0,8 or 0.8."), style = inter(13.sp, color = C.TextMuted))
-        NumbersGrid(item) { item = it }
-        if (initial.carbs != item.carbs && initial.qty == item.qty) {
+        // A food weighed in grams (or ml): set the weight and every number follows, live.
+        val g = item.grams
+        if (g != null) {
+            val unitWord = app.dropi.data.gramsUnit(item.portion)?.second ?: "g"
+            NumberRow(if (unitWord == "ml") tr("Millilitres") else tr("Grams"), Math.round(g).toInt(), step = if (g >= 100) 10 else 5, max = 3000, unit = unitWord) { n ->
+                if (n > 0) item = basis.withGrams(n.toDouble())
+            }
+        }
+        Text(tr("Grams of each for the whole amount. Decimals are fine: 0,8 or 0.8."), style = inter(13.sp, color = C.TextMuted))
+        // Typing a number sets the food's numbers at this amount; later amount changes scale from them.
+        NumbersGrid(item) { item = it; basis = it }
+        if (initial.carbs != item.carbs && initial.qty == item.qty && initial.portion == item.portion) {
             Text(tr("Guessed {0} g carbs. You changed it to {1} g.", app.dropi.data.Grams.text(initial.carbs), app.dropi.data.Grams.text(item.carbs)), style = inter(13.sp, color = C.TextMuted))
         }
 

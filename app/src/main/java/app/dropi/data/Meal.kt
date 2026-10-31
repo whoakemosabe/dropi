@@ -11,6 +11,21 @@ import kotlin.math.roundToInt
  * One food in a meal: a portion of it, and its carbs, sugars and fibre for that portion. [qty]
  * scales the base portion (½, 1, 1½, 2…); [carbs] etc. are for the whole of [qty].
  */
+/** "150 g" → (150, "g"), "330 ml" → (330, "ml"), "1,5 kg" → (1500, "g"); anything else null. */
+fun gramsUnit(portion: String): Pair<Double, String>? {
+    val m = Regex("^\\s*(\\d{1,4}(?:[.,]\\d{1,2})?)\\s*(g|gr|gram|grams|grömm|kg|ml|l|dl|cl)\\.?\\s*$", RegexOption.IGNORE_CASE)
+        .find(portion) ?: return null
+    val n = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+    return when (m.groupValues[2].lowercase(java.util.Locale.ROOT)) {
+        "kg" -> n * 1000 to "g"
+        "l" -> n * 1000 to "ml"
+        "dl" -> n * 100 to "ml"
+        "cl" -> n * 10 to "ml"
+        "ml" -> n to "ml"
+        else -> n to "g"
+    }
+}
+
 data class MealItem(
     val name: String,
     val portion: String,
@@ -55,6 +70,25 @@ data class MealItem(
 
     private companion object {
         val sizeWords = setOf("medium", "small", "large", "portion", "normal", "big")
+    }
+
+    /** Grams (or ml) for the whole amount when the portion is given in them ("150 g", "330 ml"), else null. */
+    val grams: Double? get() = gramsUnit(portion)?.let { (n, _) -> n * qty }
+
+    /**
+     * The same food at [g] grams (or ml): all five numbers scaled by the change, the portion
+     * written as the new weight. Unchanged when the portion isn't a weight.
+     */
+    fun withGrams(g: Double): MealItem {
+        val (_, unit) = gramsUnit(portion) ?: return this
+        val now = grams ?: return this
+        if (now <= 0.0 || g <= 0.0) return this
+        val f = g / now
+        fun s(v: Double?) = v?.let { Grams.round(it * f) }
+        return copy(
+            portion = "${Grams.plain(g)} $unit", qty = 1.0,
+            carbs = Grams.round(carbs * f), sugars = s(sugars), fibre = s(fibre), protein = s(protein), fat = s(fat),
+        )
     }
 
     /** The same food at another amount, everything scaled from one portion. */
