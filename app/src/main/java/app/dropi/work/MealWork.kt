@@ -381,6 +381,12 @@ object MealWork {
         start(Status.Ready, Meal(emptyList(), false, "typed"))
     }
 
+    /** A new meal starting with one of the person's saved foods, at its saved amount. */
+    fun withSaved(key: String, u: Usual) {
+        val item = MealItem(key, u.portion, carbs = u.carbs, sugars = u.sugars, fibre = u.fibre, protein = u.protein, fat = u.fat, usual = true)
+        start(Status.Ready, Meal(listOf(item), false, "typed"))
+    }
+
     /** A logged meal, opened for changes. */
     fun edit(entry: app.dropi.data.MealEntry) {
         val id = ++counter

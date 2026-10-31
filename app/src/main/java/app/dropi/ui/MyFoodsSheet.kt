@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,7 +52,7 @@ private fun ColumnScope.MyFoodsContent(state: AppState, close: () -> Unit) {
     var confirm by remember { mutableStateOf<String?>(null) }
     StickySheetBody(tr("My foods"), close) {
         Text(
-            tr("Foods saved with your own amounts. They're used before any guess, and come first when you add a food. To change one, tap it in a meal, change the numbers and keep \"Update my …\" on."),
+            tr("Tap a food to log a meal with it. Saved foods are used before any guess and come first when you add a food. To change one, tap it in a meal, change the numbers and keep \"Update my …\" on."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
         if (foods.isEmpty()) {
@@ -62,10 +63,20 @@ private fun ColumnScope.MyFoodsContent(state: AppState, close: () -> Unit) {
             RuleHeader(tr("Saved"), trn(foods.size, "{0} food", "{0} foods"))
             foods.forEachIndexed { i, (key, u) ->
                 Row(
-                    Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop(i > 0).padding(vertical = 10.dp).semantics(mergeDescendants = true) {},
+                    Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop(i > 0).padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    // Tap the food: a new meal opens with it, at its saved amount.
+                    Column(
+                        Modifier.weight(1f)
+                            .semantics(mergeDescendants = true) { role = androidx.compose.ui.semantics.Role.Button }
+                            .tap {
+                                Haptics.tap(view)
+                                state.myFoodsOpen = false
+                                MealWork.withSaved(key, u)
+                            },
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
                         Text(Foods.display(key), style = inter(15.sp, FontWeight.SemiBold))
                         Text(
                             listOfNotNull(

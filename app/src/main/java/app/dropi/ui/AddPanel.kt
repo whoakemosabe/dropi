@@ -84,9 +84,28 @@ fun AddPanel(state: AppState) {
                 }
                 AddActionRow(tr("Snap a meal"), tr("Photo of your plate"), R.drawable.lc_camera) { go("camera") }
                 AddActionRow(tr("Say what you ate"), tr("Speak or type it"), R.drawable.lc_mic) { go("words") }
+                AddActionRow(tr("My foods"), tr("Your saved foods, one tap"), R.drawable.lc_bookmark) {
+                    state.addOpen = false
+                    state.myFoodsOpen = true
+                }
                 AddActionRow(tr("Scan a label"), tr("Exact carbs from a packet"), R.drawable.lc_scan_text) { go("label") }
                 AddActionRow(tr("Scan a packet's barcode"), null, R.drawable.lc_scan_barcode) { go("barcode") }
                 AddActionRow(tr("Pick a photo you already took"), null, R.drawable.lc_image) { go("pick") }
+            }
+            // Saved foods, most used first: one tap opens a meal with it.
+            val saved = androidx.compose.runtime.remember { app.dropi.work.MealWork.usual(ctx) }
+            if (saved.isNotEmpty()) {
+                val rank = androidx.compose.runtime.remember(state.meals) { Foods.recent(state.meals, 100).withIndex().associate { (i, f) -> f to i } }
+                val top = saved.entries.sortedWith(compareBy<Map.Entry<String, app.dropi.data.Usual>> { rank[it.key] ?: Int.MAX_VALUE }.thenBy { it.key }).take(6)
+                RuleHeader(tr("My foods"), modifier = Modifier.padding(top = 8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    top.forEach { (key, u) ->
+                        Chip("${Foods.display(key)} · ${app.dropi.data.Grams.text(u.carbs)} g", icon = R.drawable.lc_bookmark) {
+                            state.addOpen = false
+                            app.dropi.work.MealWork.withSaved(key, u)
+                        }
+                    }
+                }
             }
             val again = state.recentMeals
             if (again.isNotEmpty()) {
