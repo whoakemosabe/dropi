@@ -50,7 +50,7 @@ object AskTools {
         }
     }
 
-    fun planPrompt(question: String, today: java.time.LocalDate, unit: GlucoseUnit): String =
+    fun planPrompt(question: String, today: java.time.LocalDate, unit: GlucoseUnit, earlier: String = ""): String =
         "You help a blood sugar diary app look up the right data before answering. Today is $today. Unit: ${unit.label}.\n" +
             "Pick ONE look-up for the question and reply with JSON only:\n" +
             "{\"tool\": one of \"summary\", \"readings\", \"meals\", \"food\", \"compare\", \"hours\", \"none\",\n" +
@@ -61,6 +61,7 @@ object AskTools {
             "summary = averages and time in range; readings = the readings themselves; meals = meals with what happened after;\n" +
             "food = how one food affects them; compare = this stretch against the one before; hours = by time of day;\n" +
             "none = a general question that needs no data.\n" +
+            (if (earlier.isNotBlank()) "Earlier in this conversation (the question may be a short follow-up: keep the same days, moment, meal or food unless it changes them):\n$earlier\n" else "") +
             "Question: ${question.take(300)}"
 
     /** The model's pick, or null when it can't be read. */

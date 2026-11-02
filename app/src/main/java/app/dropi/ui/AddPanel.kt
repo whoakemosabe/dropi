@@ -84,13 +84,26 @@ fun AddPanel(state: AppState) {
                 }
                 AddActionRow(tr("Snap a meal"), tr("Photo of your plate"), R.drawable.lc_camera) { go("camera") }
                 AddActionRow(tr("Say what you ate"), tr("Speak or type it"), R.drawable.lc_mic) { go("words") }
-                AddActionRow(tr("My foods"), tr("Your saved foods, one tap"), R.drawable.lc_bookmark) {
+                AddActionRow(tr("My foods"), tr("Your saved foods and meals, one tap"), R.drawable.lc_bookmark) {
                     state.addOpen = false
                     state.myFoodsOpen = true
                 }
                 AddActionRow(tr("Scan a label"), tr("Exact carbs from a packet"), R.drawable.lc_scan_text) { go("label") }
                 AddActionRow(tr("Scan a packet's barcode"), null, R.drawable.lc_scan_barcode) { go("barcode") }
                 AddActionRow(tr("Pick a photo you already took"), null, R.drawable.lc_image) { go("pick") }
+            }
+            // Whole meals saved by name, newest first: one tap opens the meal, ready to save.
+            val myMeals = androidx.compose.runtime.remember { MealWork.savedMeals(ctx).entries.reversed().take(6) }
+            if (myMeals.isNotEmpty()) {
+                RuleHeader(tr("My meals"), modifier = Modifier.padding(top = 8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    myMeals.forEach { (name, m) ->
+                        Chip("$name · ${app.dropi.data.Grams.text(m.carbs)} g", icon = R.drawable.lc_bookmark) {
+                            state.addOpen = false
+                            MealWork.again(m)
+                        }
+                    }
+                }
             }
             // Saved foods, most used first: one tap opens a meal with it.
             val saved = androidx.compose.runtime.remember { app.dropi.work.MealWork.usual(ctx) }

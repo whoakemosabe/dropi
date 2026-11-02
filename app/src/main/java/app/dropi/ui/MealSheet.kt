@@ -421,6 +421,9 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
     var more by remember { mutableStateOf(meal.tags.isNotEmpty()) }
     // Carbs and the likely rise up front; sugars, fibre, protein and fat one tap away.
     var nutrition by remember { mutableStateOf(false) }
+    var savingMeal by remember { mutableStateOf(false) }
+    // The food just taken off the meal (and where it was), for its Undo line.
+    var removed by remember { mutableStateOf<Pair<Int, MealItem>?>(null) }
     val usual = remember(meal) { MealWork.usual(context) }
     val f = MealFacts(state, d)
     val start = f.start
@@ -483,6 +486,27 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             .padding(top = 6.dp, bottom = 14.dp),
     ) {
         meal.items.forEachIndexed { i, item -> FoodRow(item, scores[item.key], nutrition) { editing = i } }
+        removed?.let { (at, item) ->
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp, end = 4.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    tr("{0} taken off", Foods.display(item.name)),
+                    style = inter(14.sp, color = C.TextMuted),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                MonoLink(tr("Undo")) {
+                    Haptics.tap(view)
+                    val items = meal.items.toMutableList().apply { add(at.coerceIn(0, size), item) }
+                    MealWork.update(meal.copy(items = items))
+                    removed = null
+                }
+            }
+        }
         Row(
             Modifier
                 .fillMaxWidth()
@@ -495,6 +519,28 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             Ic(R.drawable.lc_plus, C.AccentText, 16.dp)
             Spacer(Modifier.width(8.dp))
             Text(caps(tr("Add a food")), style = mono(13.sp, FontWeight.SemiBold, C.AccentText, 0.06f))
+        }
+        // Two or more foods: keep the whole meal as "my breakfast", one tap from the + panel.
+        if (meal.items.size >= 2) {
+            val savedAs = remember(meal, savingMeal) { MealWork.savedNameFor(context, meal) }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .semantics(mergeDescendants = true) { role = Role.Button }
+                    .tap { savingMeal = true }
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Ic(R.drawable.lc_bookmark, if (savedAs != null) C.TextSecondary else C.AccentText, 16.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    caps(if (savedAs != null) tr("Saved as {0}", savedAs) else tr("Save as one of my meals")),
+                    style = mono(13.sp, FontWeight.SemiBold, if (savedAs != null) C.TextSecondary else C.AccentText, 0.06f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
         }
         MealTear(Modifier.padding(top = 2.dp))
 
@@ -724,7 +770,10 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             if (sure) { state.deleteMeal(f.old); MealWork.discard(); close() } else sure = true
         }
     } else {
-        GhostButton(tr("Start again"), Modifier.fillMaxWidth()) { MealWork.discard(); close() }
+        GhostButton(tr("Start again"), Modifier.fillMaxWidth()) {
+            MealWork.discard(); close()
+            if (meal.items.isNotEmpty()) state.offerUndo(tr("Meal cleared")) { MealWork.restore(d) }
+        }
     }
     SheetHint(tr("Carbs, sugars, protein, fat and how fast carbs hit are estimates to check against labels and your usual amounts. Dropi doesn't suggest doses."))
 
@@ -733,7 +782,11 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
         FoodEditDialog(meal.items[open], score = scores[meal.items[open].key], unit = unit,
             saved = usual.keys,
             onDismiss = { editing = null },
-            onRemove = { MealWork.update(meal.copy(items = meal.items.filterIndexed { k, _ -> k != open })); editing = null },
+            onRemove = {
+                removed = open to meal.items[open]
+                MealWork.update(meal.copy(items = meal.items.filterIndexed { k, _ -> k != open }))
+                editing = null
+            },
         ) { item, remember ->
             val old = meal.items[open]
             // A changed guess teaches the next one (photo and words meals; not when renamed).
@@ -746,6 +799,13 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             editing = null
         }
     }
+    if (savingMeal) {
+        SaveMealDialog(meal, onDismiss = { savingMeal = false }) { name ->
+            MealWork.saveMeal(context, name, meal)
+            Haptics.confirm(view)
+            savingMeal = false
+        }
+    }
     if (adding) {
         val recentFoods = remember(state.meals) { Foods.recent(state.meals, 30) }
         AddFoodDialog(usual, recentFoods, onDismiss = { adding = false }) { item, known, keep ->
@@ -755,6 +815,41 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
             if (!known) MealWork.fillIn(context, item)
             adding = false
         }
+    }
+}
+
+/**
+ * Save the whole meal under a name the person picks ("My breakfast"). The name starts as the
+ * foods themselves; an existing name is replaced, and the dialog says so before it happens.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SaveMealDialog(meal: Meal, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    val context = LocalContext.current
+    val existing = remember { MealWork.savedMeals(context).keys }
+    val suggested = remember {
+        MealWork.savedNameFor(context, meal) ?: meal.items.take(3).joinToString(", ") { Foods.display(it.name) }.take(40)
+    }
+    var name by remember { mutableStateOf(suggested) }
+    val clean = name.trim()
+    FoodDialogFrame(onDismiss) {
+        Text(tr("Save as one of my meals"), style = heading(20.sp), modifier = Modifier.semantics { heading() })
+        Text(
+            tr("All {0} foods at these amounts, {1} g carbs. Log it again with one tap from + or More › My foods.", meal.items.size, app.dropi.data.Grams.text(meal.carbs)),
+            style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FieldLabel(tr("Name"))
+            FieldBox(name, suggested, label = tr("Name")) { name = it.take(40) }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(tr("My breakfast"), tr("My lunch"), tr("My dinner"), tr("My snack")).forEach { n ->
+                    Chip(n, selected = clean == n) { name = n }
+                }
+            }
+            if (clean in existing) Text(tr("Replaces your saved {0}.", clean), style = inter(13.sp, color = C.High))
+        }
+        PrimaryButton(if (clean in existing) tr("Replace {0}", clean) else tr("Save {0}", clean), Modifier.fillMaxWidth(), enabled = clean.isNotEmpty()) { onSave(clean) }
+        GhostButton(tr("Cancel"), Modifier.fillMaxWidth()) { onDismiss() }
     }
 }
 

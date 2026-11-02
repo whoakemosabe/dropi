@@ -111,7 +111,7 @@ fun MealsPage(state: AppState) {
             }
         }
         // Logging first: an unsaved meal, a running try-it week, then today.
-        glideItem(key = "draft") { MealDraftCard() }
+        glideItem(key = "draft") { MealDraftCard(state) }
         if (state.experiment != null) glideItem(key = "try-banner") { ExperimentBanner(state) }
         if (byDay.isEmpty()) {
             glideItem(key = "empty") {
@@ -488,7 +488,7 @@ fun MorePage(state: AppState) {
     LaunchedEffect(Unit) { Ai.refresh(context) }
     // Read again whenever the backup sheet opens or closes, so a new backup shows straight away.
     val lastBackup = remember(state.backupOpen) { app.dropi.Prefs(context).lastBackup }
-    val myFoodsCount = remember(state.myFoodsOpen, state.meals) { app.dropi.Prefs(context).usualFoods.size }
+    val myFoodsCount = remember(state.myFoodsOpen, state.meals) { app.dropi.Prefs(context).let { it.usualFoods.size + it.savedMeals.size } }
 
     val aiStatus = when {
         Ai.usable -> tr("ready")
@@ -535,6 +535,19 @@ fun MorePage(state: AppState) {
                 IndexRow(tr("Check times"), checks, first = true) { state.scheduleOpen = true }
                 IndexRow(tr("Live sensor"), if (state.liveOn) tr("on") else tr("off")) { state.liveOpen = true }
                 IndexRow(tr("Backup"), backupText, mark = if (backupDue) C.High else null) { state.backupOpen = true }
+                // Android 13+ can add the "Log a reading" tile to the pull-down shade in one tap.
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    var tile by remember { mutableStateOf(tr("add")) }
+                    IndexRow(tr("Quick Settings tile"), tile) {
+                        app.dropi.work.Tiles.request(context) { r ->
+                            tile = when (r) {
+                                android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> tr("added")
+                                android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> tr("already added")
+                                else -> tr("add")
+                            }
+                        }
+                    }
+                }
                 IndexRow(tr("Settings"), "${state.unit.label} · $themeName") { state.settingsOpen = true }
                 // Always in both languages, so it can be found whichever one is showing.
                 IndexRow("Language · Tungumál", if (L.icelandic) "Íslenska" else "English") { state.settingsOpen = true }
@@ -586,7 +599,7 @@ private fun IndexRow(title: String, status: String?, mark: Color? = null, first:
  * it, so a swipe never loses it.
  */
 @Composable
-fun MealDraftCard() {
+fun MealDraftCard(state: AppState) {
     val d = MealWork.draft ?: return
     if (MealWork.open) return
     // A logged meal opened just to look at it, or an empty start, isn't anything waiting.
@@ -622,7 +635,7 @@ fun MealDraftCard() {
                 caps(tr("Discard")),
                 style = mono(12.sp, FontWeight.Medium, C.TextSecondary, 0.06f),
                 modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(Corner.S)).semantics { role = Role.Button }
-                    .tap { MealWork.discard() }.padding(horizontal = 10.dp, vertical = 16.dp),
+                    .tap { MealWork.discard(); if (d.meal?.items?.isNotEmpty() == true) state.offerUndo(tr("Meal cleared")) { MealWork.restore(d) } }.padding(horizontal = 10.dp, vertical = 16.dp),
             )
         }
         BannerAction(tr("Open")) { MealWork.open = true }

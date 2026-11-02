@@ -169,7 +169,11 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
                     clock.format(LocalTime.of(s.hour, s.min)),
                     onTime = { editingTime = s },
                     onChange = { n -> state.changeSlots(state.slots.map { if (it.id == s.id) n else it }) },
-                    onDelete = { state.changeSlots(state.slots.filter { it.id != s.id }) },
+                    onDelete = {
+                        val old = state.slots
+                        state.changeSlots(state.slots.filter { it.id != s.id })
+                        state.offerUndo(tr("Check removed")) { state.changeSlots(old) }
+                    },
                 )
             }
         }

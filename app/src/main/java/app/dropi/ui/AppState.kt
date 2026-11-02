@@ -109,9 +109,32 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         experiment = app.dropi.data.Experiment.Running(kind, now)
     }
 
-    fun endExperiment() {
+    fun endExperiment(offerUndo: Boolean = false) {
+        val was = experiment
         prefs.experiment = ""; prefs.experimentStart = 0L
         experiment = null
+        if (offerUndo && was != null) offerUndo(tr("Try-it week stopped")) {
+            prefs.experiment = was.kind.key; prefs.experimentStart = was.start
+            experiment = was
+        }
+    }
+
+    // ---- Undo ----
+
+    /** What the Undo bar puts back: its words and how. Gone after 10 s, or once used. */
+    class Undo(val text: String, val run: () -> Unit)
+
+    var undo by mutableStateOf<Undo?>(null)
+
+    fun offerUndo(text: String, run: () -> Unit) {
+        mealNote = null
+        undo = Undo(text, run)
+    }
+
+    fun runUndo() {
+        val u = undo ?: return
+        undo = null
+        u.run()
     }
 
     /** Steps and sleep from Health Connect (read only), for learnt patterns; empty while off. */
@@ -404,14 +427,19 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
      * the 90 minutes before). The after-meal reminder is counted from when it was eaten, 3 h for
      * a rich meal.
      */
-    fun saveMeal(meal: app.dropi.data.Meal, at: Long, name: String, before: Long?, id: Long = 0) {
+    fun saveMeal(meal: app.dropi.data.Meal, at: Long, name: String, before: Long?, id: Long = 0, offer: Boolean = true) {
+        // A change can be taken back: the meal as it was before this save.
+        val old = if (id != 0L) meals.firstOrNull { it.id == id } else null
         scope.launch {
             val saved = try { db.saveMeal(MealEntry(id, at, name, meal, before)) } catch (e: Exception) { null } ?: return@launch
             reload(withSensor = false)
             val now = System.currentTimeMillis()
             prefs.oneOffs = Schedule.afterMeal(prefs.oneOffs, saved.at, Schedule.gapFor(saved, prefs.afterMealMinutes), prefs.afterMealOn, now, saved.id)
             Reminders.rescheduleAsync(context)
-            mealNote = if (id == 0L) tr("{0} logged", mealName(saved.name)) else tr("{0} changed", mealName(saved.name))
+            if (id == 0L) mealNote = tr("{0} logged", mealName(saved.name))
+            else if (old != null && offer && old != saved) offerUndo(tr("{0} changed", mealName(saved.name))) {
+                saveMeal(old.meal, old.at, old.name, old.before, old.id, offer = false)
+            } else mealNote = tr("{0} changed", mealName(saved.name))
         }
     }
 
@@ -421,6 +449,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun deleteMeal(e: MealEntry) {
         lastDeletedMeal = e
         lastDeleted = null
+        offerUndo(tr("{0} deleted", mealName(e.name))) { undoDeleteMeal() }
         scope.launch {
             try { db.deleteMeal(e.id) } catch (x: Exception) { }
             prefs.oneOffs = Schedule.withoutMeal(prefs.oneOffs, e.id)
@@ -488,10 +517,13 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         editing = Reading(at = now, mmol = 0.0, tag = tag ?: suggestTag(now))
     }
 
-    fun save(r: Reading) {
+    fun save(r: Reading, offer: Boolean = true) {
+        // A change to a reading can be taken back: the reading as it was.
+        val old = if (r.id != 0L) readings.firstOrNull { it.id == r.id } else null
         scope.launch {
             val saved = try { db.save(r) } catch (e: Exception) { null } ?: return@launch
             reload(withSensor = false)
+            if (old != null && offer && old != saved) offerUndo(tr("Reading changed")) { save(old, offer = false) }
             if (r.id == 0L) {
                 // A new reading answers the reminders set before it, and a before-meal one sets
                 // the after-meal reminder.
@@ -513,6 +545,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     fun delete(r: Reading) {
         lastDeleted = r
         lastDeletedMeal = null
+        offerUndo(tr("Reading deleted")) { undoDelete() }
         scope.launch {
             try { db.delete(r.id) } catch (e: Exception) { }
             reload(withSensor = false)
@@ -619,9 +652,11 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
     }
 
     fun removeLabA1c(r: app.dropi.data.LabA1c) {
+        val before = labA1c
         val list = labA1c.filter { it != r }
         labA1c = list
         prefs.labA1c = list
+        offerUndo(tr("Lab result removed")) { labA1c = before; prefs.labA1c = before }
     }
 
     /** An encrypted backup of everything, as bytes for the file the person picked. */

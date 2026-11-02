@@ -142,51 +142,6 @@ fun DropiRoot(state: AppState) {
             modifier = Modifier.align(Alignment.BottomCenter),
         ) { TabBar(state, pageBackdrop) }
 
-        // "Reading deleted · Undo", above the tab bar for a few seconds after a delete.
-        val deleted = state.lastDeleted
-        val deletedMeal = state.lastDeletedMeal
-        LaunchedEffect(deleted, deletedMeal) {
-            if (deleted != null || deletedMeal != null) {
-                // Long enough to reach with TalkBack.
-                kotlinx.coroutines.delay(10_000)
-                if (state.lastDeleted == deleted) state.lastDeleted = null
-                if (state.lastDeletedMeal == deletedMeal) state.lastDeletedMeal = null
-            }
-        }
-        AnimatedVisibility(
-            visible = (deleted != null || deletedMeal != null) && state.editing == null && !app.dropi.work.MealWork.open,
-            enter = fadeIn(tween(160)) + androidx.compose.animation.slideInVertically(tween(220)) { it / 2 },
-            exit = fadeOut(tween(140)),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            Row(
-                Modifier
-                    .navigationBarsPadding()
-                    .padding(start = 24.dp, end = 24.dp, bottom = TAB_BAR_CLEARANCE + 8.dp)
-                    .widthIn(max = 420.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(Corner.M))
-                    .background(C.Text)
-                    .semantics(mergeDescendants = false) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
-                    .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    if (deletedMeal != null) tr("{0} deleted", mealName(deletedMeal.name)) else tr("Reading deleted"),
-                    style = inter(15.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f),
-                )
-                Text(
-                    tr("Undo"),
-                    style = inter(15.sp, FontWeight.Bold, C.Bg),
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(Corner.S))
-                        .tap { if (state.lastDeletedMeal != null) state.undoDeleteMeal() else state.undoDelete() }
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                )
-            }
-        }
-
         // "Breakfast logged" after a meal is saved.
         val mealNote = state.mealNote
         LaunchedEffect(mealNote) {
@@ -234,6 +189,9 @@ fun DropiRoot(state: AppState) {
         // back closes it first.
         MealSheet(state)
         MealLaunchers(state)
+        // "Reading deleted · Undo" and every other take-back, over any sheet (so removing a saved
+        // food in My foods can be undone right there), for 10 s.
+        UndoBar(state)
 
         // First run: welcome, unit and every permission, over everything else.
         if (!state.onboarded) WelcomeFlow(state)
@@ -495,4 +453,51 @@ object Launch {
 
     /** The "on-device AI is ready" notification or banner asked for Ask Dropi. */
     val openAsk = mutableStateOf(false)
+}
+
+/** The Undo bar: what just changed, and Undo. Hidden while typing in the log sheet or a meal. */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.UndoBar(state: AppState) {
+    val u = state.undo
+    LaunchedEffect(u) {
+        if (u != null) {
+            // Long enough to reach with TalkBack.
+            kotlinx.coroutines.delay(10_000)
+            if (state.undo === u) state.undo = null
+        }
+    }
+    // Kept while fading out, so the words don't vanish before the bar does.
+    var shown by remember { mutableStateOf<AppState.Undo?>(null) }
+    if (u != null) shown = u
+    AnimatedVisibility(
+        visible = u != null && state.onboarded && state.editing == null && !app.dropi.work.MealWork.open,
+        enter = fadeIn(tween(160)) + androidx.compose.animation.slideInVertically(tween(220)) { it / 2 },
+        exit = fadeOut(tween(140)),
+        modifier = Modifier.align(Alignment.BottomCenter),
+    ) {
+        Row(
+            Modifier
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, bottom = TAB_BAR_CLEARANCE + 8.dp)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(Corner.M))
+                .background(C.Text)
+                .semantics(mergeDescendants = false) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }
+                .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(shown?.text ?: "", style = inter(15.sp, FontWeight.SemiBold, C.Bg), modifier = Modifier.weight(1f))
+            Text(
+                tr("Undo"),
+                style = inter(15.sp, FontWeight.Bold, C.Bg),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(Corner.S))
+                    .semantics { role = androidx.compose.ui.semantics.Role.Button }
+                    .tap { state.runUndo() }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            )
+        }
+    }
 }

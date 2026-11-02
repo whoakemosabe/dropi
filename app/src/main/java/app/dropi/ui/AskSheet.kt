@@ -79,6 +79,8 @@ private class Turn(val q: String, a: String?) {
     var a by mutableStateOf(a)
     /** What Dropi looked up in the log for this answer, shown under it; null for the summary. */
     var looked by mutableStateOf<String?>(null)
+    /** The same look-up in English, handed back to the model so a follow-up can build on it. */
+    var lookedEn: String? = null
     /** When it was asked, for the logbook margin. */
     val at: Long = System.currentTimeMillis()
 }
@@ -95,10 +97,14 @@ private val doseLike = Regex(
 /** Icelandic dose talk without a number in front ("taktu insúlínskammt"). */
 private val doseWords = Regex("insúlínskammt\\w*|skammt\\w* af insúlíni|insúlíneining\\w*", RegexOption.IGNORE_CASE)
 
+/** The conversation so far: kept while Dropi is open, so closing Ask and coming back carries on. */
+private val askTurns = mutableStateListOf<Turn>()
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val turns = remember { mutableStateListOf<Turn>() }
+    val turns = askTurns
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
     LaunchedEffect(Unit) { Ai.refresh(context) }
@@ -112,6 +118,8 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             needAi = true
             return
         }
+        // The last few answers go with the question, so "and at lunch?" means something.
+        val earlier = Ask.earlier(turns.mapNotNull { t -> t.a?.let { Triple(t.q, it, t.lookedEn) } })
         val turn = Turn(q.trim(), null)
         turns += turn
         text = ""
@@ -121,12 +129,12 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             // from exactly what came back. If the pick can't be read, the usual summary.
             val ctx = state.askCtx()
             val plan = try {
-                app.dropi.data.AskTools.parsePlan(Ai.plan(context, app.dropi.data.AskTools.planPrompt(q, ctx.today, ctx.unit)))
+                app.dropi.data.AskTools.parsePlan(Ai.plan(context, app.dropi.data.AskTools.planPrompt(q, ctx.today, ctx.unit, earlier)))
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
             val looked = plan?.let { p -> withContext(Dispatchers.Default) { try { app.dropi.data.AskTools.run(p, ctx) } catch (e: Exception) { null } } }
             val facts = looked ?: withContext(Dispatchers.Default) { Ask.facts(ctx) }
-            if (looked != null) turn.looked = plan.shown
-            val reply = Ai.ask(context, Ask.prompt(q, facts))
+            if (looked != null) { turn.looked = plan.shown; turn.lookedEn = plan.en }
+            val reply = Ai.ask(context, Ask.prompt(q, facts, earlier))
             turn.a = when {
                 reply == null -> tr("Couldn't answer that just now. Try one of the questions above.")
                 doseLike.containsMatchIn(reply) || doseWords.containsMatchIn(reply) -> tr("I can't help with doses. Your care team can.")
@@ -162,7 +170,10 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
         // Answers, written up like logbook entries: the time in the margin, the question, the answer.
         if (turns.isNotEmpty()) {
             Column(Modifier.fillMaxWidth()) {
-                RuleHeader(tr("Answers"), turns.size.toString())
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RuleHeader(tr("Answers"), turns.size.toString(), modifier = Modifier.weight(1f))
+                    if (!busy) MonoLink(tr("Start over"), Modifier.padding(start = 12.dp)) { turns.clear() }
+                }
                 turns.forEachIndexed { ti, t ->
                     // A new question slides in as a logbook entry rather than appearing at once.
                     androidx.compose.runtime.key(t) {
@@ -201,6 +212,22 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
                         }
                     }
                     }
+                    }
+                }
+            }
+        }
+
+        // Ready-made follow-ups after an answer: they build on the last question.
+        val last = turns.lastOrNull()
+        if (last?.a != null && !busy) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(tr("Ask a follow-up"), style = mono(12.sp, color = C.TextMuted))
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    listOf(tr("And the week before?"), tr("Only after eating?"), tr("Which meal was worst?"), tr("What helped most?")).forEach { f ->
+                        Chip(f) { text = f; askTyped(f) }
                     }
                 }
             }

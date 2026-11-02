@@ -130,9 +130,41 @@ object MealWork {
         p.carbFixes = p.carbFixes + (k to (p.carbFixes[k].orEmpty() + ratio).takeLast(5))
     }
 
+    /** Puts a saved food back exactly as it was (Undo after removing it). */
+    fun keep(context: Context, key: String, u: Usual) {
+        val p = Prefs(context)
+        p.usualFoods = p.usualFoods + (key to u)
+    }
+
     fun forget(context: Context, food: String) {
         val p = Prefs(context)
         p.usualFoods = p.usualFoods - food
+    }
+
+    /** Whole meals saved by name, oldest first. */
+    fun savedMeals(context: Context): Map<String, Meal> = Prefs(context).savedMeals
+
+    /**
+     * Keeps [meal] as one of the person's meals under [name] (replacing one of that name). The
+     * occasion's own tags (a walk after, ill…) and the photo are left behind; the foods are kept.
+     */
+    fun saveMeal(context: Context, name: String, meal: Meal) {
+        val p = Prefs(context)
+        val keep = meal.copy(tags = emptyList(), source = "typed")
+        p.savedMeals = (p.savedMeals - name) + (name to keep)
+    }
+
+    fun forgetMeal(context: Context, name: String) {
+        val p = Prefs(context)
+        p.savedMeals = p.savedMeals - name
+    }
+
+    /** The saved meal with exactly these foods (same names and amounts), if there is one. */
+    fun savedNameFor(context: Context, meal: Meal): String? {
+        if (meal.items.size < 2) return null
+        fun sig(m: Meal) = m.items.map { it.key + "|" + it.portion }.sorted()
+        val s = sig(meal)
+        return Prefs(context).savedMeals.entries.lastOrNull { sig(it.value) == s }?.key
     }
 
     /** A photo of a plate. */
@@ -431,6 +463,13 @@ object MealWork {
     fun discard() {
         draft = null
         open = false
+    }
+
+    /** Puts back a meal that was thrown away (Undo), unless another one has started since. */
+    fun restore(d: Draft) {
+        if (draft != null) return
+        draft = d
+        open = true
     }
 
     private fun finish(ctx: Context, id: Long, meal: Meal?, failed: String) {

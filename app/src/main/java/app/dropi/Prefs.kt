@@ -232,6 +232,20 @@ class Prefs(context: Context) {
             putString("usual_foods", o.toString())
         }
 
+    /** Whole meals the person saved by name ("My breakfast" → its foods), newest last, at most 50. */
+    var savedMeals: Map<String, app.dropi.data.Meal>
+        get() = try {
+            val o = org.json.JSONObject(p.getString("saved_meals", null) ?: "{}")
+            val out = LinkedHashMap<String, app.dropi.data.Meal>()
+            o.keys().forEach { k -> app.dropi.data.Meal.fromJson(o.getString(k))?.takeIf { it.items.isNotEmpty() }?.let { out[k] = it } }
+            out
+        } catch (e: Exception) { emptyMap() }
+        set(v) = p.edit {
+            val o = org.json.JSONObject()
+            v.entries.toList().takeLast(50).forEach { (k, m) -> o.put(k, m.toJson()) }
+            putString("saved_meals", o.toString())
+        }
+
     /** Foods the on-device AI worked out ("name|amount" → its numbers), newest last, at most 400. */
     var foodCache: Map<String, app.dropi.data.MealItem>
         get() = try {

@@ -161,7 +161,11 @@ private fun ColumnScope.SettingsContent(state: AppState, close: () -> Unit) {
                 TargetStepper(tr("1–2 h after eating: under"), v(t.afterHigh),
                     { state.changeTargets(t.copy(afterHigh = t.afterHigh - step)) },
                     { state.changeTargets(t.copy(afterHigh = t.afterHigh + step)) })
-                if (!t.isDefault) SettingsActionRow(tr("Reset to ADA targets")) { state.changeTargets(app.dropi.data.Targets()) }
+                if (!t.isDefault) SettingsActionRow(tr("Reset to ADA targets")) {
+                    val old = state.targets
+                    state.changeTargets(app.dropi.data.Targets())
+                    state.offerUndo(tr("Targets reset")) { state.changeTargets(old) }
+                }
             }
             SheetHint(
                 if (t.isDefault) tr("American Diabetes Association targets for adults, in {0}. Set the ones your care team gave you.", unit.label)

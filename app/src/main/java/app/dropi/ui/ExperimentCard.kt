@@ -69,7 +69,7 @@ fun ExperimentCard(state: AppState) {
                 style = mono(12.sp, color = C.TextMuted),
                 modifier = Modifier.padding(top = 6.dp),
             )
-            MonoLink(tr("Stop"), Modifier.padding(top = 8.dp)) { state.endExperiment() }
+            MonoLink(tr("Stop"), Modifier.padding(top = 8.dp)) { state.endExperiment(offerUndo = true) }
             return@Column
         }
 

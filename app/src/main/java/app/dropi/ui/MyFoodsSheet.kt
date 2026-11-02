@@ -49,12 +49,45 @@ private fun ColumnScope.MyFoodsContent(state: AppState, close: () -> Unit) {
     val saved = remember(version) { MealWork.usual(context) }
     val rank = remember(state.meals) { Foods.recent(state.meals, 100).withIndex().associate { (i, f) -> f to i } }
     val foods = saved.entries.sortedWith(compareBy<Map.Entry<String, app.dropi.data.Usual>> { rank[it.key] ?: Int.MAX_VALUE }.thenBy { it.key })
-    var confirm by remember { mutableStateOf<String?>(null) }
+    val meals = remember(version) { MealWork.savedMeals(context).entries.reversed() }
     StickySheetBody(tr("My foods"), close) {
         Text(
             tr("Tap a food to log a meal with it. Saved foods are used before any guess and come first when you add a food. To change one, tap it in a meal, change the numbers and keep \"Update my …\" on."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
+        if (meals.isNotEmpty()) Column(Modifier.fillMaxWidth()) {
+            RuleHeader(tr("My meals"), trn(meals.size, "{0} meal", "{0} meals"))
+            meals.forEachIndexed { i, (name, m) ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 64.dp).ruleTop(i > 0).padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        Modifier.weight(1f)
+                            .semantics(mergeDescendants = true) { role = androidx.compose.ui.semantics.Role.Button }
+                            .tap {
+                                Haptics.tap(view)
+                                state.myFoodsOpen = false
+                                MealWork.again(m)
+                            },
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(name, style = inter(15.sp, FontWeight.SemiBold))
+                        Text(
+                            m.items.joinToString(", ") { Foods.display(it.name) } + " · " + tr("{0} g carbs", Grams.text(m.carbs)),
+                            style = mono(12.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    MonoLink(tr("Remove")) {
+                        Haptics.confirm(view)
+                        MealWork.forgetMeal(context, name)
+                        version++
+                        state.offerUndo(tr("{0} removed", name)) { MealWork.saveMeal(context, name, m); version++ }
+                    }
+                }
+            }
+        }
         if (foods.isEmpty()) {
             SheetHint(tr("None yet. When you add or change a food in a meal, turn on \"Remember as my …\"."))
             return@StickySheetBody
@@ -91,14 +124,11 @@ private fun ColumnScope.MyFoodsContent(state: AppState, close: () -> Unit) {
                         )
                     }
                     Spacer(Modifier.width(12.dp))
-                    val sure = confirm == key
-                    MonoLink(if (sure) tr("Tap again") else tr("Remove")) {
-                        if (sure) {
-                            Haptics.confirm(view)
-                            MealWork.forget(context, key)
-                            confirm = null
-                            version++
-                        } else confirm = key
+                    MonoLink(tr("Remove")) {
+                        Haptics.confirm(view)
+                        MealWork.forget(context, key)
+                        version++
+                        state.offerUndo(tr("{0} removed", Foods.display(key))) { MealWork.keep(context, key, u); version++ }
                     }
                 }
             }

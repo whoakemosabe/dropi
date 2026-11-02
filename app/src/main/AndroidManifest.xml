@@ -124,6 +124,30 @@
         </receiver>
 
         <!-- Reminder alarm and Snooze: only our own PendingIntents reach it. -->
+        <!-- Quick Settings tiles: open the log sheet or the camera for a meal. -->
+        <service
+            android:name=".work.ReadingTile"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_drop"
+            android:label="@string/sc_reading"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="false" />
+        </service>
+        <service
+            android:name=".work.MealTile"
+            android:exported="true"
+            android:icon="@drawable/lc_camera"
+            android:label="@string/sc_meal"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="false" />
+        </service>
+
         <receiver
             android:name=".work.ReminderReceiver"
             android:exported="false" />

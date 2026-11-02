@@ -217,10 +217,17 @@ object Ask {
         return sb.toString().take(3500)
     }
 
-    fun prompt(question: String, facts: String): String =
+    /** The last few questions and answers, so a follow-up ("and at lunch?") makes sense. */
+    fun earlier(turns: List<Triple<String, String, String?>>): String =
+        turns.takeLast(3).joinToString("\n") { (q, a, looked) ->
+            "Q: ${q.take(200)}\nA: ${a.take(300)}" + (looked?.let { "\n(looked up: $it)" } ?: "")
+        }
+
+    fun prompt(question: String, facts: String, earlier: String = ""): String =
         "You are Dropi, a friendly blood sugar diary app. Answer the question using only the facts below. " +
             "Reply in at most three short sentences of plain text. If the facts don't cover it, say so. " +
             "Never suggest insulin or medicine doses, never diagnose, and for treatment questions say to ask their care team." +
             (if (L.icelandic) " Answer in Icelandic." else "") + "\n\n" +
+            (if (earlier.isNotBlank()) "Earlier in this conversation (the question may follow on from it):\n$earlier\n\n" else "") +
             "Facts:\n$facts\nQuestion: ${question.take(300)}"
 }
