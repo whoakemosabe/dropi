@@ -96,7 +96,24 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
         DateTimeFormatter.ofPattern(if (android.text.format.DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", if (L.icelandic) L.locale else Locale.ENGLISH)
     }
 
-    StickySheetBody(tr("Check times"), close) {
+    StickySheetBody(tr("Check times"), close, footer = {
+        PrimaryButton(tr("Add a check time"), Modifier.fillMaxWidth(), icon = R.drawable.lc_plus) {
+            val taken = state.slots.map { it.minute }.toSet()
+            // The next free whole hour after the last check, or 09:00.
+            var m = ((state.slots.maxOfOrNull { it.minute } ?: (8 * 60)) / 60 + 1) * 60
+            while (m in taken) m += 60
+            m %= 24 * 60
+            val tag = when (m / 60) {
+                in 0..4 -> MealTag.OVERNIGHT
+                in 5..9 -> MealTag.FASTING
+                in 21..23 -> MealTag.BEDTIME
+                else -> MealTag.BEFORE_MEAL
+            }
+            val n = Slot("s" + System.currentTimeMillis().toString(36), m, tag)
+            state.changeSlots(state.slots + n)
+            editingTime = n
+        }
+    }) {
         Text(
             tr("Plan when you check each day. A check counts as done when you log within about an hour of it."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
@@ -178,22 +195,6 @@ private fun ColumnScope.ScheduleContent(state: AppState, close: () -> Unit) {
             }
         }
         if (state.slots.size < 10) {
-            PrimaryButton(tr("Add a check time"), Modifier.fillMaxWidth(), icon = R.drawable.lc_plus) {
-                val taken = state.slots.map { it.minute }.toSet()
-                // The next free whole hour after the last check, or 09:00.
-                var m = ((state.slots.maxOfOrNull { it.minute } ?: (8 * 60)) / 60 + 1) * 60
-                while (m in taken) m += 60
-                m %= 24 * 60
-                val tag = when (m / 60) {
-                    in 0..4 -> MealTag.OVERNIGHT
-                    in 5..9 -> MealTag.FASTING
-                    in 21..23 -> MealTag.BEDTIME
-                    else -> MealTag.BEFORE_MEAL
-                }
-                val n = Slot("s" + System.currentTimeMillis().toString(36), m, tag)
-                state.changeSlots(state.slots + n)
-                editingTime = n
-            }
         }
     }
 
@@ -276,29 +277,14 @@ private fun SlotRow(s: Slot, first: Boolean, time: String, onTime: () -> Unit, o
 private fun TimeDialog(minute: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
     val context = LocalContext.current
     val st = rememberTimePickerState(minute / 60, minute % 60, android.text.format.DateFormat.is24HourFormat(context))
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .widthIn(max = 440.dp)
-                .fillMaxWidth()
-                .card(RoundedCornerShape(Corner.XL))
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(tr("Check time"), style = heading(20.sp))
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                TimePicker(
-                    state = st,
-                    colors = scheduleClockColors(),
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton(tr("Cancel"), Modifier.weight(1f)) { onDismiss() }
-                PrimaryButton(tr("Set"), Modifier.weight(1f)) { onPick(st.hour * 60 + st.minute) }
-            }
+    SubSheet(tr("Check time"), onDismiss, footer = {
+        PrimaryButton(tr("Set"), Modifier.fillMaxWidth()) { onPick(st.hour * 60 + st.minute) }
+    }) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            TimePicker(
+                state = st,
+                colors = scheduleClockColors(),
+            )
         }
     }
 }

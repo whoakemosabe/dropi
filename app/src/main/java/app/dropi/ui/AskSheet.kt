@@ -146,7 +146,49 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
 
     val fmt = remember(state.zone) { Fmt(context, state.zone) }
 
-    StickySheetBody(tr("Ask Dropi"), close) {
+    // The question box pinned at the bottom, over the keyboard, always in view.
+    StickySheetBody(tr("Ask Dropi"), close, footer = {
+        // The input bar: an outlined field with a squared send button, no fill.
+        run {
+            val canSend = text.isNotBlank() && !busy
+            val shape = RoundedCornerShape(Corner.M)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .border(1.dp, if (text.isNotEmpty()) C.AccentText.copy(alpha = 0.6f) else C.Border, shape)
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
+                    if (text.isEmpty()) Text(tr("Ask in your own words"), style = inter(15.sp, color = C.TextMuted))
+                    BasicTextField(
+                        value = text,
+                        onValueChange = { text = it.take(300) },
+                        textStyle = inter(15.sp, color = C.Text),
+                        cursorBrush = SolidColor(C.AccentText),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { askTyped(text) }),
+                        maxLines = 4,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                val btn = RoundedCornerShape(Corner.S)
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clip(btn)
+                        .then(
+                            if (canSend) Modifier.background(C.Accent).border(1.dp, C.AccentText.copy(alpha = 0.45f), btn)
+                            else Modifier.border(1.dp, C.Border, btn)
+                        )
+                        .tap(enabled = canSend) { askTyped(text) },
+                    contentAlignment = Alignment.Center,
+                ) { Ic(R.drawable.lc_send, if (canSend) C.OnAccent else C.TextMuted, 18.dp, contentDescription = tr("Ask")) }
+            }
+        }
+    }) {
         // Ready-made questions: worked out exactly from the log, on every phone. Ruled rows, like an index.
         Column(Modifier.fillMaxWidth()) {
             RuleHeader(tr("Questions"), Ask.Q.entries.size.toString())
@@ -237,47 +279,6 @@ private fun ColumnScope.AskContent(state: AppState, close: () -> Unit) {
             AiNeededDialog(tr("Asking in your own words"), tr("Ask it"), onDismiss = { needAi = false }, readyIcon = R.drawable.lc_send) {
                 needAi = false
                 askTyped(text)
-            }
-        }
-        // The input bar: an outlined field with a squared send button, no fill.
-        run {
-            val canSend = text.isNotBlank() && !busy
-            val shape = RoundedCornerShape(Corner.M)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-                    .clip(shape)
-                    .border(1.dp, if (text.isNotEmpty()) C.AccentText.copy(alpha = 0.6f) else C.Border, shape)
-                    .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
-                    if (text.isEmpty()) Text(tr("Ask in your own words"), style = inter(15.sp, color = C.TextMuted))
-                    BasicTextField(
-                        value = text,
-                        onValueChange = { text = it.take(300) },
-                        textStyle = inter(15.sp, color = C.Text),
-                        cursorBrush = SolidColor(C.AccentText),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { askTyped(text) }),
-                        maxLines = 4,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                val btn = RoundedCornerShape(Corner.S)
-                Box(
-                    Modifier
-                        .size(48.dp)
-                        .clip(btn)
-                        .then(
-                            if (canSend) Modifier.background(C.Accent).border(1.dp, C.AccentText.copy(alpha = 0.45f), btn)
-                            else Modifier.border(1.dp, C.Border, btn)
-                        )
-                        .tap(enabled = canSend) { askTyped(text) },
-                    contentAlignment = Alignment.Center,
-                ) { Ic(R.drawable.lc_send, if (canSend) C.OnAccent else C.TextMuted, 18.dp, contentDescription = tr("Ask")) }
             }
         }
 

@@ -49,6 +49,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
@@ -230,3 +231,53 @@ fun ColumnScope.StickySheetBody(
         ) { footer() }
     }
 }
+
+/**
+ * A full sheet opened from inside another sheet (a food from the meal, a time picker): the same
+ * slide-up panel, title pinned on top and its buttons pinned at the bottom (above the keyboard),
+ * in its own window so it covers the sheet under it. Back or swiping down returns to that sheet.
+ */
+@Composable
+fun SubSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    footer: (@Composable (close: () -> Unit) -> Unit)? = null,
+    content: @Composable ColumnScope.(close: () -> Unit) -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            // The sheet handles back and the tap outside itself, sliding away first.
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        // The sheet draws its own dim; the window's would double it.
+        val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        androidx.compose.runtime.SideEffect { window?.setDimAmount(0f) }
+        Box(Modifier.fillMaxSize()) {
+            SlideSheet(onDismiss) { close ->
+                StickySheetBody(title, close, footer = footer?.let { f -> { f(close) } }) { content(close) }
+            }
+        }
+    }
+}
+
+/** Buttons side by side, or stacked, for a sheet's pinned footer. */
+@Composable
+fun FooterButtons(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+}
+
+/** Lets a wide widget (the calendar) use the sheet's side margins as well. */
+fun Modifier.bleed(side: androidx.compose.ui.unit.Dp): Modifier = this.then(
+    Modifier.layout { m, c ->
+        val extra = (side * 2).roundToPx()
+        val wide = if (c.hasBoundedWidth) c.copy(minWidth = 0, maxWidth = c.maxWidth + extra) else c
+        val p = m.measure(wide)
+        val w = if (c.hasBoundedWidth) c.maxWidth else p.width
+        layout(w, p.height) { p.place((w - p.width) / 2, 0) }
+    }
+)

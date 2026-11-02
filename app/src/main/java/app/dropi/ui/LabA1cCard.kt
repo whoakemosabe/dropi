@@ -148,65 +148,50 @@ private fun AddA1cDialog(start: Double, onDismiss: () -> Unit, onSave: (LabA1c) 
                 utcTimeMillis <= today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         },
     )
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .padding(horizontal = 12.dp, vertical = 24.dp)
-                .widthIn(max = 460.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(Corner.XL))
-                .background(C.Card)
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(tr("Lab A1C result"), style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
-            Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SlidingSegments(listOf("%", "mmol/mol"), unit, Modifier.fillMaxWidth()) { unit = it }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Chip("−") {
-                        percent = if (unit == 0) percent - 0.1 else A1c.fromMmolMol(A1c.toMmolMol(percent).roundToInt() - 1.0)
-                        percent = percent.coerceIn(4.0, 15.0)
-                    }
-                    Text(
-                        if (unit == 0) pct(percent) else "${A1c.toMmolMol(percent).roundToInt()} mmol/mol",
-                        style = numeral(30.sp, C.Text),
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                    Chip("+") {
-                        percent = if (unit == 0) percent + 0.1 else A1c.fromMmolMol(A1c.toMmolMol(percent).roundToInt() + 1.0)
-                        percent = percent.coerceIn(4.0, 15.0)
-                    }
+    SubSheet(tr("Lab A1C result"), onDismiss, footer = {
+        PrimaryButton(tr("Save"), Modifier.fillMaxWidth()) {
+            val ms = dateState.selectedDateMillis ?: today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            val date = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
+            onSave(LabA1c(date, (percent * 10).roundToInt() / 10.0))
+        }
+    }) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SlidingSegments(listOf("%", "mmol/mol"), unit, Modifier.fillMaxWidth()) { unit = it }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Chip("−") {
+                    percent = if (unit == 0) percent - 0.1 else A1c.fromMmolMol(A1c.toMmolMol(percent).roundToInt() - 1.0)
+                    percent = percent.coerceIn(4.0, 15.0)
                 }
                 Text(
-                    if (unit == 0) "${A1c.toMmolMol(percent).roundToInt()} mmol/mol" else pct(percent),
-                    style = inter(13.sp, color = C.TextMuted),
-                    modifier = Modifier.fillMaxWidth(),
+                    if (unit == 0) pct(percent) else "${A1c.toMmolMol(percent).roundToInt()} mmol/mol",
+                    style = numeral(30.sp, C.Text),
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
-            }
-            Text(tr("Test date"), style = SectionLabel, modifier = Modifier.padding(horizontal = 24.dp))
-            DatePicker(
-                state = dateState,
-                title = null,
-                headline = null,
-                showModeToggle = false,
-                colors = DatePickerDefaults.colors(
-                    containerColor = C.Card,
-                    selectedDayContainerColor = C.Accent,
-                    todayDateBorderColor = C.AccentText,
-                ),
-            )
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton(tr("Cancel"), Modifier.weight(1f)) { onDismiss() }
-                PrimaryButton(tr("Save"), Modifier.weight(1f)) {
-                    val ms = dateState.selectedDateMillis ?: today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-                    val date = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
-                    onSave(LabA1c(date, (percent * 10).roundToInt() / 10.0))
+                Chip("+") {
+                    percent = if (unit == 0) percent + 0.1 else A1c.fromMmolMol(A1c.toMmolMol(percent).roundToInt() + 1.0)
+                    percent = percent.coerceIn(4.0, 15.0)
                 }
             }
-            Spacer(Modifier.width(1.dp))
+            Text(
+                if (unit == 0) "${A1c.toMmolMol(percent).roundToInt()} mmol/mol" else pct(percent),
+                style = inter(13.sp, color = C.TextMuted),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
+        Text(tr("Test date"), style = SectionLabel)
+        DatePicker(
+            state = dateState,
+            title = null,
+            headline = null,
+            showModeToggle = false,
+            colors = DatePickerDefaults.colors(
+                containerColor = C.Sheet,
+                selectedDayContainerColor = C.Accent,
+                todayDateBorderColor = C.AccentText,
+            ),
+            modifier = Modifier.bleed(16.dp),
+        )
     }
 }

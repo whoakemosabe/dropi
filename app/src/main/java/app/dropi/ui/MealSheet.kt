@@ -98,10 +98,39 @@ import app.dropi.work.MealWork
 fun MealSheet(state: AppState) {
     val d = MealWork.draft
     if (!MealWork.open || d == null) return
+    // The packet screen's buttons, set by it, shown in the pinned bar.
+    val packetBar = remember { PacketBar() }
     SlideSheet(onDismiss = { MealWork.open = false }) { close ->
-        val footer: (@Composable () -> Unit)? =
-            if (d.status is MealWork.Status.Ready) ({ MealSaveBar(state, d) { close() } }) else null
-        StickySheetBody(tr("Meal"), close, footer = footer) { MealBody(state, d) { close() } }
+        val footer: (@Composable () -> Unit)? = when (d.status) {
+            is MealWork.Status.Ready -> ({ MealSaveBar(state, d) { close() } })
+            is MealWork.Status.NeedsGrams, is MealWork.Status.Words -> ({ PacketSaveBar(packetBar) })
+            is MealWork.Status.Failed -> ({
+                FooterButtons {
+                    PrimaryButton(tr("Say what you ate"), Modifier.fillMaxWidth(), icon = R.drawable.lc_mic) { MealWork.words() }
+                    GhostButton(tr("Add the foods myself"), Modifier.fillMaxWidth()) { MealWork.manual() }
+                }
+            })
+            else -> null
+        }
+        StickySheetBody(tr("Meal"), close, footer = footer) { MealBody(state, d, packetBar) { close() } }
+    }
+}
+
+/** What a screen's pinned buttons say and do (the packet and words screens set them as they change). */
+private class PacketBar {
+    var text by mutableStateOf("")
+    var ready by mutableStateOf(false)
+    var icon by mutableStateOf<Int?>(R.drawable.lc_check)
+    var save: () -> Unit = {}
+    /** A second, quieter button ("Add more to this meal"), or none. */
+    var more by mutableStateOf<(() -> Unit)?>(null)
+}
+
+@Composable
+private fun PacketSaveBar(bar: PacketBar) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        PrimaryButton(bar.text, Modifier.fillMaxWidth(), icon = bar.icon, enabled = bar.ready) { bar.save() }
+        bar.more?.let { more -> GhostButton(tr("Add more to this meal"), Modifier.fillMaxWidth(), color = C.AccentText) { if (bar.ready) more() } }
     }
 }
 
@@ -126,12 +155,13 @@ private fun rememberVoice(onText: (String) -> Unit): (() -> Unit)? {
 }
 
 @Composable
-private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -> Unit) {
+private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, packetBar: PacketBar, close: () -> Unit) {
     val context = LocalContext.current
     when (val s = d.status) {
         is MealWork.Status.Words -> WordsInput(
             hint = tr("For example: two slices of toast with jam and a small glass of orange juice"),
             button = tr("Add these foods"),
+            bar = packetBar,
         ) { MealWork.fromWords(context, it) }
 
         is MealWork.Status.Working -> Column(
@@ -159,11 +189,9 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
 
         is MealWork.Status.Failed -> {
             Text(s.message, style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 22.sp))
-            PrimaryButton(tr("Say what you ate"), Modifier.fillMaxWidth(), icon = R.drawable.lc_mic) { MealWork.words() }
-            GhostButton(tr("Add the foods myself"), Modifier.fillMaxWidth()) { MealWork.manual() }
         }
 
-        is MealWork.Status.NeedsGrams -> LabelGrams(state, d, close, s.per100, s.read, s.why, s.text, s.code, s.source, s.portion)
+        is MealWork.Status.NeedsGrams -> LabelGrams(state, d, close, packetBar, s.per100, s.read, s.why, s.text, s.code, s.source, s.portion)
 
         is MealWork.Status.Ready -> Breakdown(state, d.meal ?: Meal(emptyList()), d, close)
     }
@@ -171,7 +199,7 @@ private fun ColumnScope.MealBody(state: AppState, d: MealWork.Draft, close: () -
 
 /** A box for the meal in words, with a big microphone. */
 @Composable
-private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
+private fun WordsInput(hint: String, button: String, bar: PacketBar, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     val voice = rememberVoice { said -> text = said; onDone(said) }
     Row(
@@ -211,7 +239,14 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
         if (voice != null) tr("Tap the microphone and say it, or type it. Speech is turned into text by your phone.")
         else tr("Type it, or use your keyboard's microphone.")
     )
-    PrimaryButton(button, Modifier.fillMaxWidth(), enabled = text.isNotBlank()) { onDone(text) }
+    // The button sits in the pinned bar, over the keyboard.
+    androidx.compose.runtime.SideEffect {
+        bar.text = button
+        bar.ready = text.isNotBlank()
+        bar.icon = null
+        bar.save = { if (text.isNotBlank()) onDone(text) }
+        bar.more = null
+    }
 }
 
 /**
@@ -222,7 +257,7 @@ private fun WordsInput(hint: String, button: String, onDone: (String) -> Unit) {
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun LabelGrams(
-    state: AppState, d: MealWork.Draft, close: () -> Unit,
+    state: AppState, d: MealWork.Draft, close: () -> Unit, bar: PacketBar,
     found: app.dropi.data.Label.Per100, read: Boolean, why: String? = null, seen: List<String> = emptyList(),
     code: String? = null, source: String = "label", portion: Double? = null,
 ) {
@@ -452,20 +487,23 @@ private fun LabelGrams(
         if (keep && eaten != null && key.length >= 2) MealWork.remember(context, eaten)
         MealWork.labelGrams(context, key, grams, checked, code, packetG?.toDouble())
     }
-    PrimaryButton(
-        saveMealText(f.name) + " · " + fmtT.time(f.ateAt),
-        Modifier.fillMaxWidth().padding(top = 4.dp),
-        icon = R.drawable.lc_check,
-        enabled = ready,
-    ) {
-        commit()
-        val m = MealWork.draft?.meal ?: return@PrimaryButton
-        Haptics.confirm(view)
-        state.saveMeal(m.copy(items = m.items.map { it.copy(usual = keep) }), f.ateAt, f.name, d.before, f.old?.id ?: 0)
-        MealWork.discard()
-        close()
+    // The pinned bar under the sheet shows these, always in view.
+    val saveText = saveMealText(f.name) + " · " + fmtT.time(f.ateAt)
+    androidx.compose.runtime.SideEffect {
+        bar.text = saveText
+        bar.ready = ready
+        bar.save = {
+            commit()
+            MealWork.draft?.meal?.let { m ->
+                Haptics.confirm(view)
+                state.saveMeal(m.copy(items = m.items.map { it.copy(usual = keep) }), f.ateAt, f.name, d.before, f.old?.id ?: 0)
+                MealWork.discard()
+                close()
+            }
+        }
+        bar.icon = R.drawable.lc_check
+        bar.more = { commit() }
     }
-    GhostButton(tr("Add more to this meal"), Modifier.fillMaxWidth(), color = C.AccentText) { if (ready) commit() }
 }
 
 /** A small text link under the label screen. */
@@ -956,8 +994,9 @@ private fun SaveMealDialog(meal: Meal, onDismiss: () -> Unit, onSave: (String) -
     }
     var name by remember { mutableStateOf(suggested) }
     val clean = name.trim()
-    FoodDialogFrame(onDismiss) {
-        Text(tr("Save as one of my meals"), style = heading(20.sp), modifier = Modifier.semantics { heading() })
+    FoodDialogFrame(tr("Save as one of my meals"), onDismiss, footer = {
+        PrimaryButton(if (clean in existing) tr("Replace {0}", clean) else tr("Save {0}", clean), Modifier.fillMaxWidth(), enabled = clean.isNotEmpty()) { onSave(clean) }
+    }) {
         Text(
             tr("All {0} foods at these amounts, {1} g carbs. Log it again with one tap from + or More › My foods.", meal.items.size, app.dropi.data.Grams.text(meal.carbs)),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
@@ -972,8 +1011,6 @@ private fun SaveMealDialog(meal: Meal, onDismiss: () -> Unit, onSave: (String) -
             }
             if (clean in existing) Text(tr("Replaces your saved {0}.", clean), style = inter(13.sp, color = C.High))
         }
-        PrimaryButton(if (clean in existing) tr("Replace {0}", clean) else tr("Save {0}", clean), Modifier.fillMaxWidth(), enabled = clean.isNotEmpty()) { onSave(clean) }
-        GhostButton(tr("Cancel"), Modifier.fillMaxWidth()) { onDismiss() }
     }
 }
 
@@ -986,33 +1023,19 @@ private fun MealWhenDialog(ateAt: Long, name: String, fmt: Fmt, zone: java.time.
     val minsAgo = ((now - ateAt) / 60_000L).toInt()
     val presets = listOf(0 to tr("Now"), 15 to tr("{0} min ago", 15), 30 to tr("{0} min ago", 30), 60 to tr("{0} h ago", 1))
     val onPreset = presets.firstOrNull { kotlin.math.abs(it.first - minsAgo) <= 2 }
-    Dialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .widthIn(max = 440.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(Corner.XL))
-                .background(C.Sheet)
-                .border(1.dp, C.Border, RoundedCornerShape(Corner.XL))
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(tr("Which meal?"), style = heading(20.sp), modifier = Modifier.semantics { heading() })
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Names are saved in English; only how they look is translated.
-                app.dropi.data.MealEntry.NAMES.forEach { n -> Chip(mealNameShown(n), selected = n == name) { MealWork.setName(n) } }
-            }
-            Text(
-                tr("Ate at {0}", fmt.time(ateAt)),
-                style = heading(20.sp),
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp).ruleTop().padding(top = 12.dp).semantics { heading() },
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                presets.forEach { (m, label) -> Chip(label, selected = onPreset?.first == m) { MealWork.setWhen(now - m * 60_000L) } }
-                Chip(if (onPreset == null) fmt.time(ateAt) else tr("Other time"), icon = R.drawable.lc_clock, selected = onPreset == null) { pickingTime = true }
-            }
-            PrimaryButton(tr("Done"), Modifier.fillMaxWidth()) { onDone() }
+    SubSheet(tr("Which meal?"), onDone, footer = { PrimaryButton(tr("Done"), Modifier.fillMaxWidth()) { onDone() } }) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Names are saved in English; only how they look is translated.
+            app.dropi.data.MealEntry.NAMES.forEach { n -> Chip(mealNameShown(n), selected = n == name) { MealWork.setName(n) } }
+        }
+        Text(
+            tr("Ate at {0}", fmt.time(ateAt)),
+            style = heading(20.sp),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).ruleTop().padding(top = 12.dp).semantics { heading() },
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            presets.forEach { (m, label) -> Chip(label, selected = onPreset?.first == m) { MealWork.setWhen(now - m * 60_000L) } }
+            Chip(if (onPreset == null) fmt.time(ateAt) else tr("Other time"), icon = R.drawable.lc_clock, selected = onPreset == null) { pickingTime = true }
         }
     }
     if (pickingTime) WhenPicker(ateAt, zone, onDismiss = { pickingTime = false }) { t -> MealWork.setWhen(t); pickingTime = false }
@@ -1363,24 +1386,14 @@ private fun NumbersPreview(item: MealItem?) {
 
 /** A dialog laid over the meal screen, sliding content in a rounded card. */
 @Composable
-private fun FoodDialogFrame(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    // A stray tap outside doesn't throw away what was typed; back or Cancel closes it.
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)) {
-        Column(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .widthIn(max = 440.dp)
-                .fillMaxWidth()
-                .imePadding()
-                .clip(RoundedCornerShape(Corner.XL))
-                .background(C.Sheet)
-                .border(1.dp, C.Border, RoundedCornerShape(Corner.XL))
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            content = content,
-        )
-    }
+private fun FoodDialogFrame(
+    title: String,
+    onDismiss: () -> Unit,
+    footer: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    // A full sheet over the meal, its buttons pinned at the bottom.
+    SubSheet(title, onDismiss, footer = { FooterButtons(footer) }) { content() }
 }
 
 /**
@@ -1463,8 +1476,19 @@ private fun AddFoodDialog(
         ?: preview ?: MealItem(key, otherPortion.trim().ifEmpty { "1 portion" }, carbs = 0.0)
     val known = edited != null || preview != null
 
-    FoodDialogFrame(onDismiss) {
-        Text(tr("Add a food"), style = heading(24.sp))
+    FoodDialogFrame(tr("Add a food"), onDismiss, footer = {
+        PrimaryButton(
+            when {
+                key.length < 2 -> tr("Add")
+                known -> tr("Add {0} · {1} g carbs", Foods.display(key), app.dropi.data.Grams.text(current.carbs))
+                // Without the AI nothing would fill the carbs in later: never add a food as 0 g by accident.
+                !app.dropi.work.Ai.usable -> tr("Type its carbs first")
+                else -> tr("Add {0}", Foods.display(key))
+            },
+            Modifier.fillMaxWidth(),
+            enabled = key.length >= 2 && (known || app.dropi.work.Ai.usable),
+        ) { onAdd(current.copy(name = key), known, keep) }
+    }) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FieldLabel(tr("What is it?"))
             FieldBox(name, tr("e.g. hard boiled egg"), label = tr("What is it?"), onDone = { askNow++ }) { name = it.take(40) }
@@ -1537,19 +1561,6 @@ private fun AddFoodDialog(
             if (numbersOpen) NumbersGrid(current) { edited = it }
             if (known) RememberRow(key, key in usual, current, keep) { keep = it }
         }
-
-        PrimaryButton(
-            when {
-                key.length < 2 -> tr("Add")
-                known -> tr("Add {0} · {1} g carbs", Foods.display(key), app.dropi.data.Grams.text(current.carbs))
-                // Without the AI nothing would fill the carbs in later: never add a food as 0 g by accident.
-                !app.dropi.work.Ai.usable -> tr("Type its carbs first")
-                else -> tr("Add {0}", Foods.display(key))
-            },
-            Modifier.fillMaxWidth(),
-            enabled = key.length >= 2 && (known || app.dropi.work.Ai.usable),
-        ) { onAdd(current.copy(name = key), known, keep) }
-        GhostButton(tr("Cancel"), Modifier.fillMaxWidth()) { onDismiss() }
     }
 }
 
@@ -1574,12 +1585,13 @@ private fun FoodEditDialog(
     var name by remember(initial) { mutableStateOf(Foods.display(initial.name)) }
     val key = Foods.normalize(name).ifBlank { initial.key }
     var keep by remember(initial) { mutableStateOf(initial.key in saved || initial.usual) }
-    FoodDialogFrame(onDismiss) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(Foods.display(key), style = heading(24.sp), modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(12.dp))
-            Text(item.portionShown(), style = mono(13.sp, FontWeight.Medium, C.TextSecondary), modifier = Modifier.padding(bottom = 5.dp))
+    FoodDialogFrame(Foods.display(key), onDismiss, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            GhostButton(tr("Remove"), Modifier.weight(1f), color = C.Low) { onRemove() }
+            PrimaryButton(tr("Done"), Modifier.weight(2f)) { onDone(item.copy(name = key), keep) }
         }
+    }) {
+        Text(item.portionShown(), style = mono(13.sp, FontWeight.Medium, C.TextSecondary))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(0.5, 1.0, 1.5, 2.0, 3.0).forEach { q ->
                 Chip(basis.withQty(q).portionShown(), selected = item.portion == basis.portion && item.qty == q) {
@@ -1629,11 +1641,6 @@ private fun FoodEditDialog(
                     }
                 }
             }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            GhostButton(tr("Remove"), Modifier.weight(1f), color = C.Low) { onRemove() }
-            PrimaryButton(tr("Done"), Modifier.weight(2f)) { onDone(item.copy(name = key), keep) }
         }
     }
 }

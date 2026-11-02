@@ -57,53 +57,36 @@ fun WhenPicker(initial: Long, zone: ZoneId, onDismiss: () -> Unit, onPick: (Long
     val future = picked > System.currentTimeMillis() + 60_000
     val dayName = remember { dayPattern("EEE d") }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val shape = RoundedCornerShape(Corner.XL)
-        Column(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .widthIn(max = 440.dp)
-                .fillMaxWidth()
-                .card(shape)
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(tr("When did you take it?"), style = heading(20.sp), modifier = Modifier.padding(horizontal = 24.dp))
-            // Today and the seven days before, as a 4 × 2 grid.
-            val days = (0..7).map { today.minusDays(it.toLong()) }
-            ChoiceGrid(
-                days.mapIndexed { back, d ->
-                    Choice(
-                        when (back) {
-                            0 -> tr("Today")
-                            1 -> tr("Yesterday")
-                            else -> dayName.format(d).cap()
-                        }
-                    )
-                },
-                selected = days.indexOf(day).takeIf { it >= 0 },
-                columns = 4,
-                compact = true,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            ) { day = days[it] }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                TimePicker(
-                    state = time,
-                    colors = whenClockColors(),
+    SubSheet(tr("When did you take it?"), onDismiss, footer = {
+        PrimaryButton(tr("Set time"), Modifier.fillMaxWidth(), enabled = !future) { onPick(picked) }
+    }) {
+        // Today and the seven days before, as a 4 × 2 grid.
+        val days = (0..7).map { today.minusDays(it.toLong()) }
+        ChoiceGrid(
+            days.mapIndexed { back, d ->
+                Choice(
+                    when (back) {
+                        0 -> tr("Today")
+                        1 -> tr("Yesterday")
+                        else -> dayName.format(d).cap()
+                    }
                 )
-            }
-            if (future) {
-                Text(
-                    tr("That's in the future. Pick an earlier time."),
-                    style = inter(13.sp, FontWeight.Medium, C.High),
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton(tr("Cancel"), Modifier.weight(1f)) { onDismiss() }
-                PrimaryButton(tr("Set time"), Modifier.weight(1f), enabled = !future) { onPick(picked) }
-            }
+            },
+            selected = days.indexOf(day).takeIf { it >= 0 },
+            columns = 4,
+            compact = true,
+        ) { day = days[it] }
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            TimePicker(
+                state = time,
+                colors = whenClockColors(),
+            )
+        }
+        if (future) {
+            Text(
+                tr("That's in the future. Pick an earlier time."),
+                style = inter(13.sp, FontWeight.Medium, C.High),
+            )
         }
     }
 }

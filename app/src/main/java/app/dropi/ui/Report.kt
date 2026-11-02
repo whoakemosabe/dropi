@@ -56,7 +56,23 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
     var note by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
-    StickySheetBody(tr("Report a problem"), close) {
+    StickySheetBody(tr("Report a problem"), close, footer = {
+        FooterButtons {
+            PrimaryButton(tr("Send report"), Modifier.fillMaxWidth(), icon = R.drawable.lc_send) {
+                val text = Diag.report(context, note)
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_SUBJECT, "Dropi problem report")
+                    .putExtra(Intent.EXTRA_TEXT, text)
+                try { context.startActivity(Intent.createChooser(send, tr("Send the report"))) } catch (e: Exception) { copy(context, text); copied = true }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton(if (copied) tr("Copied") else tr("Copy instead"), Modifier.weight(1f), color = C.AccentText) {
+                    copy(context, Diag.report(context, note)); copied = true
+                }
+                GhostButton(if (preview) tr("Hide what's sent") else tr("See what's sent"), Modifier.weight(1f), color = C.AccentText) { preview = !preview }
+            }
+        }
+    }) {
         Text(
             tr("Say what didn't work, then send it. Dropi adds what it knows about the problem, so it can be fixed without guessing."),
             style = inter(15.sp, color = C.TextSecondary).copy(lineHeight = 20.sp),
@@ -85,19 +101,6 @@ private fun ColumnScope.ReportContent(close: () -> Unit) {
             tr("Also included: the app version and phone, the on-device AI's state and which chip it runs on, your settings, the text from the last label scan, recent problems and the last crash. Not included: your readings, meals or notes."),
             style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 17.sp),
         )
-        PrimaryButton(tr("Send report"), Modifier.fillMaxWidth(), icon = R.drawable.lc_send) {
-            val text = Diag.report(context, note)
-            val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                .putExtra(Intent.EXTRA_SUBJECT, "Dropi problem report")
-                .putExtra(Intent.EXTRA_TEXT, text)
-            try { context.startActivity(Intent.createChooser(send, tr("Send the report"))) } catch (e: Exception) { copy(context, text); copied = true }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GhostButton(if (copied) tr("Copied") else tr("Copy instead"), Modifier.weight(1f), color = C.AccentText) {
-                copy(context, Diag.report(context, note)); copied = true
-            }
-            GhostButton(if (preview) tr("Hide what's sent") else tr("See what's sent"), Modifier.weight(1f), color = C.AccentText) { preview = !preview }
-        }
         if (preview) {
             SelectionContainer {
                 // The report itself is a real object, so it gets a quiet panel, set in mono like a printout.

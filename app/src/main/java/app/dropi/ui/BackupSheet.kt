@@ -92,7 +92,50 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
         }
     }
 
-    StickySheetBody(tr("Backup"), close) {
+    // The action for what's being done (back up, or restore once a file is chosen), pinned.
+    StickySheetBody(tr("Backup"), close, footer = {
+        FooterButtons {
+            if (restoreUri == null) {
+                PrimaryButton(tr("Back up now"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download, enabled = passOk && !busy) {
+                    create.launch("dropi-backup-${LocalDate.now(state.zone)}.dropi")
+                }
+            } else {
+                PrimaryButton(tr("Restore"), Modifier.fillMaxWidth(), enabled = restorePass.isNotEmpty() && !busy) {
+                    val uri = restoreUri ?: return@PrimaryButton
+                    busy = true
+                    scope.launch {
+                        note = try {
+                            val bytes = withContext(Dispatchers.IO) {
+                                context.contentResolver.openInputStream(uri)?.use { input ->
+                                    // A backup of years of readings is a few MB; refuse anything far bigger.
+                                    val b = input.readBytes()
+                                    if (b.size > 50 * 1024 * 1024) error("too big")
+                                    b
+                                } ?: error("no stream")
+                            }
+                            val added = state.restore(bytes, restorePass.toCharArray())
+                            Haptics.confirm(view)
+                            restoreUri = null
+                            restorePass = ""
+                            if (added == 0) tr("Restored. Every reading in the backup was already here.") else trn(added, "Restored {0} reading.", "Restored {0} readings.")
+                        } catch (e: Backup.WrongPassword) {
+                            Haptics.reject(view)
+                            tr("That password doesn't open this file (or the file is damaged).")
+                        } catch (e: Backup.NotABackup) {
+                            Haptics.reject(view)
+                            restoreUri = null
+                            tr("That file isn't a Dropi backup.")
+                        } catch (e: Exception) {
+                            Haptics.reject(view)
+                            tr("Couldn't read that file.")
+                        }
+                        busy = false
+                    }
+                }
+                GhostButton(tr("Choose a different file"), Modifier.fillMaxWidth()) { restoreUri = null; restorePass = "" }
+            }
+        }
+    }) {
         Text(
             tr("Your readings, check times, targets and lab results in one file locked with a password. Save it to Drive or Files and you can restore it on a new phone."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
@@ -101,10 +144,6 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
         PasswordField(pass, tr("Password (6 characters or more)")) { pass = it }
         PasswordField(pass2, tr("The same password again")) { pass2 = it }
         if (pass2.isNotEmpty() && pass != pass2) Text(tr("The passwords don't match."), style = inter(13.sp, FontWeight.Medium, C.High))
-        PrimaryButton(tr("Back up now"), Modifier.fillMaxWidth(), icon = R.drawable.lc_download, enabled = passOk && !busy) {
-            create.launch("dropi-backup-${LocalDate.now(state.zone)}.dropi")
-        }
-
         RuleHeader(tr("Restore"), modifier = Modifier.padding(top = 8.dp))
         if (restoreUri == null) {
             GhostButton(tr("Choose a backup file"), Modifier.fillMaxWidth(), color = C.AccentText) {
@@ -113,39 +152,6 @@ private fun ColumnScope.BackupContent(state: AppState, close: () -> Unit) {
         } else {
             Text(tr("File chosen. Enter its password."), style = inter(13.sp, color = C.TextSecondary))
             PasswordField(restorePass, tr("Backup password")) { restorePass = it }
-            PrimaryButton(tr("Restore"), Modifier.fillMaxWidth(), enabled = restorePass.isNotEmpty() && !busy) {
-                val uri = restoreUri ?: return@PrimaryButton
-                busy = true
-                scope.launch {
-                    note = try {
-                        val bytes = withContext(Dispatchers.IO) {
-                            context.contentResolver.openInputStream(uri)?.use { input ->
-                                // A backup of years of readings is a few MB; refuse anything far bigger.
-                                val b = input.readBytes()
-                                if (b.size > 50 * 1024 * 1024) error("too big")
-                                b
-                            } ?: error("no stream")
-                        }
-                        val added = state.restore(bytes, restorePass.toCharArray())
-                        Haptics.confirm(view)
-                        restoreUri = null
-                        restorePass = ""
-                        if (added == 0) tr("Restored. Every reading in the backup was already here.") else trn(added, "Restored {0} reading.", "Restored {0} readings.")
-                    } catch (e: Backup.WrongPassword) {
-                        Haptics.reject(view)
-                        tr("That password doesn't open this file (or the file is damaged).")
-                    } catch (e: Backup.NotABackup) {
-                        Haptics.reject(view)
-                        restoreUri = null
-                        tr("That file isn't a Dropi backup.")
-                    } catch (e: Exception) {
-                        Haptics.reject(view)
-                        tr("Couldn't read that file.")
-                    }
-                    busy = false
-                }
-            }
-            GhostButton(tr("Choose a different file"), Modifier.fillMaxWidth()) { restoreUri = null; restorePass = "" }
         }
         note?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.Text)) }
     }

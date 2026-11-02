@@ -103,19 +103,16 @@ fun DetailsDialog(
     val view = LocalView.current
     var d by remember { mutableStateOf(initial) }
     var note by remember { mutableStateOf(initialNote) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .widthIn(max = 440.dp)
-                .fillMaxWidth()
-                .imePadding()
-                .card(RoundedCornerShape(Corner.XL))
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-        ) {
-            Text(tr("Details"), style = heading(22.sp))
-            Spacer(Modifier.height(6.dp))
+    SubSheet(tr("Details"), onDismiss, footer = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GhostButton(tr("Clear all"), Modifier.weight(1f)) {
+                d = Details()
+                note = ""
+            }
+            PrimaryButton(tr("Done"), Modifier.weight(1f)) { onSave(d, note.trim()) }
+        }
+    }) {
+        Column {
             Text(
                 tr("All optional. Meals are logged on their own with the + button, at the time you ate."),
                 style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 18.sp),
@@ -182,15 +179,6 @@ fun DetailsDialog(
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GhostButton(tr("Clear all"), Modifier.weight(1f)) {
-                    d = Details()
-                    note = ""
-                }
-                PrimaryButton(tr("Done"), Modifier.weight(1f)) { onSave(d, note.trim()) }
             }
         }
     }

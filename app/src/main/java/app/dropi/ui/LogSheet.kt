@@ -14,6 +14,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -104,7 +105,7 @@ fun LogSheetHost(state: AppState) {
 }
 
 @Composable
-private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
+private fun ColumnScope.LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val fmt = remember { Fmt(context, state.zone) }
@@ -162,12 +163,14 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         }
     }
 
-    // Scrolls inside the sheet; at the top, a downward swipe pulls the sheet closed.
+    // Scrolls inside the sheet; at the top, a downward swipe pulls the sheet closed. Save sits
+    // in the pinned bar under it, always in view.
+    var saveBar: (@Composable () -> Unit)? = null
     Column(
         Modifier
             .fillMaxWidth()
+            .weight(1f, fill = false)
             .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
             .padding(horizontal = 16.dp),
     ) {
         SheetTitle(if (isNew) tr("New reading") else tr("Edit reading"), close) {
@@ -354,33 +357,40 @@ private fun LogSheet(state: AppState, initial: Reading, close: () -> Unit) {
         // the label, so the sheet doesn't grow and Save stays on screen.
         val near = if (isNew && mmol != null) state.readings.filter { kotlin.math.abs(it.at - at) <= 60 * 60_000L && it.id != initial.id }.maxByOrNull { it.at } else null
         val bigJump = near != null && mmol != null && kotlin.math.abs(mmol - near.mmol) >= 4.0
-        PrimaryButton(
-            when {
-                bigJump -> tr("Big change since {0} · retest, or tap to save", fmt.time(near!!.at))
-                isNew -> tr("Save reading")
-                else -> tr("Save changes")
-            },
-            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
-            icon = R.drawable.lc_check,
-            enabled = mmol != null,
-        ) {
-            val v = mmol ?: return@PrimaryButton
+        saveBar = {
+            PrimaryButton(
+                when {
+                    bigJump -> tr("Big change since {0} · retest, or tap to save", fmt.time(near!!.at))
+                    isNew -> tr("Save reading")
+                    else -> tr("Save changes")
+                },
+                Modifier.fillMaxWidth(),
+                icon = R.drawable.lc_check,
+                enabled = mmol != null,
+            ) {
+                val v = mmol ?: return@PrimaryButton
 
-            Haptics.confirm(view)
-            state.save(
-                initial.copy(
-                    at = at, mmol = v, tag = tag, note = note.trim(),
-                    carbs = details.carbs, insulin = details.insulin,
-                    insulinKind = if (details.insulin != null) details.kind else null,
-                    meds = details.meds, exercise = details.exercise,
-                    foods = details.foods,
-                    // The breakdown stays while it still describes the foods on the reading.
-                    meal = details.meal?.takeIf { m -> m.foods.toSet() == details.foods.toSet() },
+                Haptics.confirm(view)
+                state.save(
+                    initial.copy(
+                        at = at, mmol = v, tag = tag, note = note.trim(),
+                        carbs = details.carbs, insulin = details.insulin,
+                        insulinKind = if (details.insulin != null) details.kind else null,
+                        meds = details.meds, exercise = details.exercise,
+                        foods = details.foods,
+                        // The breakdown stays while it still describes the foods on the reading.
+                        meal = details.meal?.takeIf { m -> m.foods.toSet() == details.foods.toSet() },
+                    )
                 )
-            )
-            close()
+                close()
+            }
         }
     }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(C.Border))
+    Box(
+        Modifier.fillMaxWidth().background(C.Sheet).navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+    ) { saveBar?.invoke() }
 }
 
 /**

@@ -51,7 +51,45 @@ private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
     val from = today.minusDays((days - 1).toLong())
     val inPeriod = state.readings.filter { !it.date(state.zone).isBefore(from) }
 
-    StickySheetBody(tr("Share a report"), close) {
+    StickySheetBody(tr("Share a report"), close, footer = {
+        FooterButtons {
+            PrimaryButton(
+                tr("PDF report for your doctor"),
+                Modifier.fillMaxWidth(),
+                icon = R.drawable.lc_share,
+                enabled = !busy && inPeriod.isNotEmpty(),
+            ) {
+                busy = true
+                scope.launch {
+                    try {
+                        val f = Export.writePdf(context, state.readings, days, today, state.zone, state.unit, state.targets)
+                        Export.share(context, f, "application/pdf", tr("Blood glucose report"))
+                        note = null
+                    } catch (e: Exception) {
+                        note = tr("Couldn't make the report.")
+                    }
+                    busy = false
+                }
+            }
+            GhostButton(tr("Readings as a spreadsheet (CSV)"), Modifier.fillMaxWidth(), color = C.AccentText) {
+                if (busy || inPeriod.isEmpty()) return@GhostButton
+                busy = true
+                scope.launch {
+                    try {
+                        val f = Export.writeCsv(
+                            context, inPeriod, state.zone, today,
+                            state.meals.filter { !java.time.Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate().isBefore(from) },
+                        )
+                        Export.share(context, f, "text/csv", tr("Blood glucose readings"))
+                        note = null
+                    } catch (e: Exception) {
+                        note = tr("Couldn't make the file.")
+                    }
+                    busy = false
+                }
+            }
+        }
+    }) {
         Text(
             tr("Made on your phone and shared however you choose: email, Messenger, Drive, a print-out."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
@@ -73,42 +111,6 @@ private fun ColumnScope.ExportContent(state: AppState, close: () -> Unit) {
         RuleHeader(tr("Period"), modifier = Modifier.padding(bottom = 0.dp))
         SlidingSegments(listOf(tr("14 days"), tr("30 days"), tr("90 days")), period, Modifier.fillMaxWidth()) { period = it }
         Text(trn(inPeriod.size, "{0} reading in this period", "{0} readings in this period"), style = mono(12.sp, FontWeight.Medium, C.TextMuted))
-        RuleHeader(tr("Share"), modifier = Modifier.padding(bottom = 0.dp))
-        PrimaryButton(
-            tr("PDF report for your doctor"),
-            Modifier.fillMaxWidth(),
-            icon = R.drawable.lc_share,
-            enabled = !busy && inPeriod.isNotEmpty(),
-        ) {
-            busy = true
-            scope.launch {
-                try {
-                    val f = Export.writePdf(context, state.readings, days, today, state.zone, state.unit, state.targets)
-                    Export.share(context, f, "application/pdf", tr("Blood glucose report"))
-                    note = null
-                } catch (e: Exception) {
-                    note = tr("Couldn't make the report.")
-                }
-                busy = false
-            }
-        }
-        GhostButton(tr("Readings as a spreadsheet (CSV)"), Modifier.fillMaxWidth(), color = C.AccentText) {
-            if (busy || inPeriod.isEmpty()) return@GhostButton
-            busy = true
-            scope.launch {
-                try {
-                    val f = Export.writeCsv(
-                        context, inPeriod, state.zone, today,
-                        state.meals.filter { !java.time.Instant.ofEpochMilli(it.at).atZone(state.zone).toLocalDate().isBefore(from) },
-                    )
-                    Export.share(context, f, "text/csv", tr("Blood glucose readings"))
-                    note = null
-                } catch (e: Exception) {
-                    note = tr("Couldn't make the file.")
-                }
-                busy = false
-            }
-        }
         note?.let { Text(it, style = inter(13.sp, FontWeight.Medium, C.High)) }
     }
 }
