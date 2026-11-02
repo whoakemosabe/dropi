@@ -113,7 +113,7 @@ class AppState(private val context: Context, private val scope: CoroutineScope) 
         val was = experiment
         prefs.experiment = ""; prefs.experimentStart = 0L
         experiment = null
-        if (offerUndo && was != null) offerUndo(tr("Try-it week stopped")) {
+        if (offerUndo && was != null) offerUndo(tr("Trial stopped")) {
             prefs.experiment = was.kind.key; prefs.experimentStart = was.start
             experiment = was
         }

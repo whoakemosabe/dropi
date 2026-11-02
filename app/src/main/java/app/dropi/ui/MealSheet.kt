@@ -239,9 +239,12 @@ private fun LabelGrams(
     var serving by remember(found) { mutableStateOf(fmt(found.serving)) }
     val saved = remember { MealWork.usual(context) }
     // Remember this packet as "my <name>" at the amount eaten; on when that name is saved already.
-    var keep by remember(found) { mutableStateOf(Foods.normalize(found.name).let { it.isNotEmpty() && it in saved }) }
+    // A scanned packet is on by default: it's usually something bought again, and then it's one tap.
+    var keep by remember(found) { mutableStateOf(Foods.normalize(found.name).let { it.isNotEmpty() && (it in saved || code != null) }) }
     val packetG = portion?.let { Math.round(it).toInt() }?.takeIf { !us && it in 5..2000 }
-    var grams by remember { mutableStateOf(found.serving?.let { Math.round(it).toInt() }?.takeIf { us } ?: packetG ?: 100) }
+    // The amount set last time for this packet comes first.
+    val lastG = remember(code) { code?.let { app.dropi.work.Barcodes.gramsFor(context, it) } }
+    var grams by remember { mutableStateOf(lastG ?: found.serving?.let { Math.round(it).toInt() }?.takeIf { us } ?: packetG ?: 100) }
     fun num(t: String) = t.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..(if (us) 400.0 else 100.0) }
     Text(
         when {
@@ -295,6 +298,10 @@ private fun LabelGrams(
         FieldBox(name, tr("What is it? (e.g. granola)"), label = tr("What is it?"), onChange = { name = it.take(40) })
     }
     RuleHeader(tr("How much did you eat?"))
+    if (code != null) Text(
+        tr("Dropi keeps this amount for this packet. Next time you scan it, the meal is filled in at {0} g, ready to save.", grams),
+        style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+    )
     val servingG = serving.replace(',', '.').toDoubleOrNull()?.takeIf { it in 1.0..2000.0 }
     val options = when {
         us && servingG != null -> listOf(1.0, 1.5, 2.0).map { Math.round(servingG * it).toInt() }.distinct()
@@ -460,6 +467,16 @@ private fun Breakdown(state: AppState, meal: Meal, d: MealWork.Draft, close: () 
 
     // ---- The meal as a receipt: each food and its carbs, a torn line, then the totals ----
     RuleHeader(tr("What you ate"), if (meal.items.isEmpty()) null else trn(meal.items.size, "{0} food", "{0} foods"))
+    // A packet scanned before, filled in at the usual amount: say so, with a way to change it.
+    if (d.packet != null && meal.items.size == 1) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                tr("A packet you've logged before, at your usual {0}. Tap the food to change it just this time.", app.dropi.data.Portions.shown(meal.items[0].portion)),
+                style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
+            )
+            MonoLink(tr("Change your usual amount")) { MealWork.changePacketAmount(context) }
+        }
+    }
     // A photo can't show how much was on the plate: one quick question instead of a silent guess.
     if (meal.source == "photo" && meal.items.any { !it.usual } && f.old == null) PortionPick(meal)
     // Foods whose guesses were scaled from the person's earlier corrections, said once.

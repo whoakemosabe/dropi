@@ -68,6 +68,8 @@ object MealWork {
         val before: Long? = null,
         /** Which meal this is (kept through changes), so late results never land on another one. */
         val session: Long = 0,
+        /** A packet scanned before, filled in at its usual amount: its barcode (to change that amount). */
+        val packet: String? = null,
     )
 
     var draft by mutableStateOf<Draft?>(null)
@@ -329,6 +331,11 @@ object MealWork {
                 // The table couldn't be read, but the photo may show the barcode.
                 val bc = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
                 val r = bc?.let { Barcodes.lookup(ctx, it) }
+                knownPacket(ctx, r)?.let { (meal, c) ->
+                    forgetShot(ctx, "label.jpg")
+                    land(id, Draft(id, Status.Ready, meal, packet = c))
+                    return@job
+                }
                 if (r is Barcodes.Result.Ok) {
                     forgetShot(ctx, "label.jpg")
                     land(id, Draft(id, Status.NeedsGrams(r.found.per100, text = seen, code = r.code, source = if (r.saved) "saved" else "off", portion = r.found.serving)))
@@ -373,7 +380,13 @@ object MealWork {
             }
             land(id, Draft(id, Status.Working(tr("Looking up the packet…"), en = "Looking up the packet…")))
             val blank = Label.Per100(null, null, null)
-            land(id, Draft(id, when (val r = Barcodes.lookup(ctx, code)) {
+            val found = Barcodes.lookup(ctx, code)
+            // Scanned and logged before: straight to the meal at the usual amount.
+            knownPacket(ctx, found)?.let { (meal, c) ->
+                land(id, Draft(id, Status.Ready, meal, packet = c))
+                return@job
+            }
+            land(id, Draft(id, when (val r = found) {
                 is Barcodes.Result.Ok -> Status.NeedsGrams(r.found.per100, code = code, source = if (r.saved) "saved" else "off", portion = r.found.serving)
                 is Barcodes.Result.NotListed -> {
                     missing = code; missingAt = System.currentTimeMillis()
@@ -394,13 +407,38 @@ object MealWork {
     /** How much of the labelled food was eaten, with the per-100 g numbers as checked or typed. */
     fun labelGrams(context: Context, name: String, grams: Int, p: Label.Per100, code: String? = null, portion: Double? = null) {
         val d = draft ?: return
-        // A packet's numbers, as checked or typed, are kept for its barcode.
+        // A packet's numbers, as checked or typed, are kept for its barcode, with the amount
+        // eaten: next time the scan goes straight to the meal at that amount.
         if (code != null && p.carbs != null) {
             Barcodes.remember(context, code, app.dropi.data.Packet.Found(p.copy(carbs = p.netCarbs, us = false, serving = null, name = name), portion))
+            Barcodes.rememberGrams(context, code, grams)
             if (missing == code) missing = null
         }
         val item = Label.item(name, grams, p)
-        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), (item.fat ?: 0.0) >= 25 || (item.protein ?: 0.0) >= 40, "label"))
+        draft = d.copy(status = Status.Ready, meal = Meal(listOf(item), richFor(item), "label"))
+    }
+
+    private fun richFor(item: MealItem) = (item.fat ?: 0.0) >= 25 || (item.protein ?: 0.0) >= 40
+
+    /**
+     * A packet scanned and logged before, with a name and an amount: the meal, filled in at that
+     * amount, so a known packet is scan → Save. Null when it still needs the grams step.
+     */
+    private fun knownPacket(ctx: Context, r: Barcodes.Result?): Pair<Meal, String>? {
+        if (r !is Barcodes.Result.Ok || !r.saved) return null
+        val p = r.found.per100
+        if (p.carbs == null || p.name.isBlank()) return null
+        val g = Barcodes.gramsFor(ctx, r.code) ?: return null
+        val item = Label.item(p.name, g, p)
+        return Meal(listOf(item), richFor(item), "label") to r.code
+    }
+
+    /** "Change your usual amount" on a known packet: back to the grams step, numbers as kept. */
+    fun changePacketAmount(context: Context) {
+        val d = draft ?: return
+        val code = d.packet ?: return
+        val f = Barcodes.saved(context, code) ?: return
+        draft = d.copy(status = Status.NeedsGrams(f.per100, code = code, source = "saved", portion = f.serving), meal = null, packet = null)
     }
 
     /** A meal logged before, again. */

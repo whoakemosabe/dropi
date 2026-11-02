@@ -79,6 +79,16 @@ object Barcodes {
         }
     }
 
+    /** A packet already kept on the phone, or null. */
+    fun saved(context: Context, code: String): Packet.Found? = prefs(context).getString(code, null)?.let { Packet.fromJson(it) }
+
+    /** How much of this packet the person usually eats (grams), kept from the last time they set it. */
+    fun gramsFor(context: Context, code: String): Int? = prefs(context).getInt("g:$code", 0).takeIf { it > 0 }
+
+    fun rememberGrams(context: Context, code: String, grams: Int) {
+        if (grams in 1..2000) prefs(context).edit().putInt("g:$code", grams).apply()
+    }
+
     /** Keeps a packet's numbers on the phone (as found, or as the person corrected them). */
     fun remember(context: Context, code: String, f: Packet.Found) {
         if (f.per100.carbs == null) return
@@ -86,7 +96,7 @@ object Barcodes {
         val e = p.edit().putString(code, Packet.toJson(f))
         // At most 300 packets; the oldest go first.
         val order = (p.getString("_order", "").orEmpty().split(',').filter { it.isNotBlank() && it != code } + code)
-        order.dropLast(300).forEach { e.remove(it) }
+        order.dropLast(300).forEach { e.remove(it); e.remove("g:$it") }
         e.putString("_order", order.takeLast(300).joinToString(",")).apply()
     }
 }
