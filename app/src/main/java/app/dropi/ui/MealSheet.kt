@@ -363,6 +363,10 @@ private fun LabelGrams(
         options.indexOf(grams).takeIf { it >= 0 }, columns = if (wide) 2 else options.size, compact = true,
     ) { grams = options[it] }
     NumberRow(tr("Or set the grams"), grams, step = 5, max = 2000) { grams = it }
+    if (code != null) Text(
+        tr("Dropi keeps this amount for this packet. Next time you scan it, the meal is filled in at {0} g, ready to save.", grams),
+        style = inter(13.sp, color = C.TextMuted).copy(lineHeight = 19.sp),
+    )
 
     // ---- What that comes to ----
     val raw = found.copy(carbs = c, sugars = num(sugars), fibre = num(fibre), protein = num(protein), fat = num(fat), serving = servingG)
