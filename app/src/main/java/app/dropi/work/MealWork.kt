@@ -294,57 +294,99 @@ object MealWork {
     fun fromLabel(context: Context, uri: Uri) {
         val ctx = context.applicationContext
         val id = start(Status.Working(tr("Reading the label…"), en = "Reading the label…"))
+        job(ctx) { labelFlow(ctx, id, uri, "label.jpg") }
+    }
+
+    /**
+     * Scan a packet: one photo, whichever side. A barcode on it is looked up first (a packet seen
+     * before goes straight to the meal); no barcode, or one Open Food Facts doesn't know, and the
+     * same photo is read as a label, kept for that barcode.
+     */
+    fun fromPacket(context: Context, uri: Uri) {
+        val ctx = context.applicationContext
+        val id = start(Status.Working(tr("Reading the packet…"), en = "Reading the packet…"))
         job(ctx) {
-            val lines = Scan.lines(ctx, uri)
-            val found = Label.read(lines)
-            // The on-device model reads the same text when the table didn't parse cleanly, and
-            // fills in what's missing (sugars, fibre, the product's name).
-            val ai = if (lines.isNotEmpty() && Ai.usable && (found?.carbs == null || found.sugars == null || found.fibre == null || found.protein == null || found.fat == null)) {
-                // A US label is read per serving (with its serving size), the same as the parser reads it.
-                try { Ai.readLabel(ctx, Label.prompt(lines.joinToString("\n"), us = Label.isUs(lines))) { Label.parseAi(it) } } catch (e: Throwable) { null }
-            } else null
-            val p = when {
-                found?.carbs != null -> found.copy(
-                    sugars = found.sugars ?: ai?.sugars, fibre = found.fibre ?: ai?.fibre, name = ai?.name.orEmpty(),
-                    protein = found.protein ?: ai?.protein, fat = found.fat ?: ai?.fat,
-                    serving = found.serving ?: ai?.serving,
-                )
-                ai?.carbs != null -> ai.copy(us = Label.isUs(lines))
-                else -> null
+            val code = try { Barcodes.read(ctx, uri) } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                null
             }
-            val why = if (lines.isEmpty()) Scan.problem else tr("Found text, but no carbs or sugars in it.")
-            val whyEn = if (lines.isEmpty()) Scan.problemEn else "Found text, but no carbs or sugars in it."
-            // What was read and from where, and the camera's text when something's missing, so a
-            // problem report shows exactly what the label gave.
-            if (p != null) {
-                fun mark(v: Double?, mine: Double?) = when { mine != null -> "read"; v != null -> "AI"; else -> "–" }
-                Diag.log(ctx, "Label: carbs ${mark(p.carbs, found?.carbs)}, sugars ${mark(p.sugars, found?.sugars)}, fibre ${mark(p.fibre, found?.fibre)}, " +
-                    "protein ${mark(p.protein, found?.protein)}, fat ${mark(p.fat, found?.fat)}; AI ${if (ai != null) "answered" else if (Ai.usable) "not needed or no answer" else "not ready"}")
-                if (p.fibre == null || p.protein == null || p.fat == null) Diag.log(ctx, "Label text: " + Scan.lastText.take(30).joinToString(" | ").take(900))
+            if (code == null) {
+                labelFlow(ctx, id, uri, "packet.jpg")
+                return@job
             }
-            if (p == null) Diag.log(ctx, "Label: nothing usable (${whyEn ?: "?"}; ${Scan.lastText.size} lines read; AI ${if (ai != null) "answered" else if (Ai.usable) "had no answer" else "not ready"})")
-            else if (found?.carbs == null) Diag.log(ctx, "Label: the parser missed it, the AI read it (${Scan.lastText.size} lines)")
-            val seen = Scan.lastText
-            // The label of a packet whose barcode wasn't found: what's read here is kept for that barcode.
-            val code = missing?.takeIf { System.currentTimeMillis() - missingAt < 15 * 60_000L }
-            if (p == null && lines.isNotEmpty()) {
-                // The table couldn't be read, but the photo may show the barcode.
-                val bc = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
-                val r = bc?.let { Barcodes.lookup(ctx, it) }
-                knownPacket(ctx, r)?.let { (meal, c) ->
-                    forgetShot(ctx, "label.jpg")
-                    land(id, Draft(id, Status.Ready, meal, packet = c))
-                    return@job
-                }
-                if (r is Barcodes.Result.Ok) {
-                    forgetShot(ctx, "label.jpg")
-                    land(id, Draft(id, Status.NeedsGrams(r.found.per100, text = seen, code = r.code, source = if (r.saved) "saved" else "off", portion = r.found.serving)))
-                    return@job
-                }
+            land(id, Draft(id, Status.Working(tr("Looking up the packet…"), en = "Looking up the packet…")))
+            val found = Barcodes.lookup(ctx, code)
+            knownPacket(ctx, found)?.let { (meal, c) ->
+                forgetShot(ctx, "packet.jpg")
+                land(id, Draft(id, Status.Ready, meal, packet = c))
+                return@job
             }
-            forgetShot(ctx, "label.jpg")
-            land(id, Draft(id, if (p != null) Status.NeedsGrams(p, text = seen, code = code) else Status.NeedsGrams(Label.Per100(null, null, null, us = Label.isUs(lines)), read = false, why = why, text = seen, code = code)))
+            if (found is Barcodes.Result.Ok) {
+                forgetShot(ctx, "packet.jpg")
+                land(id, Draft(id, Status.NeedsGrams(found.found.per100, code = code, source = if (found.saved) "saved" else "off", portion = found.found.serving)))
+                return@job
+            }
+            // Not listed (or offline): read the photo as a label; what's found is kept for this barcode.
+            Diag.log(ctx, "Packet: barcode $code ${if (found is Barcodes.Result.Offline) "couldn't be looked up" else "isn't in Open Food Facts"}, reading the label")
+            missing = code; missingAt = System.currentTimeMillis()
+            land(id, Draft(id, Status.Working(tr("Reading the label…"), en = "Reading the label…")))
+            labelFlow(ctx, id, uri, "packet.jpg",
+                whyIfNothing = if (found is Barcodes.Result.Offline) tr("Couldn't reach Open Food Facts, and the label wasn't on this photo. Take a photo of the nutrition table, or type the numbers.")
+                    else tr("This packet isn't in Open Food Facts yet. Take a photo of its nutrition table, or type the numbers. Dropi keeps them for next time."))
         }
+    }
+
+    /** Reads a label photo into the grams step (shared by Scan a label and Scan a packet). */
+    private suspend fun labelFlow(ctx: Context, id: Long, uri: Uri, shot: String, whyIfNothing: String? = null) {
+        val lines = Scan.lines(ctx, uri)
+        val found = Label.read(lines)
+        // The on-device model reads the same text when the table didn't parse cleanly, and
+        // fills in what's missing (sugars, fibre, the product's name).
+        val ai = if (lines.isNotEmpty() && Ai.usable && (found?.carbs == null || found.sugars == null || found.fibre == null || found.protein == null || found.fat == null)) {
+            // A US label is read per serving (with its serving size), the same as the parser reads it.
+            try { Ai.readLabel(ctx, Label.prompt(lines.joinToString("\n"), us = Label.isUs(lines))) { Label.parseAi(it) } } catch (e: Throwable) { null }
+        } else null
+        val p = when {
+            found?.carbs != null -> found.copy(
+                sugars = found.sugars ?: ai?.sugars, fibre = found.fibre ?: ai?.fibre, name = ai?.name.orEmpty(),
+                protein = found.protein ?: ai?.protein, fat = found.fat ?: ai?.fat,
+                serving = found.serving ?: ai?.serving,
+            )
+            ai?.carbs != null -> ai.copy(us = Label.isUs(lines))
+            else -> null
+        }
+        val why = whyIfNothing ?: if (lines.isEmpty()) Scan.problem else tr("Found text, but no carbs or sugars in it.")
+        val whyEn = if (lines.isEmpty()) Scan.problemEn else "Found text, but no carbs or sugars in it."
+        // What was read and from where, and the camera's text when something's missing, so a
+        // problem report shows exactly what the label gave.
+        if (p != null) {
+            fun mark(v: Double?, mine: Double?) = when { mine != null -> "read"; v != null -> "AI"; else -> "–" }
+            Diag.log(ctx, "Label: carbs ${mark(p.carbs, found?.carbs)}, sugars ${mark(p.sugars, found?.sugars)}, fibre ${mark(p.fibre, found?.fibre)}, " +
+                "protein ${mark(p.protein, found?.protein)}, fat ${mark(p.fat, found?.fat)}; AI ${if (ai != null) "answered" else if (Ai.usable) "not needed or no answer" else "not ready"}")
+            if (p.fibre == null || p.protein == null || p.fat == null) Diag.log(ctx, "Label text: " + Scan.lastText.take(30).joinToString(" | ").take(900))
+        }
+        if (p == null) Diag.log(ctx, "Label: nothing usable (${whyEn ?: "?"}; ${Scan.lastText.size} lines read; AI ${if (ai != null) "answered" else if (Ai.usable) "had no answer" else "not ready"})")
+        else if (found?.carbs == null) Diag.log(ctx, "Label: the parser missed it, the AI read it (${Scan.lastText.size} lines)")
+        val seen = Scan.lastText
+        // The label of a packet whose barcode wasn't found: what's read here is kept for that barcode.
+        val code = missing?.takeIf { System.currentTimeMillis() - missingAt < 15 * 60_000L }
+        if (p == null && lines.isNotEmpty()) {
+            // The table couldn't be read, but the photo may show the barcode.
+            val bc = try { Barcodes.read(ctx, uri) } catch (e: Throwable) { null }
+            val r = bc?.let { Barcodes.lookup(ctx, it) }
+            knownPacket(ctx, r)?.let { (meal, c) ->
+                forgetShot(ctx, shot)
+                land(id, Draft(id, Status.Ready, meal, packet = c))
+                return
+            }
+            if (r is Barcodes.Result.Ok) {
+                forgetShot(ctx, shot)
+                land(id, Draft(id, Status.NeedsGrams(r.found.per100, text = seen, code = r.code, source = if (r.saved) "saved" else "off", portion = r.found.serving)))
+                return
+            }
+        }
+        forgetShot(ctx, shot)
+        land(id, Draft(id, if (p != null) Status.NeedsGrams(p, text = seen, code = code) else Status.NeedsGrams(Label.Per100(null, null, null, us = Label.isUs(lines)), read = false, why = why, text = seen, code = code)))
     }
 
     /** A label or barcode photo is deleted once it's been read. */

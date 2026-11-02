@@ -52,7 +52,7 @@ private fun ColumnScope.MyFoodsContent(state: AppState, close: () -> Unit) {
     val meals = remember(version) { MealWork.savedMeals(context).entries.reversed() }
     StickySheetBody(tr("My foods"), close) {
         Text(
-            tr("Tap a food to log a meal with it. Saved foods are used before any guess and come first when you add a food. To change one, tap it in a meal, change the numbers and keep \"Update my …\" on."),
+            tr("Tap a food to log a meal with it. Saved foods are used before any guess and come first when you add a food. To change one, tap it in a meal, change the numbers and keep \"Update in My foods\" on."),
             style = inter(13.sp, color = C.TextSecondary).copy(lineHeight = 19.sp),
         )
         if (meals.isNotEmpty()) Column(Modifier.fillMaxWidth()) {
@@ -89,7 +89,7 @@ private fun ColumnScope.MyFoodsContent(state: AppState, close: () -> Unit) {
             }
         }
         if (foods.isEmpty()) {
-            SheetHint(tr("None yet. When you add or change a food in a meal, turn on \"Remember as my …\"."))
+            SheetHint(tr("None yet. When you add or change a food in a meal, turn on \"Add to My foods\"."))
             return@StickySheetBody
         }
         Column(Modifier.fillMaxWidth()) {

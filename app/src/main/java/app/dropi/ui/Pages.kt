@@ -98,16 +98,16 @@ fun MealsPage(state: AppState) {
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = LocalHeaderHeight.current + HEADER_FADE, bottom = bars.calculateBottomPadding() + TAB_BAR_CLEARANCE),
     ) {
         glideItem(key = "log") {
-            // The camera first and wider, then the other four ways in, all in one row.
+            // The camera first and wider, then the other three ways in, all in one row.
             Row(
                 Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                CaptureButton(tr("Snap a meal"), R.drawable.lc_camera, Modifier.weight(1.7f), filled = true) { Launch.mealAction.value = "camera" }
+                // The same ways in, and names, as the + panel.
+                CaptureButton(tr("Snap a meal"), R.drawable.lc_camera, Modifier.weight(1.5f), filled = true) { Launch.mealAction.value = "camera" }
                 CaptureButton(tr("Say it"), R.drawable.lc_mic, Modifier.weight(1f)) { Launch.mealAction.value = "words" }
-                CaptureButton(tr("Barcode"), R.drawable.lc_scan_barcode, Modifier.weight(1f)) { Launch.mealAction.value = "barcode" }
-                CaptureButton(tr("Label"), R.drawable.lc_scan_text, Modifier.weight(1f)) { Launch.mealAction.value = "label" }
-                CaptureButton(tr("Type it"), R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
+                CaptureButton(tr("Scan a packet"), R.drawable.lc_scan_barcode, Modifier.weight(1.3f)) { Launch.mealAction.value = "packet" }
+                CaptureButton(tr("By hand"), R.drawable.lc_pencil, Modifier.weight(1f)) { MealWork.manual() }
             }
         }
         // Logging first: an unsaved meal, a running try-it week, then today.

@@ -1279,3 +1279,59 @@ Reading changed	Mælingu breytt
 Lab result removed	Niðurstaða fjarlægð
 Check removed	Mælingartíma eytt
 Targets reset	Markgildi endurstillt
+Scan a packet	Skanna pakka
+By hand	Handvirkt
+Tap a food to log a meal with it. Saved foods are used before any guess and come first when you add a food. To change one, tap it in a meal, change the numbers and keep "Update in My foods" on.	Ýttu á fæðu til að skrá máltíð með henni. Vistaðar fæður eru notaðar á undan allri ágiskun og koma fyrst þegar þú bætir við fæðu. Til að breyta einni, ýttu á hana í máltíð, breyttu tölunum og hafðu „Uppfæra í Mínum fæðum“ á.
+None yet. When you add or change a food in a meal, turn on "Add to My foods".	Engar enn. Þegar þú bætir við eða breytir fæðu í máltíð, kveiktu á „Bæta í Mínar fæður“.
+Add these foods	Bæta þessu við
+From Open Food Facts, {0}	Frá Open Food Facts, {0}
+As you checked them before, {0}	Eins og þú staðfestir áður, {0}
+Read from the label, {0}	Lesið af næringartöflunni, {0}
+Check they match the packet's "{0}" column.	Athugaðu að þær passi við dálkinn „{0}“ á pakkanum.
+1 serving · {0} g	1 skammtur · {0} g
+½ serving · {0} g	½ skammtur · {0} g
+Last time · {0} g	Síðast · {0} g
+Or set the grams	Eða stilltu grömmin
+g carbs in {0} g	g kolvetni í {0} g
+{0} sugars	{0} sykur
+{0} fibre	{0} trefjar
+{0} protein	{0} prótein
+{0} fat	{0} fita
+Likely about {0}, around {1} after eating	Líklega um {0}, um {1} eftir mat
+Likely a rise of {0}, around {1} after eating	Líklega hækkun um {0}, um {1} eftir mat
+An estimate, not advice.	Áætlun, ekki ráðgjöf.
+Take the photo again	Taka myndina aftur
+What Dropi read	Það sem Dropi las
+Add more to this meal	Bæta meiru við þessa máltíð
+Change what you need, then save.	Breyttu því sem þarf og vistaðu svo.
+Check the foods, then save.	Farðu yfir fæðurnar og vistaðu svo.
+g carbs in total	g kolvetni alls
+Fatty meal: check at {0}	Þung máltíð: mæla eftir {0}
+From your {0} reading, {1}	Frá mælingunni kl. {0}, {1}
+Count my {0} reading	Nota mælinguna kl. {0}
+back near the start by {0}	aftur nærri byrjun eftir {0}
+From your past meals. Not advice.	Út frá fyrri máltíðum. Ekki ráðgjöf.
+From this meal's numbers. Not advice.	Út frá tölum þessarar máltíðar. Ekki ráðgjöf.
+Anything else?	Eitthvað fleira?
+A walk after, veggies first, fatty meal, say a change	Göngutúr á eftir, grænmeti fyrst, þung máltíð, segja breytingu
+Fatty or creamy meal	Feit eða rjómakennd máltíð
+Fatty or creamy meal, check at 3 hours	Feit eða rjómakennd máltíð, mæla eftir 3 klst.
+{0} last time	{0} síðast
+From last time	Frá því síðast
+From My foods	Úr Mínum fæðum
+Dropi's best guess. Change it if you know better.	Besta ágiskun Dropa. Breyttu henni ef þú veist betur.
+Looking it up…	Flettir upp…
+Type its carbs first	Skrifaðu kolvetnin fyrst
+How much of each, for what you ate. 0,8 and 0.8 both work.	Hve mikið af hverju, fyrir það sem þú borðaðir. Bæði 0,8 og 0.8 virka.
+About right	Um það bil rétt
+Update {0} in My foods	Uppfæra {0} í Mínum fæðum
+Add {0} to My foods	Bæta {0} í Mínar fæður
+Barcode or label: exact carbs	Strikamerki eða tafla: nákvæm kolvetni
+Pick a photo you took	Velja mynd sem þú tókst
+Add foods by hand	Bæta við fæðum handvirkt
+Quick add	Fljótleg skráning
+All my foods	Allar mínar fæður
+Again · recent meals	Aftur · nýlegar máltíðir
+Reading the packet…	Les pakkann…
+Couldn't reach Open Food Facts, and the label wasn't on this photo. Take a photo of the nutrition table, or type the numbers.	Náði ekki sambandi við Open Food Facts og næringartaflan var ekki á þessari mynd. Taktu mynd af næringartöflunni eða skrifaðu tölurnar.
+This packet isn't in Open Food Facts yet. Take a photo of its nutrition table, or type the numbers. Dropi keeps them for next time.	Þessi pakki er ekki enn í Open Food Facts. Taktu mynd af næringartöflunni eða skrifaðu tölurnar. Dropi geymir þær til næsta skiptis.
